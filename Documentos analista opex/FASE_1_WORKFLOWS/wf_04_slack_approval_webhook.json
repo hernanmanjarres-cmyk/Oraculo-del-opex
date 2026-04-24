@@ -41,13 +41,64 @@
     },
     {
       "parameters": {
+        "mode": "rules",
         "rules": {
           "values": [
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "aprobar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "aprobar" },
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "rechazar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "rechazar" },
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "false_positive", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "false_positive" },
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "pausar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "pausar" },
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "ver_cola", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "ver_cola" }
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+                "conditions": [
+                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "aprobar", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "aprobar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+                "conditions": [
+                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "rechazar", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rechazar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+                "conditions": [
+                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "false_positive", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "false_positive"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+                "conditions": [
+                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "pausar", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pausar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+                "conditions": [
+                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "ver_cola", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ver_cola"
+            }
           ]
         },
         "options": { "fallbackOutput": "none" }
