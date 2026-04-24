@@ -192,7 +192,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opex_alerts\nSET estado = 'false_positive',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.alert_id }}';\n\nINSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'false_positive', 'Marcado como FP desde Slack', 'slack', NOW(), '{{ $json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id;",
+        "query": "UPDATE opex_alerts\nSET estado = 'false_positive',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.alert_id }}';\n\nINSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'false_positive', 'Marcado como FP desde Slack', 'slack', NOW(), '{{ $json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id AS case_id, alert_id, codigo_alerta;",
         "options": {}
       },
       "id": "registrar-fp-db",
@@ -205,7 +205,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').first().json.alert_id }}'\n);\n\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
+        "query": "UPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = '{{ $json.codigo_alerta }}'\nRETURNING r.codigo_regla, r.fp_rate;",
         "options": {}
       },
       "id": "actualizar-fp-rate",
