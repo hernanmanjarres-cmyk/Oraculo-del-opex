@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 1. Verificar Signing Secret de Slack\n// 2. Parsear payload de interactividad\nconst body = $input.first().json.body;\nconst headers = $input.first().json.headers;\n\n// En producción: verificar firma HMAC con el Signing Secret\n// const signingSecret = $vars.OPEX_SLACK_SIGNING_SECRET;\n// const timestamp = headers['x-slack-request-timestamp'];\n// const slackSig = headers['x-slack-signature'];\n// const baseString = `v0:${timestamp}:${rawBody}`;\n// const computed = 'v0=' + crypto.createHmac('sha256', signingSecret).update(baseString).digest('hex');\n// if (computed !== slackSig) throw new Error('Slack signature mismatch');\n\n// Parsear el payload (viene como form-urlencoded)\nlet payload;\ntry {\n  payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n} catch(e) {\n  throw new Error('Payload Slack inválido: ' + e.message);\n}\n\nconst action = payload.actions?.[0];\nconst actionId = action?.action_id || '';\nconst actionValue = action?.value || '';\nconst userId = payload.user?.id || 'desconocido';\nconst userName = payload.user?.username || 'desconocido';\nconst messageTs = payload.message?.ts || '';\nconst channelId = payload.channel?.id || '';\n\n// Determinar tipo de acción\nlet tipoAccion = 'desconocida';\nif (actionId === 'aprobar_comunicacion' || actionId.startsWith('aprobar_')) tipoAccion = 'aprobar';\nelse if (actionId === 'rechazar_comunicacion' || actionId.startsWith('rechazar_')) tipoAccion = 'rechazar';\nelse if (actionId === 'falso_positivo' || actionId.startsWith('fp_')) tipoAccion = 'false_positive';\nelse if (actionId === 'pausar_alertas') tipoAccion = 'pausar';\nelse if (actionId === 'ver_cola_aprobacion') tipoAccion = 'ver_cola';\nelse if (actionId === 'recalibrar_aplicar') tipoAccion = 'recalibrar_aplicar';\nelse if (actionId === 'recalibrar_ignorar') tipoAccion = 'recalibrar_ignorar';\n\n// Extraer ID de la alerta/aprobación del value o action_id\nconst idEntidad = actionValue.replace(/^(aprobar_|rechazar_|fp_)/, '') || actionValue;\n\nreturn [{\n  json: {\n    tipo_accion: tipoAccion,\n    action_id: actionId,\n    id_entidad: idEntidad,\n    user_id: userId,\n    user_name: userName,\n    message_ts: messageTs,\n    channel_id: channelId,\n    payload_completo: payload\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body;\n\nlet payload;\ntry {\n  payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n} catch(e) {\n  throw new Error('Payload Slack inválido: ' + e.message);\n}\n\nconst action = payload.actions?.[0];\nconst actionId = action?.action_id || '';\nconst actionValue = action?.value || '';\nconst userId = payload.user?.id || 'desconocido';\nconst userName = payload.user?.username || payload.user?.name || 'desconocido';\nconst messageTs = payload.message?.ts || '';\nconst channelId = payload.channel?.id || '';\n\nlet tipoAccion = 'desconocida';\nif (actionId === 'aprobar_comunicacion' || actionId.startsWith('aprobar_')) tipoAccion = 'aprobar';\nelse if (actionId === 'rechazar_comunicacion' || actionId.startsWith('rechazar_')) tipoAccion = 'rechazar';\nelse if (actionId === 'falso_positivo' || actionId.startsWith('fp_')) tipoAccion = 'false_positive';\nelse if (actionId === 'pausar_alertas') tipoAccion = 'pausar';\nelse if (actionId === 'ver_cola_aprobacion') tipoAccion = 'ver_cola';\nelse if (actionId === 'abrir_dashboard') tipoAccion = 'abrir_dashboard';\nelse if (actionId === 'recalibrar_aplicar') tipoAccion = 'recalibrar_aplicar';\nelse if (actionId === 'recalibrar_ignorar') tipoAccion = 'recalibrar_ignorar';\n\nconst idEntidad = actionValue.replace(/^(aprobar_|rechazar_|fp_)/, '') || actionValue;\n\nreturn [{\n  json: {\n    tipo_accion: tipoAccion,\n    action_id: actionId,\n    id_entidad: idEntidad,\n    user_id: userId,\n    user_name: userName,\n    message_ts: messageTs,\n    channel_id: channelId\n  }\n}];"
       },
       "id": "parsear-payload",
       "name": "Parsear y Validar Payload Slack",
@@ -47,9 +47,10 @@
             { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "rechazar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "rechazar" },
             { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "false_positive", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "false_positive" },
             { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "pausar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "pausar" },
-            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "recalibrar_aplicar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "recalibrar" }
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "ver_cola", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "ver_cola" }
           ]
-        }
+        },
+        "options": { "fallbackOutput": "none" }
       },
       "id": "switch-accion",
       "name": "Switch por Tipo de Acción",
@@ -68,7 +69,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 240],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -86,28 +87,33 @@
             "enviado_por": "={{ $('Parsear y Validar Payload Slack').item.json.user_name }}",
             "canal": "n8n_smtp"
           }
-        }
+        },
+        "options": {}
       },
       "id": "log-comunicacion",
       "name": "Registrar Comunicación Enviada",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [960, 240],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "C0AUWJ91V1T", "mode": "id" },
-        "text": "✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}\"\n}",
+        "options": {}
       },
       "id": "slack-confirm-aprobacion",
       "name": "Confirmar Aprobación en Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
       "position": [1200, 240],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     },
     {
       "parameters": {
@@ -120,11 +126,11 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 420],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "jsCode": "// Cerrar alerta como false_positive y crear case\nconst data = $input.first().json;\nconst parsedData = $('Parsear y Validar Payload Slack').first().json;\n\nreturn [{\n  json: {\n    alert_id: parsedData.id_entidad,\n    user_name: parsedData.user_name,\n    veredicto: 'false_positive',\n    causa_raiz_texto: 'Marcado como falso positivo desde Slack',\n    canal_cierre: 'slack',\n    cerrado_en: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const parsedData = $('Parsear y Validar Payload Slack').first().json;\n\nreturn [{\n  json: {\n    alert_id: parsedData.id_entidad,\n    user_name: parsedData.user_name,\n    veredicto: 'false_positive',\n    causa_raiz_texto: 'Marcado como falso positivo desde Slack',\n    canal_cierre: 'slack',\n    cerrado_en: new Date().toISOString()\n  }\n}];"
       },
       "id": "preparar-fp",
       "name": "Preparar False Positive",
@@ -135,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Actualizar alerta a false_positive y crear case\nUPDATE opex_alerts\nSET estado = 'false_positive',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.alert_id }}';\n\n-- Insertar caso para el feedback loop\nINSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'false_positive', 'Marcado como FP desde Slack', 'slack', NOW(), '{{ $json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id;",
+        "query": "UPDATE opex_alerts\nSET estado = 'false_positive',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.alert_id }}';\n\nINSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'false_positive', 'Marcado como FP desde Slack', 'slack', NOW(), '{{ $json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id;",
         "options": {}
       },
       "id": "registrar-fp-db",
@@ -143,12 +149,12 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [960, 600],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Recalcular fp_rate para esta regla\nUPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').item.json.alert_id }}'\n);\n\n-- Verificar si el fp_rate supera el umbral de recalibración\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
+        "query": "UPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').item.json.alert_id }}'\n);\n\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
         "options": {}
       },
       "id": "actualizar-fp-rate",
@@ -156,7 +162,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1200, 600],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -178,17 +184,21 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
-        "text": "⚠️ *Alerta de calidad — Regla {{ $json.codigo_regla }}*\nTasa de falsos positivos en últimos 30 días: *{{ ($json.fp_rate * 100).toFixed(0) }}%*\n\nSe recomienda revisar y ajustar el umbral. El workflow de recalibración mensual hará una propuesta formal el día 3 del próximo mes.",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0AVCTBV665\",\n  \"text\": \"⚠️ *Alerta de calidad — Regla {{ $json.codigo_regla }}*\\nTasa de falsos positivos en últimos 30 días: *{{ Math.round($json.fp_rate * 100) }}%*\\n\\nSe recomienda revisar y ajustar el umbral. El workflow de recalibración mensual hará una propuesta formal el día 3 del próximo mes.\"\n}",
+        "options": {}
       },
       "id": "slack-fp-alto",
       "name": "Sugerir Revisión de Umbral",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
       "position": [1680, 480],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     },
     {
       "parameters": {
@@ -201,21 +211,66 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 780],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
-        "text": "⏸️ *Agente OPEX pausado* por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\nSolo se procesarán alertas críticas. Para reactivar: corre el workflow de configuración o cambia `kill_switch` a `false` en Supabase.",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0AVCTBV665\",\n  \"text\": \"⏸️ *Agente OPEX pausado* por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\\nSolo se procesarán alertas críticas. Para reactivar: cambia `kill_switch` a `false` en Supabase (tabla opex_config).\"\n}",
+        "options": {}
       },
       "id": "slack-pausado",
       "name": "Confirmar Pausa en Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
       "position": [960, 780],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  a.id,\n  a.codigo_alerta,\n  a.contratista_nombre,\n  a.zona,\n  a.delta_pct,\n  a.severidad,\n  a.narrativa_corta,\n  a.generada_en\nFROM opex_alerts a\nWHERE a.estado = 'open'\n  AND a.severidad IN ('alta','critica')\nORDER BY ABS(a.delta_pct) DESC NULLS LAST\nLIMIT 10;",
+        "options": {}
+      },
+      "id": "query-cola",
+      "name": "Query Cola de Alertas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 960],
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst user = $('Parsear y Validar Payload Slack').first().json.user_name;\n\nif (items.length === 0 || !items[0].json.id) {\n  return [{\n    json: {\n      slack_blocks: [\n        { type: 'section', text: { type: 'mrkdwn', text: `*📋 Cola de aprobaciones — solicitada por @${user}*\\n\\nNo hay alertas altas/críticas abiertas en este momento. 🎉` } }\n      ]\n    }\n  }];\n}\n\nconst fmtPct = (n) => n !== null && n !== undefined ? `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%` : 'N/D';\n\nconst header = { type: 'section', text: { type: 'mrkdwn', text: `*📋 Cola de aprobaciones — ${items.length} alerta(s) — solicitada por @${user}*` } };\nconst divider = { type: 'divider' };\n\nconst alertBlocks = [];\nfor (const it of items) {\n  const a = it.json;\n  const sev = a.severidad === 'critica' ? '🔴' : '🟠';\n  const narrativa = (a.narrativa_corta || '').substring(0, 140);\n  alertBlocks.push({\n    type: 'section',\n    text: { type: 'mrkdwn', text: `${sev} *${a.contratista_nombre || 'Contratista'}* — ${a.zona || 'zona'} — ${a.codigo_alerta}\\n${narrativa} _(${fmtPct(a.delta_pct)})_` }\n  });\n  alertBlocks.push({\n    type: 'actions',\n    elements: [\n      { type: 'button', text: { type: 'plain_text', text: 'Aprobar' }, action_id: `aprobar_${a.id}`, style: 'primary', value: `aprobar_${a.id}` },\n      { type: 'button', text: { type: 'plain_text', text: 'Falso positivo' }, action_id: `fp_${a.id}`, style: 'danger', value: `fp_${a.id}` }\n    ]\n  });\n}\n\nreturn [{\n  json: {\n    slack_blocks: [header, divider, ...alertBlocks]\n  }\n}];"
+      },
+      "id": "formatear-cola",
+      "name": "Formatear Cola Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 960]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"Cola de aprobaciones OPEX\",\n  \"blocks\": {{ JSON.stringify($json.slack_blocks) }}\n}",
+        "options": {}
+      },
+      "id": "enviar-cola",
+      "name": "Enviar Cola a Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1200, 960],
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     }
   ],
   "connections": {
@@ -231,7 +286,8 @@
         [{ "node": "Marcar Aprobado en DB", "type": "main", "index": 0 }],
         [{ "node": "Marcar Rechazado en DB", "type": "main", "index": 0 }],
         [{ "node": "Preparar False Positive", "type": "main", "index": 0 }],
-        [{ "node": "Activar Kill Switch (Pausar)", "type": "main", "index": 0 }]
+        [{ "node": "Activar Kill Switch (Pausar)", "type": "main", "index": 0 }],
+        [{ "node": "Query Cola de Alertas", "type": "main", "index": 0 }]
       ]
     },
     "Marcar Aprobado en DB": { "main": [[{ "node": "Registrar Comunicación Enviada", "type": "main", "index": 0 }]] },
@@ -245,7 +301,9 @@
         []
       ]
     },
-    "Activar Kill Switch (Pausar)": { "main": [[{ "node": "Confirmar Pausa en Slack", "type": "main", "index": 0 }]] }
+    "Activar Kill Switch (Pausar)": { "main": [[{ "node": "Confirmar Pausa en Slack", "type": "main", "index": 0 }]] },
+    "Query Cola de Alertas": { "main": [[{ "node": "Formatear Cola Slack", "type": "main", "index": 0 }]] },
+    "Formatear Cola Slack": { "main": [[{ "node": "Enviar Cola a Slack", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "executionOrder": "v1",
@@ -253,6 +311,6 @@
   },
   "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Aprobaciones" }, { "name": "Feedback-Loop" }],
   "meta": {
-    "notes": "Webhook que recibe acciones de Slack (botones). Maneja: aprobar comunicación, rechazar, marcar falso positivo, pausar agente. El flujo de falso positivo actualiza fp_rate en opex_rules (mecanismo evolutivo)."
+    "notes": "Webhook que recibe acciones de Slack (botones). Maneja: aprobar, rechazar, falso positivo, pausar, ver_cola. Los nodos Slack usan HTTP Request a chat.postMessage con credencial Header Auth account 12 (Bearer xoxb-...). El flujo FP actualiza fp_rate en opex_rules (mecanismo evolutivo)."
   }
 }
