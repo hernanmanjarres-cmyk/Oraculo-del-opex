@@ -135,7 +135,7 @@
             "tipo_comunicacion": "={{ $json.tipo_comunicacion }}",
             "destinatario": "={{ $json.destinatario }}",
             "cuerpo_final": "={{ $json.cuerpo_final || $json.cuerpo_borrador }}",
-            "enviado_por": "={{ $('Parsear y Validar Payload Slack').item.json.user_name }}",
+            "enviado_por": "={{ $('Parsear y Validar Payload Slack').first().json.user_name }}",
             "canal": "n8n_smtp"
           }
         },
@@ -156,7 +156,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}\"\n}",
+        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').first().json.user_name }}\\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}\"\n}",
         "options": {}
       },
       "id": "slack-confirm-aprobacion",
@@ -181,7 +181,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const parsedData = $('Parsear y Validar Payload Slack').first().json;\n\nreturn [{\n  json: {\n    alert_id: parsedData.id_entidad,\n    user_name: parsedData.user_name,\n    veredicto: 'false_positive',\n    causa_raiz_texto: 'Marcado como falso positivo desde Slack',\n    canal_cierre: 'slack',\n    cerrado_en: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const parsedData = $('Parsear y Validar Payload Slack').first().json;\n\nreturn [{\n  json: {\n    alert_id: parsedData.id_entidad,\n    user_name: parsedData.user_name,\n    veredicto: 'false_positive',\n    causa_raiz_texto: 'Marcado como falso positivo desde Slack',\n    canal_cierre: 'slack',\n    cerrado_en: new Date().toISOString()\n  },\n  pairedItem: { item: 0 }\n}];"
       },
       "id": "preparar-fp",
       "name": "Preparar False Positive",
@@ -205,7 +205,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').item.json.alert_id }}'\n);\n\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
+        "query": "UPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').first().json.alert_id }}'\n);\n\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
         "options": {}
       },
       "id": "actualizar-fp-rate",
@@ -272,7 +272,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"channel\": \"C0AVCTBV665\",\n  \"text\": \"⏸️ *Agente OPEX pausado* por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\\nSolo se procesarán alertas críticas. Para reactivar: cambia `kill_switch` a `false` en Supabase (tabla opex_config).\"\n}",
+        "jsonBody": "={\n  \"channel\": \"C0AVCTBV665\",\n  \"text\": \"⏸️ *Agente OPEX pausado* por @{{ $('Parsear y Validar Payload Slack').first().json.user_name }}\\nSolo se procesarán alertas críticas. Para reactivar: cambia `kill_switch` a `false` en Supabase (tabla opex_config).\"\n}",
         "options": {}
       },
       "id": "slack-pausado",
