@@ -1,0 +1,123 @@
+{
+  "name": "WF-03 | OPEX Resumen Diario Slack 07:30",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "30 7 * * 1-5" }]
+        }
+      },
+      "id": "trigger-07h30",
+      "name": "Cron 07:30 L-V",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "notes": "Lunes a viernes a las 07:30. Ajustar zona horaria a Bogotá (UTC-5) en la instancia n8n."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Resumen del día anterior y estado MTD\nWITH ayer AS (\n  SELECT CURRENT_DATE - 1 AS fecha_ayer\n),\nejecucion_ayer AS (\n  SELECT\n    COALESCE(SUM(t.costo_total), 0) AS total_ayer\n  FROM opex_transactions t, ayer\n  WHERE t.fecha_tx = ayer.fecha_ayer\n),\nejecucion_mtd AS (\n  SELECT\n    COALESCE(SUM(t.costo_total), 0) AS total_mtd\n  FROM opex_transactions t\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = EXTRACT(YEAR FROM CURRENT_DATE)\n    AND EXTRACT(MONTH FROM t.fecha_tx) = EXTRACT(MONTH FROM CURRENT_DATE)\n),\nbudget_mes AS (\n  SELECT\n    COALESCE(SUM(b.monto_budget), 0) AS budget_total\n  FROM opex_budget b\n  WHERE b.anio = EXTRACT(YEAR FROM CURRENT_DATE)\n    AND b.mes = EXTRACT(MONTH FROM CURRENT_DATE)\n    AND b.zona IS NULL\n    AND b.contratista_id IS NULL\n),\nalertas_hoy AS (\n  SELECT\n    COUNT(*) FILTER (WHERE a.severidad IN ('alta','critica') AND a.estado = 'open') AS altas_criticas_abiertas,\n    COUNT(*) FILTER (WHERE a.severidad = 'media' AND a.estado = 'open') AS medias_abiertas,\n    COUNT(*) FILTER (WHERE a.estado IN ('resolved','false_positive')\n      AND a.resuelta_en >= CURRENT_DATE - 1) AS cerradas_ayer\n  FROM opex_alerts a\n  WHERE a.generada_en >= CURRENT_DATE - 7\n),\ntop_desviaciones AS (\n  SELECT\n    a.contratista_nombre,\n    a.zona,\n    a.codigo_alerta,\n    a.delta_pct,\n    a.narrativa_corta,\n    a.severidad\n  FROM opex_alerts a\n  WHERE a.estado = 'open'\n    AND a.severidad IN ('alta','critica')\n  ORDER BY ABS(a.delta_pct) DESC NULLS LAST\n  LIMIT 3\n),\nforecast_hoy AS (\n  SELECT\n    proyeccion_central,\n    budget_mes,\n    desviacion_pct,\n    nivel_confianza\n  FROM opex_forecasts\n  WHERE anio = EXTRACT(YEAR FROM CURRENT_DATE)\n    AND mes = EXTRACT(MONTH FROM CURRENT_DATE)\n  ORDER BY fecha_calculo DESC\n  LIMIT 1\n)\nSELECT\n  e_ayer.total_ayer,\n  e_mtd.total_mtd,\n  b.budget_total,\n  CASE WHEN b.budget_total > 0 THEN\n    ROUND(((e_mtd.total_mtd - b.budget_total) / b.budget_total) * 100, 1)\n  ELSE NULL END AS desviacion_mtd_pct,\n  al.altas_criticas_abiertas,\n  al.medias_abiertas,\n  al.cerradas_ayer,\n  f.proyeccion_central,\n  f.desviacion_pct AS forecast_desviacion_pct,\n  (\n    SELECT json_agg(t ORDER BY ABS(t.delta_pct) DESC NULLS LAST)\n    FROM top_desviaciones t\n  ) AS top_desviaciones_json\nFROM ejecucion_ayer e_ayer\nCROSS JOIN ejecucion_mtd e_mtd\nCROSS JOIN budget_mes b\nCROSS JOIN alertas_hoy al\nLEFT JOIN forecast_hoy f ON true;",
+        "options": {}
+      },
+      "id": "query-resumen",
+      "name": "Query Resumen del Día",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 300],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// Formatear números a COP\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\nconst fmtPct = (n) => n !== null && n !== undefined ? `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%` : 'N/D';\n\n// Semáforo MTD\nconst desvMTD = Number(d.desviacion_mtd_pct || 0);\nconst semMTD = desvMTD > 10 ? '🔴' : desvMTD > 5 ? '🟡' : '🟢';\n\n// Semáforo forecast\nconst desvFcast = Number(d.forecast_desviacion_pct || 0);\nconst semFcast = desvFcast > 10 ? '🔴' : desvFcast > 5 ? '🟡' : '🟢';\n\n// Top desviaciones\nconst tops = d.top_desviaciones_json || [];\nconst topTexto = tops.length > 0\n  ? tops.map(t => `  • ${t.contratista_nombre || 'Contratista'} — ${t.zona} — ${t.narrativa_corta}`).join('\\n')\n  : '  • Sin desviaciones críticas activas';\n\n// Fecha\nconst hoy = new Date();\nconst fechaStr = hoy.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });\nconst mesNombre = hoy.toLocaleDateString('es-CO', { month:'long' });\n\nreturn [{\n  json: {\n    texto_resumen: `*Analista OPEX BIA — ${fechaStr}*\\nEjecución ayer: *${fmt(d.total_ayer)}*  |  MTD: *${fmt(d.total_mtd)}* (${semMTD} ${fmtPct(d.desviacion_mtd_pct)} vs budget)\\n\\n🔴 Alertas altas/críticas abiertas: *${d.altas_criticas_abiertas || 0}*\\n🟡 Alertas medias abiertas: *${d.medias_abiertas || 0}*\\n🟢 Cerradas ayer: *${d.cerradas_ayer || 0}*\\n\\n*Top desviaciones:*\\n${topTexto}\\n\\nForecast cierre ${mesNombre}: *${fmt(d.proyeccion_central)}* (${semFcast} ${fmtPct(d.forecast_desviacion_pct)} vs budget)`,\n    altas_criticas: d.altas_criticas_abiertas || 0,\n    medias: d.medias_abiertas || 0\n  }\n}];"
+      },
+      "id": "formatear-mensaje",
+      "name": "Formatear Mensaje Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
+        "blocksUi": {
+          "blocksValues": [
+            {
+              "type": "section",
+              "text": { "type": "mrkdwn", "text": "={{ $json.texto_resumen }}" }
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "Ver cola de aprobación ({{ $json.altas_criticas }})" },
+                  "action_id": "ver_cola_aprobacion",
+                  "style": "primary",
+                  "value": "ver_cola"
+                },
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "Abrir dashboard" },
+                  "action_id": "abrir_dashboard",
+                  "value": "dashboard"
+                },
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "Pausar alertas no críticas" },
+                  "action_id": "pausar_alertas",
+                  "value": "pausar",
+                  "style": "danger"
+                }
+              ]
+            }
+          ]
+        },
+        "otherOptions": {}
+      },
+      "id": "enviar-slack",
+      "name": "Enviar Resumen a Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [720, 300],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_agent_log", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "wf_03",
+            "workflow_nombre": "Resumen Diario Slack",
+            "estado": "ok",
+            "registros_procesados": 1
+          }
+        }
+      },
+      "id": "log-ejecucion",
+      "name": "Log Ejecución",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 300],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Cron 07:30 L-V": { "main": [[{ "node": "Query Resumen del Día", "type": "main", "index": 0 }]] },
+    "Query Resumen del Día": { "main": [[{ "node": "Formatear Mensaje Slack", "type": "main", "index": 0 }]] },
+    "Formatear Mensaje Slack": { "main": [[{ "node": "Enviar Resumen a Slack", "type": "main", "index": 0 }]] },
+    "Enviar Resumen a Slack": { "main": [[{ "node": "Log Ejecución", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Slack" }],
+  "meta": {
+    "notes": "Resumen ejecutivo diario en Slack. Ejecuta lunes a viernes a las 07:30 (hora Bogotá). Incluye ejecución, alertas abiertas, top 3 desviaciones y forecast del mes."
+  }
+}

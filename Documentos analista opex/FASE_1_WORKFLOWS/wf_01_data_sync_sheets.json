@@ -1,0 +1,219 @@
+{
+  "name": "WF-01 | OPEX Sync Sheets → Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Cron 06:00 diario",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "notes": "Ejecuta a las 06:00 todos los días para sincronizar tarifario y budget antes del resumen de 07:30"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "SHEETS_ID_TARIFARIO_AQUI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Tarifario", "mode": "name" },
+        "options": { "headerRow": 1 }
+      },
+      "id": "read-tarifario",
+      "name": "Leer Sheet Tarifario",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [240, 180],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "1", "name": "Google Sheets OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "SHEETS_ID_BUDGET_AQUI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Budget", "mode": "name" },
+        "options": { "headerRow": 1 }
+      },
+      "id": "read-budget",
+      "name": "Leer Sheet Budget",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [240, 420],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "1", "name": "Google Sheets OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar y limpiar filas del tarifario\nconst rows = $input.all();\nconst valid = [];\nconst errors = [];\n\nfor (const item of rows) {\n  const row = item.json;\n  const rowNum = rows.indexOf(item) + 2; // +2 porque fila 1 es header\n\n  // Validaciones\n  if (!row.contratista_id) { errors.push(`Fila ${rowNum}: contratista_id vacío`); continue; }\n  if (!row.tipo_servicio) { errors.push(`Fila ${rowNum}: tipo_servicio vacío`); continue; }\n  if (!row.tarifa || isNaN(Number(row.tarifa)) || Number(row.tarifa) <= 0) {\n    errors.push(`Fila ${rowNum}: tarifa inválida (${row.tarifa})`); continue;\n  }\n  if (!row.effective_from || isNaN(Date.parse(row.effective_from))) {\n    errors.push(`Fila ${rowNum}: effective_from inválido (${row.effective_from})`); continue;\n  }\n\n  valid.push({\n    json: {\n      contratista_id: String(row.contratista_id).trim(),\n      contratista_nombre: String(row.contratista_nombre || '').trim(),\n      tipo_servicio: String(row.tipo_servicio).trim().toUpperCase(),\n      zona: row.zona ? String(row.zona).trim() : null,\n      or_codigo: row.or_codigo ? String(row.or_codigo).trim() : null,\n      unidad: String(row.unidad || 'und').trim(),\n      tarifa: Number(String(row.tarifa).replace(/[^0-9.]/g, '')),\n      moneda: String(row.moneda || 'COP').trim().toUpperCase(),\n      tolerancia_pct: row.tolerancia_pct ? Number(row.tolerancia_pct) : 3.0,\n      es_tarifa_variable: String(row.es_tarifa_variable || 'NO').toUpperCase() === 'SI',\n      cap_mensual: row.cap_mensual ? Number(String(row.cap_mensual).replace(/[^0-9.]/g, '')) : null,\n      notas: row.notas || null,\n      effective_from: row.effective_from,\n      effective_to: row.effective_to || null,\n      version: 1,\n      creado_por: 'wf_01_sync'\n    }\n  });\n}\n\n// Guardar errores en el primer item para logging posterior\nif (errors.length > 0) {\n  $execution.customData.set('tarifario_errors', JSON.stringify(errors));\n}\n\nreturn valid;"
+      },
+      "id": "validate-tarifario",
+      "name": "Validar Tarifario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar y limpiar filas del budget\nconst rows = $input.all();\nconst valid = [];\nconst errors = [];\n\nfor (const item of rows) {\n  const row = item.json;\n  const rowNum = rows.indexOf(item) + 2;\n\n  if (!row.anio || isNaN(Number(row.anio))) { errors.push(`Fila ${rowNum}: anio inválido`); continue; }\n  if (!row.mes || Number(row.mes) < 1 || Number(row.mes) > 12) { errors.push(`Fila ${rowNum}: mes inválido`); continue; }\n  if (!row.categoria_contable) { errors.push(`Fila ${rowNum}: categoria_contable vacío`); continue; }\n  if (row.monto_budget === undefined || isNaN(Number(row.monto_budget))) {\n    errors.push(`Fila ${rowNum}: monto_budget inválido`); continue;\n  }\n\n  valid.push({\n    json: {\n      anio: Number(row.anio),\n      mes: Number(row.mes),\n      zona: row.zona ? String(row.zona).trim() : null,\n      contratista_id: row.contratista_id ? String(row.contratista_id).trim() : null,\n      categoria_contable: String(row.categoria_contable).trim(),\n      tipo_servicio: row.tipo_servicio ? String(row.tipo_servicio).trim().toUpperCase() : null,\n      monto_budget: Number(String(row.monto_budget).replace(/[^0-9.]/g, '')),\n      moneda: String(row.moneda || 'COP').toUpperCase(),\n      notas: row.notas || null,\n      effective_from: row.effective_from || new Date().toISOString().split('T')[0],\n      effective_to: row.effective_to || null,\n      version: 1,\n      creado_por: 'wf_01_sync'\n    }\n  });\n}\n\nif (errors.length > 0) {\n  $execution.customData.set('budget_errors', JSON.stringify(errors));\n}\n\nreturn valid;"
+      },
+      "id": "validate-budget",
+      "name": "Validar Budget",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 420]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_tarifario", "mode": "list" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "onConflict": "ignore"
+        }
+      },
+      "id": "upsert-tarifario",
+      "name": "Upsert Tarifario → Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 180],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_budget", "mode": "list" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "onConflict": "ignore"
+        }
+      },
+      "id": "upsert-budget",
+      "name": "Upsert Budget → Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 420],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar resultados y determinar si hay alertas de cambio brusco de tarifa\nconst tarifarioErrors = $execution.customData.get('tarifario_errors');\nconst budgetErrors = $execution.customData.get('budget_errors');\n\nconst errorsT = tarifarioErrors ? JSON.parse(tarifarioErrors) : [];\nconst errorsB = budgetErrors ? JSON.parse(budgetErrors) : [];\nconst allErrors = [...errorsT, ...errorsB];\n\nreturn [{\n  json: {\n    sync_ok: allErrors.length === 0,\n    total_errors: allErrors.length,\n    errors: allErrors,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "consolidar-resultado",
+      "name": "Consolidar Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "has-errors",
+              "leftValue": "={{ $json.total_errors }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-errors",
+      "name": "¿Hay errores?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AUTK8B1HR", "mode": "id" },
+        "text": "⚠️ *WF-01 Sync Sheets* — Se encontraron {{ $json.total_errors }} errores de validación:\n\n{{ $json.errors.slice(0,10).join('\\n') }}\n\n_Revisa el Google Sheet y corrige las filas indicadas._",
+        "otherOptions": {}
+      },
+      "id": "slack-error",
+      "name": "Alertar Errores en Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1440, 180],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_agent_log", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "wf_01",
+            "workflow_nombre": "Sync Sheets → Supabase",
+            "estado": "={{ $json.sync_ok ? 'ok' : 'advertencia' }}",
+            "registros_procesados": "={{ $json.total_errors }}",
+            "errores_json": "={{ JSON.stringify($json.errors) }}"
+          }
+        }
+      },
+      "id": "log-ejecucion",
+      "name": "Log Ejecución",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 420],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AUTK8B1HR", "mode": "id" },
+        "text": "🔴 *Error crítico en WF-01 Sync Sheets*\n{{ $json.message }}\n\nRevisa el workflow en n8n.",
+        "otherOptions": {}
+      },
+      "id": "error-handler-slack",
+      "name": "Notificar Error Crítico",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [480, 660],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Cron 06:00 diario": {
+      "main": [[
+        { "node": "Leer Sheet Tarifario", "type": "main", "index": 0 },
+        { "node": "Leer Sheet Budget", "type": "main", "index": 0 }
+      ]]
+    },
+    "Leer Sheet Tarifario": { "main": [[{ "node": "Validar Tarifario", "type": "main", "index": 0 }]] },
+    "Leer Sheet Budget": { "main": [[{ "node": "Validar Budget", "type": "main", "index": 0 }]] },
+    "Validar Tarifario": { "main": [[{ "node": "Upsert Tarifario → Supabase", "type": "main", "index": 0 }]] },
+    "Validar Budget": { "main": [[{ "node": "Upsert Budget → Supabase", "type": "main", "index": 0 }]] },
+    "Upsert Tarifario → Supabase": { "main": [[{ "node": "Consolidar Resultado", "type": "main", "index": 0 }]] },
+    "Upsert Budget → Supabase": { "main": [[{ "node": "Consolidar Resultado", "type": "main", "index": 0 }]] },
+    "Consolidar Resultado": { "main": [[{ "node": "¿Hay errores?", "type": "main", "index": 0 }]] },
+    "¿Hay errores?": {
+      "main": [
+        [{ "node": "Alertar Errores en Slack", "type": "main", "index": 0 }],
+        [{ "node": "Log Ejecución", "type": "main", "index": 0 }]
+      ]
+    },
+    "Alertar Errores en Slack": { "main": [[{ "node": "Log Ejecución", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": "wf-error-handler"
+  },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Datos" }],
+  "meta": {
+    "instanceId": "opex-bia",
+    "notes": "Sincroniza tarifario y budget desde Google Sheets a Supabase. Ejecuta diario a las 06:00. Valida integridad antes de cargar. Reporta errores en #bia-opex-errors."
+  }
+}

@@ -1,0 +1,258 @@
+{
+  "name": "WF-04 | OPEX Webhook Aprobaciones Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "opex-slack-actions",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-slack",
+      "name": "Webhook Slack Interactivity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "notes": "URL de este webhook: pégala en Slack App → Interactivity → Request URL"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Verificar Signing Secret de Slack\n// 2. Parsear payload de interactividad\nconst body = $input.first().json.body;\nconst headers = $input.first().json.headers;\n\n// En producción: verificar firma HMAC con el Signing Secret\n// const signingSecret = $vars.OPEX_SLACK_SIGNING_SECRET;\n// const timestamp = headers['x-slack-request-timestamp'];\n// const slackSig = headers['x-slack-signature'];\n// const baseString = `v0:${timestamp}:${rawBody}`;\n// const computed = 'v0=' + crypto.createHmac('sha256', signingSecret).update(baseString).digest('hex');\n// if (computed !== slackSig) throw new Error('Slack signature mismatch');\n\n// Parsear el payload (viene como form-urlencoded)\nlet payload;\ntry {\n  payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n} catch(e) {\n  throw new Error('Payload Slack inválido: ' + e.message);\n}\n\nconst action = payload.actions?.[0];\nconst actionId = action?.action_id || '';\nconst actionValue = action?.value || '';\nconst userId = payload.user?.id || 'desconocido';\nconst userName = payload.user?.username || 'desconocido';\nconst messageTs = payload.message?.ts || '';\nconst channelId = payload.channel?.id || '';\n\n// Determinar tipo de acción\nlet tipoAccion = 'desconocida';\nif (actionId === 'aprobar_comunicacion' || actionId.startsWith('aprobar_')) tipoAccion = 'aprobar';\nelse if (actionId === 'rechazar_comunicacion' || actionId.startsWith('rechazar_')) tipoAccion = 'rechazar';\nelse if (actionId === 'falso_positivo' || actionId.startsWith('fp_')) tipoAccion = 'false_positive';\nelse if (actionId === 'pausar_alertas') tipoAccion = 'pausar';\nelse if (actionId === 'ver_cola_aprobacion') tipoAccion = 'ver_cola';\nelse if (actionId === 'recalibrar_aplicar') tipoAccion = 'recalibrar_aplicar';\nelse if (actionId === 'recalibrar_ignorar') tipoAccion = 'recalibrar_ignorar';\n\n// Extraer ID de la alerta/aprobación del value o action_id\nconst idEntidad = actionValue.replace(/^(aprobar_|rechazar_|fp_)/, '') || actionValue;\n\nreturn [{\n  json: {\n    tipo_accion: tipoAccion,\n    action_id: actionId,\n    id_entidad: idEntidad,\n    user_id: userId,\n    user_name: userName,\n    message_ts: messageTs,\n    channel_id: channelId,\n    payload_completo: payload\n  }\n}];"
+      },
+      "id": "parsear-payload",
+      "name": "Parsear y Validar Payload Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "",
+        "options": { "responseCode": 200 }
+      },
+      "id": "ack-200",
+      "name": "ACK 200 a Slack (inmediato)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 120],
+      "notes": "Slack requiere respuesta en < 3 segundos. Respondemos 200 inmediatamente y procesamos después."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "aprobar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "aprobar" },
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "rechazar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "rechazar" },
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "false_positive", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "false_positive" },
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "pausar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "pausar" },
+            { "conditions": { "conditions": [{ "leftValue": "={{ $json.tipo_accion }}", "rightValue": "recalibrar_aplicar", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "recalibrar" }
+          ]
+        }
+      },
+      "id": "switch-accion",
+      "name": "Switch por Tipo de Acción",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [480, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opex_approvals\nSET estado = 'aprobado',\n    aprobado_en = NOW(),\n    aprobado_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.id_entidad }}'\n  AND estado = 'pendiente'\nRETURNING id, tipo_comunicacion, destinatario, cuerpo_final, cuerpo_borrador, alert_id;",
+        "options": {}
+      },
+      "id": "aprobar-en-db",
+      "name": "Marcar Aprobado en DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 240],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_communications", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "approval_id": "={{ $json.id }}",
+            "alert_id": "={{ $json.alert_id }}",
+            "tipo_comunicacion": "={{ $json.tipo_comunicacion }}",
+            "destinatario": "={{ $json.destinatario }}",
+            "cuerpo_final": "={{ $json.cuerpo_final || $json.cuerpo_borrador }}",
+            "enviado_por": "={{ $('Parsear y Validar Payload Slack').item.json.user_name }}",
+            "canal": "n8n_smtp"
+          }
+        }
+      },
+      "id": "log-comunicacion",
+      "name": "Registrar Comunicación Enviada",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 240],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AUWJ91V1T", "mode": "id" },
+        "text": "✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}",
+        "otherOptions": {}
+      },
+      "id": "slack-confirm-aprobacion",
+      "name": "Confirmar Aprobación en Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1200, 240],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opex_approvals\nSET estado = 'rechazado',\n    aprobado_por = '{{ $json.user_name }}',\n    motivo_rechazo = 'Rechazado desde Slack'\nWHERE id = '{{ $json.id_entidad }}'\nRETURNING id, alert_id;",
+        "options": {}
+      },
+      "id": "rechazar-en-db",
+      "name": "Marcar Rechazado en DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 420],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cerrar alerta como false_positive y crear case\nconst data = $input.first().json;\nconst parsedData = $('Parsear y Validar Payload Slack').first().json;\n\nreturn [{\n  json: {\n    alert_id: parsedData.id_entidad,\n    user_name: parsedData.user_name,\n    veredicto: 'false_positive',\n    causa_raiz_texto: 'Marcado como falso positivo desde Slack',\n    canal_cierre: 'slack',\n    cerrado_en: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "preparar-fp",
+      "name": "Preparar False Positive",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Actualizar alerta a false_positive y crear case\nUPDATE opex_alerts\nSET estado = 'false_positive',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.alert_id }}';\n\n-- Insertar caso para el feedback loop\nINSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'false_positive', 'Marcado como FP desde Slack', 'slack', NOW(), '{{ $json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id;",
+        "options": {}
+      },
+      "id": "registrar-fp-db",
+      "name": "Registrar FP en DB y Crear Case",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 600],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Recalcular fp_rate para esta regla\nUPDATE opex_rules r\nSET\n  fp_rate = (\n    SELECT COALESCE(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0),\n      0\n    )\n    FROM opex_cases c\n    WHERE c.codigo_alerta = r.codigo_regla\n      AND c.cerrado_en >= NOW() - INTERVAL '30 days'\n  ),\n  n_falsos_positivos = n_falsos_positivos + 1,\n  n_activaciones = n_activaciones + 1,\n  modificado_en = NOW()\nWHERE r.codigo_regla = (\n  SELECT a.codigo_alerta FROM opex_alerts a WHERE a.id = '{{ $('Preparar False Positive').item.json.alert_id }}'\n);\n\n-- Verificar si el fp_rate supera el umbral de recalibración\nSELECT r.codigo_regla, r.fp_rate\nFROM opex_rules r\nWHERE r.fp_rate > (SELECT valor::NUMERIC FROM opex_config WHERE clave = 'fp_rate_threshold')\n  AND r.activa = true;",
+        "options": {}
+      },
+      "id": "actualizar-fp-rate",
+      "name": "Actualizar FP Rate en Reglas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 600],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.fp_rate }}",
+              "rightValue": 0.4,
+              "operator": { "type": "number", "operation": "gte" }
+            }
+          ]
+        }
+      },
+      "id": "check-fp-threshold",
+      "name": "¿FP Rate alto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1440, 600]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
+        "text": "⚠️ *Alerta de calidad — Regla {{ $json.codigo_regla }}*\nTasa de falsos positivos en últimos 30 días: *{{ ($json.fp_rate * 100).toFixed(0) }}%*\n\nSe recomienda revisar y ajustar el umbral. El workflow de recalibración mensual hará una propuesta formal el día 3 del próximo mes.",
+        "otherOptions": {}
+      },
+      "id": "slack-fp-alto",
+      "name": "Sugerir Revisión de Umbral",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1680, 480],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opex_config SET valor = 'true', modificado_en = NOW() WHERE clave = 'kill_switch';",
+        "options": {}
+      },
+      "id": "activar-pausa",
+      "name": "Activar Kill Switch (Pausar)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 780],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
+        "text": "⏸️ *Agente OPEX pausado* por @{{ $('Parsear y Validar Payload Slack').item.json.user_name }}\nSolo se procesarán alertas críticas. Para reactivar: corre el workflow de configuración o cambia `kill_switch` a `false` en Supabase.",
+        "otherOptions": {}
+      },
+      "id": "slack-pausado",
+      "name": "Confirmar Pausa en Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [960, 780],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Webhook Slack Interactivity": {
+      "main": [[
+        { "node": "Parsear y Validar Payload Slack", "type": "main", "index": 0 },
+        { "node": "ACK 200 a Slack (inmediato)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Parsear y Validar Payload Slack": { "main": [[{ "node": "Switch por Tipo de Acción", "type": "main", "index": 0 }]] },
+    "Switch por Tipo de Acción": {
+      "main": [
+        [{ "node": "Marcar Aprobado en DB", "type": "main", "index": 0 }],
+        [{ "node": "Marcar Rechazado en DB", "type": "main", "index": 0 }],
+        [{ "node": "Preparar False Positive", "type": "main", "index": 0 }],
+        [{ "node": "Activar Kill Switch (Pausar)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Marcar Aprobado en DB": { "main": [[{ "node": "Registrar Comunicación Enviada", "type": "main", "index": 0 }]] },
+    "Registrar Comunicación Enviada": { "main": [[{ "node": "Confirmar Aprobación en Slack", "type": "main", "index": 0 }]] },
+    "Preparar False Positive": { "main": [[{ "node": "Registrar FP en DB y Crear Case", "type": "main", "index": 0 }]] },
+    "Registrar FP en DB y Crear Case": { "main": [[{ "node": "Actualizar FP Rate en Reglas", "type": "main", "index": 0 }]] },
+    "Actualizar FP Rate en Reglas": { "main": [[{ "node": "¿FP Rate alto?", "type": "main", "index": 0 }]] },
+    "¿FP Rate alto?": {
+      "main": [
+        [{ "node": "Sugerir Revisión de Umbral", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Activar Kill Switch (Pausar)": { "main": [[{ "node": "Confirmar Pausa en Slack", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Aprobaciones" }, { "name": "Feedback-Loop" }],
+  "meta": {
+    "notes": "Webhook que recibe acciones de Slack (botones). Maneja: aprobar comunicación, rechazar, marcar falso positivo, pausar agente. El flujo de falso positivo actualiza fp_rate en opex_rules (mecanismo evolutivo)."
+  }
+}

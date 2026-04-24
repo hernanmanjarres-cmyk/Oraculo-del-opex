@@ -1,0 +1,293 @@
+{
+  "name": "WF-05 | OPEX Detector de Anomalías Multi-capa",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 4 }] }
+      },
+      "id": "trigger-4h",
+      "name": "Cron cada 4 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT valor FROM opex_config WHERE clave = 'kill_switch' LIMIT 1;",
+        "options": {}
+      },
+      "id": "check-ks",
+      "name": "Check Kill Switch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 300],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "conditions": { "conditions": [{ "leftValue": "={{ $json.valor }}", "rightValue": "true", "operator": { "type": "string", "operation": "notEquals" } }] }
+      },
+      "id": "if-activo",
+      "name": "¿Activo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- DETECTOR 1: Duplicados\n-- Mismo contratista + zona + fecha±1d + monto±5%\nSELECT\n  'A6' AS codigo_alerta, 'alta' AS severidad,\n  t1.id AS tx_id,\n  t1.contratista_id, t1.contratista_nombre,\n  t1.tipo_servicio, t1.zona, t1.ot_id,\n  t1.costo_total AS valor_observado,\n  t2.id AS tx_duplicado_id,\n  t2.costo_total AS valor_esperado,\n  0 AS zscore,\n  NULL AS delta_pct,\n  CONCAT('Posible duplicado con OT ', t2.ot_id, ' del ', t2.fecha_tx, ' monto $', t2.costo_total) AS narrativa_corta\nFROM opex_transactions t1\nJOIN opex_transactions t2 ON\n  t1.contratista_id = t2.contratista_id\n  AND t1.id < t2.id\n  AND ABS(t1.costo_total - t2.costo_total) / NULLIF(t1.costo_total, 0) <= 0.05\n  AND ABS(t1.fecha_tx - t2.fecha_tx) <= 1\n  AND (t1.zona = t2.zona OR (t1.zona IS NULL AND t2.zona IS NULL))\nWHERE t1.fecha_tx >= CURRENT_DATE - 30\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts a\n    WHERE a.tx_id = t1.id AND a.codigo_alerta = 'A6' AND a.estado != 'false_positive'\n  )\nLIMIT 50;",
+        "options": {}
+      },
+      "id": "detector-duplicados",
+      "name": "Detector: Duplicados (A6)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 120],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- DETECTOR 2: Sin soporte documental > 7 días (A7)\nSELECT\n  'A7' AS codigo_alerta, 'media' AS severidad,\n  t.id AS tx_id,\n  t.contratista_id, t.contratista_nombre,\n  t.tipo_servicio, t.zona, t.ot_id,\n  t.costo_total AS valor_observado,\n  7 AS valor_esperado,\n  EXTRACT(DAY FROM NOW() - t.fecha_factura) AS delta_pct,\n  NULL AS zscore,\n  CONCAT('OT ', t.ot_id, ' — ', EXTRACT(DAY FROM NOW() - t.fecha_factura)::INT, ' días sin acta de cierre') AS narrativa_corta\nFROM opex_transactions t\nWHERE t.tiene_acta_cierre = false\n  AND t.ot_id IS NOT NULL\n  AND t.fecha_factura IS NOT NULL\n  AND NOW() - t.fecha_factura > INTERVAL '7 days'\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts a\n    WHERE a.tx_id = t.id AND a.codigo_alerta = 'A7' AND a.estado != 'false_positive'\n  )\nLIMIT 50;",
+        "options": {}
+      },
+      "id": "detector-sin-soporte",
+      "name": "Detector: Sin Soporte (A7)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 300],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- DETECTOR 3: Patrón sistemático — mismo contratista ≥3 alertas activas en mes (A11)\nSELECT\n  'A11' AS codigo_alerta, 'critica' AS severidad,\n  NULL AS tx_id,\n  a.contratista_id,\n  MAX(a.contratista_nombre) AS contratista_nombre,\n  NULL AS tipo_servicio,\n  NULL AS zona, NULL AS ot_id,\n  COUNT(*) AS valor_observado,\n  3 AS valor_esperado,\n  NULL AS zscore,\n  ((COUNT(*) - 3.0) / 3.0 * 100) AS delta_pct,\n  CONCAT('Contratista con ', COUNT(*), ' alertas activas en el mes — revisar contrato/tarifario') AS narrativa_corta\nFROM opex_alerts a\nWHERE a.estado IN ('open','ack','in_progress')\n  AND a.generada_en >= DATE_TRUNC('month', CURRENT_DATE)\n  AND a.codigo_alerta NOT IN ('A11','A14')\nGROUP BY a.contratista_id\nHAVING COUNT(*) >= 3\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts x\n    WHERE x.contratista_id = a.contratista_id\n      AND x.codigo_alerta = 'A11'\n      AND x.generada_en >= DATE_TRUNC('month', CURRENT_DATE)\n      AND x.estado != 'false_positive'\n  );",
+        "options": {}
+      },
+      "id": "detector-patron",
+      "name": "Detector: Patrón Sistemático (A11)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 480],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- DETECTOR 4: Fuga silenciosa de margen (A12)\n-- Costo real agregado vs costo teórico (suma tarifa×cantidad) por contratista/mes > umbral\nSELECT\n  'A12' AS codigo_alerta, 'alta' AS severidad,\n  NULL AS tx_id,\n  t.contratista_id,\n  MAX(t.contratista_nombre) AS contratista_nombre,\n  t.tipo_servicio, t.zona,\n  NULL AS ot_id,\n  SUM(t.costo_total) AS valor_observado,\n  SUM(t.cantidad * tar.tarifa) AS valor_esperado,\n  NULL AS zscore,\n  ROUND(\n    ((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) * 100,\n    2\n  ) AS delta_pct,\n  CONCAT(\n    'Fuga acumulada mes: $', \n    TO_CHAR(SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa), 'FM999,999,999'),\n    ' vs costo teórico (', \n    ROUND(((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) * 100, 1),\n    '% sobre tarifa)'\n  ) AS narrativa_corta\nFROM opex_transactions t\nJOIN LATERAL (\n  SELECT tarifa FROM opex_tarifario tar\n  WHERE tar.contratista_id = t.contratista_id\n    AND tar.tipo_servicio = t.tipo_servicio\n    AND (tar.zona = t.zona OR tar.zona IS NULL)\n    AND tar.effective_from <= t.fecha_tx\n    AND (tar.effective_to IS NULL OR tar.effective_to >= t.fecha_tx)\n  ORDER BY (tar.zona = t.zona) DESC, tar.effective_from DESC\n  LIMIT 1\n) tar ON true\nWHERE t.fecha_tx >= DATE_TRUNC('month', CURRENT_DATE)\n  AND t.cantidad IS NOT NULL AND t.cantidad > 0\nGROUP BY t.contratista_id, t.tipo_servicio, t.zona\nHAVING\n  SUM(t.cantidad * tar.tarifa) > 0\n  AND ((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) > 0.08\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts a\n    WHERE a.contratista_id = t.contratista_id\n      AND a.codigo_alerta = 'A12'\n      AND a.generada_en >= DATE_TRUNC('month', CURRENT_DATE)\n      AND a.estado != 'false_positive'\n  );",
+        "options": {}
+      },
+      "id": "detector-fuga",
+      "name": "Detector: Fuga Silenciosa (A12)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 660],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar resultados de los 4 detectores\nconst duplicados = $('Detector: Duplicados (A6)').all();\nconst sinSoporte = $('Detector: Sin Soporte (A7)').all();\nconst patron = $('Detector: Patrón Sistemático (A11)').all();\nconst fuga = $('Detector: Fuga Silenciosa (A12)').all();\n\nconst todas = [...duplicados, ...sinSoporte, ...patron, ...fuga];\n\nif (todas.length === 0) return [{ json: { sin_alertas: true } }];\n\nreturn todas.map(item => ({ json: { ...item.json } }));"
+      },
+      "id": "combinar-detectores",
+      "name": "Combinar Resultados Detectores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "leftValue": "={{ $json.sin_alertas }}", "rightValue": true, "operator": { "type": "boolean", "operation": "notTrue" } }]
+        }
+      },
+      "id": "if-anomalias",
+      "name": "¿Anomalías encontradas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 420]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash",
+        "options": {},
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "Eres el Analista OPEX Virtual de BIA Energy. Analiza la siguiente anomalía detectada y proporciona:\n1. Clasificación de causa raíz (máx 1 línea): elige de [Facturación incorrecta, Material extra no autorizado, Error de datos, Retrabajo, Cambio de alcance sin aprobación, Tarifa desactualizada, Posible fraude, Otro]\n2. Narrativa financiera (máx 2 oraciones): explicación para un comité financiero, sin jerga técnica.\n3. Borrador de comunicación (si aplica): 3-4 líneas para correo al contratista o ticket interno.\n\nDatos de la anomalía:\n- Código: {{ $json.codigo_alerta }}\n- Contratista: {{ $json.contratista_nombre || $json.contratista_id }}\n- Tipo servicio: {{ $json.tipo_servicio }}\n- Zona: {{ $json.zona }}\n- Descripción: {{ $json.narrativa_corta }}\n- Valor observado: ${{ Number($json.valor_observado || 0).toLocaleString('es-CO') }}\n- Valor esperado: ${{ Number($json.valor_esperado || 0).toLocaleString('es-CO') }}\n\nResponde en JSON: { \"causa_raiz\": \"...\", \"narrativa\": \"...\", \"borrador_comunicacion\": \"...\" }"
+            }
+          ]
+        }
+      },
+      "id": "gemini-clasificacion",
+      "name": "Gemini: Clasificar y Redactar",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1440, 300],
+      "credentials": { "googleAIStudioApi": { "id": "4", "name": "Gemini API BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar alerta con respuesta de IA\nconst alertaData = $('Combinar Resultados Detectores').item.json;\nconst iaResponse = $input.first().json;\n\nlet iaJson = {};\ntry {\n  // Intentar parsear la respuesta JSON de Gemini\n  const text = iaResponse.content || iaResponse.text || iaResponse.message || '';\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (match) iaJson = JSON.parse(match[0]);\n} catch(e) {}\n\nreturn [{\n  json: {\n    ...alertaData,\n    causa_raiz_sugerida: iaJson.causa_raiz || 'Clasificación pendiente',\n    narrativa_ia: iaJson.narrativa || alertaData.narrativa_corta,\n    borrador_comunicacion: iaJson.borrador_comunicacion || null\n  }\n}];"
+      },
+      "id": "enriquecer-con-ia",
+      "name": "Enriquecer Alerta con IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_alerts", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "codigo_alerta": "={{ $json.codigo_alerta }}",
+            "contratista_id": "={{ $json.contratista_id }}",
+            "contratista_nombre": "={{ $json.contratista_nombre }}",
+            "tipo_servicio": "={{ $json.tipo_servicio }}",
+            "zona": "={{ $json.zona }}",
+            "ot_id": "={{ $json.ot_id }}",
+            "severidad": "={{ $json.severidad }}",
+            "estado": "open",
+            "valor_observado": "={{ $json.valor_observado }}",
+            "valor_esperado": "={{ $json.valor_esperado }}",
+            "delta_pct": "={{ $json.delta_pct }}",
+            "zscore": "={{ $json.zscore }}",
+            "narrativa_corta": "={{ $json.narrativa_ia || $json.narrativa_corta }}",
+            "causa_raiz_sugerida": "={{ $json.causa_raiz_sugerida }}"
+          }
+        },
+        "options": { "returnFields": "id, codigo_alerta, severidad, contratista_nombre" }
+      },
+      "id": "insertar-alerta-anomalia",
+      "name": "Insertar Alerta Anomalía",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1920, 300],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "leftValue": "={{ $json.severidad }}", "rightValue": "baja", "operator": { "type": "string", "operation": "notEquals" } }]
+        }
+      },
+      "id": "if-notificar",
+      "name": "¿Severidad notificable?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2160, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_approvals", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "alert_id": "={{ $json.id }}",
+            "tipo_comunicacion": "={{ $json.severidad === 'critica' ? 'correo_contratista' : 'ticket_interno' }}",
+            "destinatario": "={{ $json.contratista_nombre || $json.contratista_id }}",
+            "asunto": "={{ 'Anomalía detectada — ' + $json.codigo_alerta + ' — ' + ($json.contratista_nombre || '') }}",
+            "cuerpo_borrador": "={{ $('Enriquecer Alerta con IA').item.json.borrador_comunicacion || 'Borrador pendiente de generación' }}",
+            "estado": "pendiente",
+            "expira_en": "={{ new Date(Date.now() + 48*60*60*1000).toISOString() }}"
+          }
+        }
+      },
+      "id": "crear-aprobacion",
+      "name": "Crear en Cola de Aprobación",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2400, 180],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "={{ $json.severidad === 'critica' ? 'C0AVCTBV665' : 'C0AUWJ91V1T' }}", "mode": "id" },
+        "blocksUi": {
+          "blocksValues": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "={{ ($json.severidad === 'critica' ? ':rotating_light:' : ':warning:') + ' *[' + $json.codigo_alerta + '] ' + $json.severidad.toUpperCase() + ' — ' + ($json.contratista_nombre || $json.contratista_id) + '*\\n' + ($('Enriquecer Alerta con IA').item.json.narrativa_ia || $json.narrativa_corta) + '\\n\\n_Causa raíz sugerida (IA): ' + ($('Enriquecer Alerta con IA').item.json.causa_raiz_sugerida || 'N/D') + '_' }}"
+              }
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "✉️ Ver borrador comunicación" },
+                  "action_id": "ver_borrador",
+                  "value": "={{ $json.id }}"
+                },
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "❌ Falso positivo" },
+                  "action_id": "fp_={{ $json.id }}",
+                  "value": "={{ $json.id }}"
+                }
+              ]
+            }
+          ]
+        },
+        "otherOptions": {}
+      },
+      "id": "slack-anomalia",
+      "name": "Notificar Anomalía en Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [2400, 420],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Cron cada 4 horas": { "main": [[{ "node": "Check Kill Switch", "type": "main", "index": 0 }]] },
+    "Check Kill Switch": { "main": [[{ "node": "¿Activo?", "type": "main", "index": 0 }]] },
+    "¿Activo?": {
+      "main": [[
+        { "node": "Detector: Duplicados (A6)", "type": "main", "index": 0 },
+        { "node": "Detector: Sin Soporte (A7)", "type": "main", "index": 0 },
+        { "node": "Detector: Patrón Sistemático (A11)", "type": "main", "index": 0 },
+        { "node": "Detector: Fuga Silenciosa (A12)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Detector: Duplicados (A6)": { "main": [[{ "node": "Combinar Resultados Detectores", "type": "main", "index": 0 }]] },
+    "Detector: Sin Soporte (A7)": { "main": [[{ "node": "Combinar Resultados Detectores", "type": "main", "index": 0 }]] },
+    "Detector: Patrón Sistemático (A11)": { "main": [[{ "node": "Combinar Resultados Detectores", "type": "main", "index": 0 }]] },
+    "Detector: Fuga Silenciosa (A12)": { "main": [[{ "node": "Combinar Resultados Detectores", "type": "main", "index": 0 }]] },
+    "Combinar Resultados Detectores": { "main": [[{ "node": "¿Anomalías encontradas?", "type": "main", "index": 0 }]] },
+    "¿Anomalías encontradas?": {
+      "main": [
+        [{ "node": "Gemini: Clasificar y Redactar", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Gemini: Clasificar y Redactar": { "main": [[{ "node": "Enriquecer Alerta con IA", "type": "main", "index": 0 }]] },
+    "Enriquecer Alerta con IA": { "main": [[{ "node": "Insertar Alerta Anomalía", "type": "main", "index": 0 }]] },
+    "Insertar Alerta Anomalía": { "main": [[{ "node": "¿Severidad notificable?", "type": "main", "index": 0 }]] },
+    "¿Severidad notificable?": {
+      "main": [
+        [
+          { "node": "Crear en Cola de Aprobación", "type": "main", "index": 0 },
+          { "node": "Notificar Anomalía en Slack", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-2" }, { "name": "Anomalias" }],
+  "meta": {
+    "notes": "Detectores paralelos: A6 duplicados, A7 sin soporte, A11 patrón sistemático, A12 fuga silenciosa. Gemini clasifica causa raíz y redacta borrador. Crea cola de aprobación para comunicaciones."
+  }
+}

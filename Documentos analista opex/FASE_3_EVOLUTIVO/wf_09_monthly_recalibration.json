@@ -1,0 +1,192 @@
+{
+  "name": "WF-09 | OPEX Recalibración Mensual de Umbrales",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 10 3 * *" }] }
+      },
+      "id": "trigger-dia3",
+      "name": "Cron Día 3 del Mes 10:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "notes": "Ejecuta el día 3 de cada mes — después del cierre del día 1 y revisión del día 2."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Análisis de desempeño de cada regla en los últimos 3 meses\nSELECT\n  r.codigo_regla,\n  r.nombre,\n  r.tipo_detector,\n  r.severidad,\n  r.umbral_pct_min,\n  r.umbral_pct_max,\n  r.umbral_zscore,\n  r.fp_rate,\n  r.tp_rate,\n  r.n_activaciones,\n  r.n_falsos_positivos,\n  -- Métricas del período\n  COUNT(c.id) AS casos_3m,\n  SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1 ELSE 0 END) AS fp_3m,\n  SUM(CASE WHEN c.veredicto = 'confirmado' THEN 1 ELSE 0 END) AS tp_3m,\n  AVG(c.tiempo_resolucion_horas) AS tiempo_medio_horas_3m,\n  COALESCE(SUM(c.monto_recuperado), 0) AS monto_recuperado_3m,\n  -- Tasa FP últimos 3 meses\n  CASE WHEN COUNT(c.id) > 0 THEN\n    ROUND(\n      SUM(CASE WHEN c.veredicto = 'false_positive' THEN 1.0 ELSE 0 END) / COUNT(c.id),\n      4\n    )\n  ELSE 0 END AS fp_rate_3m\nFROM opex_rules r\nLEFT JOIN opex_cases c ON c.codigo_alerta = r.codigo_regla\n  AND c.cerrado_en >= NOW() - INTERVAL '3 months'\nWHERE r.activa = true\nGROUP BY\n  r.codigo_regla, r.nombre, r.tipo_detector, r.severidad,\n  r.umbral_pct_min, r.umbral_pct_max, r.umbral_zscore,\n  r.fp_rate, r.tp_rate, r.n_activaciones, r.n_falsos_positivos\nORDER BY fp_rate_3m DESC;",
+        "options": {}
+      },
+      "id": "query-metricas-reglas",
+      "name": "Query Métricas Reglas 3 Meses",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 180],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Métricas globales del agente: forecast accuracy, cobertura, tiempos\nSELECT\n  -- Forecast accuracy (últimos 3 meses)\n  AVG(ABS(cl.error_forecast_pct)) AS mae_forecast_pct,\n  -- Cobertura de alertas útiles\n  (\n    SELECT COUNT(*) FILTER (WHERE c.veredicto = 'confirmado')::FLOAT / NULLIF(COUNT(*), 0)\n    FROM opex_cases c\n    WHERE c.cerrado_en >= NOW() - INTERVAL '3 months'\n  ) AS cobertura_alertas_utiles,\n  -- Tiempo mediano de cierre alertas alta/crítica\n  (\n    SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c.tiempo_resolucion_horas)\n    FROM opex_cases c\n    JOIN opex_alerts a ON a.id = c.alert_id\n    WHERE a.severidad IN ('alta','critica')\n      AND c.cerrado_en >= NOW() - INTERVAL '3 months'\n  ) AS tiempo_mediano_alta_critica_h,\n  -- Ahorro total detectado\n  (\n    SELECT COALESCE(SUM(c.monto_recuperado), 0)\n    FROM opex_cases c\n    WHERE c.cerrado_en >= NOW() - INTERVAL '3 months'\n  ) AS ahorro_3m,\n  -- Precisión de clasificación IA\n  (\n    SELECT COUNT(*) FILTER (WHERE c.ia_acerto = true)::FLOAT / NULLIF(COUNT(*) FILTER (WHERE c.ia_acerto IS NOT NULL), 0)\n    FROM opex_cases c\n    WHERE c.cerrado_en >= NOW() - INTERVAL '3 months'\n  ) AS precision_ia\nFROM opex_closes cl\nWHERE cl.anio >= EXTRACT(YEAR FROM NOW() - INTERVAL '3 months')::INT\n  AND cl.error_forecast_pct IS NOT NULL;",
+        "options": {}
+      },
+      "id": "query-metricas-globales",
+      "name": "Query Métricas Globales Agente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 480],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reglas = $('Query Métricas Reglas 3 Meses').all().map(i => i.json);\nconst globales = $('Query Métricas Globales Agente').first().json;\n\nconst FP_THRESHOLD = 0.40;  // 40% FP → subir umbral\nconst TP_THRESHOLD = 0.30;  // <30% TP con pocas activaciones → revisar si la regla detecta algo\nconst MIN_CASOS = 5;        // mínimo de casos para proponer cambio\n\nconst propuestas = [];\n\nfor (const regla of reglas) {\n  const fp3m = Number(regla.fp_rate_3m || 0);\n  const casos = Number(regla.casos_3m || 0);\n  const tp3m = Number(regla.tp_3m || 0);\n  const fp_n = Number(regla.fp_3m || 0);\n  \n  if (casos < MIN_CASOS) continue; // no suficientes datos\n  \n  let propuesta = null;\n  \n  // Regla con exceso de falsos positivos: subir umbral\n  if (fp3m >= FP_THRESHOLD) {\n    if (regla.umbral_pct_min !== null) {\n      const nuevoUmbral = Math.round((Number(regla.umbral_pct_min) * 1.3) * 10) / 10; // +30%\n      propuesta = {\n        codigo_regla: regla.codigo_regla,\n        nombre: regla.nombre,\n        tipo: 'subir_umbral',\n        descripcion: `FP rate ${(fp3m*100).toFixed(0)}% (${fp_n}/${casos} casos). Propuesta: subir umbral de ${regla.umbral_pct_min}% a ${nuevoUmbral}%`,\n        campo: 'umbral_pct_min',\n        valor_actual: regla.umbral_pct_min,\n        valor_propuesto: nuevoUmbral,\n        fp_rate_actual: fp3m,\n        justificacion: `Demasiados falsos positivos (${(fp3m*100).toFixed(0)}%) reducen la confianza del analista. Subir el umbral filtrará ruido sin sacrificar alertas útiles.`\n      };\n    } else if (regla.umbral_zscore !== null) {\n      const nuevoZ = Math.round((Number(regla.umbral_zscore) + 0.5) * 10) / 10;\n      propuesta = {\n        codigo_regla: regla.codigo_regla,\n        nombre: regla.nombre,\n        tipo: 'subir_zscore',\n        descripcion: `FP rate ${(fp3m*100).toFixed(0)}%. Propuesta: subir z-score de ${regla.umbral_zscore} a ${nuevoZ}`,\n        campo: 'umbral_zscore',\n        valor_actual: regla.umbral_zscore,\n        valor_propuesto: nuevoZ,\n        fp_rate_actual: fp3m,\n        justificacion: `Z-score actual demasiado bajo, captura variaciones normales. Subir a ${nuevoZ} focalizará en anomalías más claras.`\n      };\n    }\n  }\n  // Regla útil con FP bajo: confirmar que está bien\n  else if (fp3m < 0.10 && casos >= 10 && tp3m >= 3) {\n    propuesta = {\n      codigo_regla: regla.codigo_regla,\n      nombre: regla.nombre,\n      tipo: 'confirmar_umbral',\n      descripcion: `Regla funcionando bien: ${(fp3m*100).toFixed(0)}% FP, ${tp3m} alertas confirmadas en 3 meses.`,\n      campo: null,\n      valor_actual: regla.umbral_pct_min || regla.umbral_zscore,\n      valor_propuesto: null,\n      fp_rate_actual: fp3m,\n      justificacion: 'Mantener umbral actual. Regla tiene buena precisión.'\n    };\n  }\n  \n  if (propuesta) propuestas.push(propuesta);\n}\n\n// Métricas globales para el reporte\nconst mae = Number(globales.mae_forecast_pct || 0);\nconst cobertura = Number(globales.cobertura_alertas_utiles || 0);\nconst tiempoMediano = Number(globales.tiempo_mediano_alta_critica_h || 0);\nconst ahorro3m = Number(globales.ahorro_3m || 0);\nconst precisionIA = Number(globales.precision_ia || 0);\n\nreturn [{\n  json: {\n    propuestas,\n    n_propuestas: propuestas.length,\n    propuestas_cambio: propuestas.filter(p => p.tipo !== 'confirmar_umbral'),\n    metricas_globales: {\n      mae_forecast_pct: Math.round(mae * 100) / 100,\n      cobertura_alertas_utiles: Math.round(cobertura * 100),\n      tiempo_mediano_horas: Math.round(tiempoMediano * 10) / 10,\n      ahorro_3m: Math.round(ahorro3m),\n      precision_ia_pct: Math.round(precisionIA * 100)\n    },\n    // KPIs vs metas\n    kpis_ok: {\n      mae_ok: mae <= 3.0,\n      cobertura_ok: cobertura >= 0.60,\n      tiempo_ok: tiempoMediano <= 48,\n      precision_ok: precisionIA >= 0.80\n    }\n  }\n}];"
+      },
+      "id": "calcular-propuestas",
+      "name": "Calcular Propuestas de Recalibración",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst m = data.metricas_globales;\nconst kpis = data.kpis_ok;\n\nconst ico = (ok) => ok ? '✅' : '⚠️';\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\n\n// Resumen de métricas\nconst metricas = [\n  `${ico(kpis.mae_ok)} MAE forecast: *${m.mae_forecast_pct}%* (meta ≤3%)`,\n  `${ico(kpis.cobertura_ok)} Cobertura alertas útiles: *${m.cobertura_alertas_utiles}%* (meta ≥60%)`,\n  `${ico(kpis.tiempo_ok)} Tiempo mediano cierre alertas altas: *${m.tiempo_mediano_horas}h* (meta ≤48h)`,\n  `${ico(kpis.precision_ok)} Precisión clasificación IA: *${m.precision_ia_pct}%* (meta ≥80%)`,\n  `💰 Ahorro detectado 3 meses: *${fmt(m.ahorro_3m)}*`\n].join('\\n');\n\n// Propuestas de cambio\nconst propuestasCambio = data.propuestas_cambio || [];\nconst propuestasTexto = propuestasCambio.length > 0\n  ? propuestasCambio.map((p, i) =>\n    `*${i+1}. ${p.codigo_regla} — ${p.nombre}*\\n${p.descripcion}\\n_${p.justificacion}_`\n  ).join('\\n\\n')\n  : 'Ninguna regla requiere ajuste de umbral este mes.';\n\nreturn [{\n  json: {\n    ...data,\n    texto_metricas: metricas,\n    texto_propuestas: propuestasTexto,\n    hay_cambios: propuestasCambio.length > 0\n  }\n}];"
+      },
+      "id": "formatear-reporte",
+      "name": "Formatear Reporte Recalibración",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 360]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
+        "blocksUi": {
+          "blocksValues": [
+            {
+              "type": "header",
+              "text": { "type": "plain_text", "text": "🔄 Recalibración Mensual — Analista OPEX BIA" }
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*KPIs del agente (últimos 3 meses):*\n={{ $json.texto_metricas }}"
+              }
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Propuestas de ajuste de umbrales:*\n={{ $json.texto_propuestas }}"
+              }
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "✅ Aplicar todos los cambios" },
+                  "action_id": "recalibrar_aplicar",
+                  "style": "primary",
+                  "value": "aplicar_todos"
+                },
+                {
+                  "type": "button",
+                  "text": { "type": "plain_text", "text": "⏭️ Ignorar este mes" },
+                  "action_id": "recalibrar_ignorar",
+                  "value": "ignorar"
+                }
+              ]
+            }
+          ]
+        },
+        "otherOptions": {}
+      },
+      "id": "slack-reporte",
+      "name": "Publicar Reporte Recalibración Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [960, 240],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "leftValue": "={{ $json.hay_cambios }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true" } }]
+        }
+      },
+      "id": "if-hay-cambios",
+      "name": "¿Hay cambios propuestos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar los UPDATE SQL para cada propuesta de cambio\n// Estos se ejecutan solo si el analista aprueba via Slack\nconst propuestas = $input.first().json.propuestas_cambio || [];\n\nconst queries = propuestas\n  .filter(p => p.campo && p.valor_propuesto !== null)\n  .map(p => (\n    `UPDATE opex_rules SET ${p.campo} = ${p.valor_propuesto}, version = version + 1, effective_from = CURRENT_DATE, modificado_en = NOW(), modificado_por = 'wf_09_recalibracion' WHERE codigo_regla = '${p.codigo_regla}' AND activa = true;`\n  ));\n\nreturn [{ json: { queries, n_queries: queries.length, propuestas } }];"
+      },
+      "id": "preparar-updates",
+      "name": "Preparar Updates de Umbrales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 480]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_agent_log", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "wf_09",
+            "workflow_nombre": "Recalibración Mensual",
+            "estado": "ok",
+            "registros_procesados": "={{ $json.n_queries || 0 }}",
+            "errores_json": "={{ JSON.stringify($json.propuestas) }}"
+          }
+        }
+      },
+      "id": "log-recalibracion",
+      "name": "Log Recalibración",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 480],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Cron Día 3 del Mes 10:00": {
+      "main": [[
+        { "node": "Query Métricas Reglas 3 Meses", "type": "main", "index": 0 },
+        { "node": "Query Métricas Globales Agente", "type": "main", "index": 0 }
+      ]]
+    },
+    "Query Métricas Reglas 3 Meses": { "main": [[{ "node": "Calcular Propuestas de Recalibración", "type": "main", "index": 0 }]] },
+    "Query Métricas Globales Agente": { "main": [[{ "node": "Calcular Propuestas de Recalibración", "type": "main", "index": 0 }]] },
+    "Calcular Propuestas de Recalibración": { "main": [[{ "node": "Formatear Reporte Recalibración", "type": "main", "index": 0 }]] },
+    "Formatear Reporte Recalibración": {
+      "main": [[
+        { "node": "Publicar Reporte Recalibración Slack", "type": "main", "index": 0 },
+        { "node": "¿Hay cambios propuestos?", "type": "main", "index": 0 }
+      ]]
+    },
+    "¿Hay cambios propuestos?": {
+      "main": [
+        [{ "node": "Preparar Updates de Umbrales", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Preparar Updates de Umbrales": { "main": [[{ "node": "Log Recalibración", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-3" }, { "name": "Evolutivo" }, { "name": "Recalibracion" }],
+  "meta": {
+    "notes": "Motor de aprendizaje mensual. Analiza 3 meses de casos para proponer ajustes de umbral. NO aplica cambios automáticamente — los propone en Slack para aprobación del analista. Los cambios aprobados actualizan opex_rules con nueva versión."
+  }
+}

@@ -1,0 +1,233 @@
+{
+  "name": "WF-01 | OPEX Sync Tarifarios + Budget",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 6 * * *" }] }
+      },
+      "id": "trigger-sync",
+      "name": "Cron 06:00 Diario",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT valor FROM opex_config WHERE clave = 'kill_switch' LIMIT 1;",
+        "options": {}
+      },
+      "id": "check-kill-switch",
+      "name": "Verificar Kill Switch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 400],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "leftValue": "={{ $json.valor }}", "rightValue": "true", "operator": { "type": "string", "operation": "notEquals" } }]
+        }
+      },
+      "id": "if-activo",
+      "name": "¿Agente activo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 400]
+    },
+
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "1ATh2kaZZHnWAh8UHDJKKYd5lccqvUAolU6ElJhAU4zk", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Contratistas", "mode": "name" },
+        "options": { "headerRow": 1 }
+      },
+      "id": "sheets-read-registro",
+      "name": "Sheets: Leer Registro Contratistas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [720, 240],
+      "credentials": { "googleApi": { "id": "4", "name": "Google OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar solo contratistas activos\nreturn $input.all().filter(row => {\n  const activo = (row.json.activo || row.json.ACTIVO || 'si').toString().toLowerCase();\n  return activo === 'si' || activo === 'true' || activo === '1';\n});"
+      },
+      "id": "code-filtrar-activos",
+      "name": "Code: Filtrar Activos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 240]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-contratistas",
+      "name": "Split por Contratista",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1200, 240]
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "={{ $json.sheets_file_id }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $json.hoja || $json.HOJA || $json.sheet_name || 'Tarifario' }}", "mode": "name" },
+        "options": { "headerRow": 1 }
+      },
+      "id": "sheets-read-contratista",
+      "name": "Sheets: Leer Tarifario Contratista",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1440, 240],
+      "credentials": { "googleApi": { "id": "4", "name": "Google OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const registro = $('Split por Contratista').item.json;\nconst contratistaId = (registro.contratista_id || registro.CONTRATISTA_ID || 'DESCONOCIDO').toString().trim().toUpperCase();\nconst anio = new Date().getFullYear();\nconst effectiveFrom = `${anio}-01-01`;\n\nconst OR_GRUPOS = ['ENEL_AIRE_EMCALI_AFINIA', 'CELSIA_ELECTROHUILA_ESSA', 'OTROS_OR'];\nconst result = [];\n\nfor (const row of $input.all()) {\n  const data = row.json;\n  const itemCodigo = parseInt(data['item_codigo'] || data['ITEM'] || data['Item'] || '');\n  if (!itemCodigo || isNaN(itemCodigo)) continue;\n\n  const actividad = (data['actividad'] || data['Actividad'] || data['ACTIVIDAD'] || '').toString().trim();\n  if (!actividad) continue;\n\n  for (const orGrupo of OR_GRUPOS) {\n    const rawValue = (data[orGrupo] || '').toString().replace(/[^0-9.]/g, '');\n    const tarifa = parseFloat(rawValue);\n    if (!tarifa || tarifa <= 0) continue;\n\n    result.push({\n      json: {\n        contratista_id: contratistaId,\n        contratista_nombre: contratistaId,\n        item_codigo: itemCodigo,\n        actividad: actividad,\n        or_grupo: orGrupo,\n        tarifa_cop: tarifa,\n        anio: anio,\n        effective_from: effectiveFrom,\n        activa: true\n      }\n    });\n  }\n}\n\nreturn result;"
+      },
+      "id": "code-unpivot",
+      "name": "Code: Unpivot OR Grupos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 240]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO opex_tarifario (\n  contratista_id, contratista_nombre, item_codigo, actividad,\n  or_grupo, tarifa_cop, anio, effective_from, activa\n) VALUES (\n  '{{ $json.contratista_id }}',\n  '{{ $json.contratista_nombre }}',\n  {{ $json.item_codigo }},\n  '{{ $json.actividad.replace(/'/g, \"''\") }}',\n  '{{ $json.or_grupo }}',\n  {{ $json.tarifa_cop }},\n  {{ $json.anio }},\n  '{{ $json.effective_from }}',\n  true\n)\nON CONFLICT (contratista_id, item_codigo, or_grupo, anio)\nDO UPDATE SET\n  tarifa_cop         = EXCLUDED.tarifa_cop,\n  actividad          = EXCLUDED.actividad,\n  contratista_nombre = EXCLUDED.contratista_nombre,\n  effective_from     = EXCLUDED.effective_from,\n  activa             = true,\n  cargado_en         = NOW()\nRETURNING contratista_id, item_codigo, or_grupo, tarifa_cop;",
+        "options": {}
+      },
+      "id": "postgres-upsert-tarifario",
+      "name": "Postgres: Upsert Tarifario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1920, 240],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst count = items.length;\nconst contratista = items[0]?.json?.contratista_id || '?';\nreturn [{ json: { contratista, count, mensaje: `${contratista}: ${count} tarifas procesadas` } }];"
+      },
+      "id": "log-iteracion",
+      "name": "Log Iteración",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 240]
+    },
+
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "SHEETS_ID_BUDGET_AQUI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Budget", "mode": "name" },
+        "options": { "headerRow": 1 }
+      },
+      "id": "sheets-read-budget",
+      "name": "Sheets: Leer Budget",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [720, 560],
+      "credentials": { "googleApi": { "id": "4", "name": "Google OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const anio = new Date().getFullYear();\nreturn $input.all().reduce((acc, row) => {\n  const d = row.json;\n  const mes = parseInt(d.mes || d.MES || '');\n  const monto = parseFloat((d.monto_budget || d.MONTO || '0').toString().replace(/[^0-9.]/g, ''));\n  if (!mes || !monto) return acc;\n  acc.push({ json: {\n    anio, mes,\n    zona: d.zona || d.ZONA || null,\n    contratista_id: d.contratista_id || d.CONTRATISTA_ID || null,\n    categoria: d.categoria || d.CATEGORIA || null,\n    monto_budget: monto,\n    version: 1\n  }});\n  return acc;\n}, []);"
+      },
+      "id": "code-validate-budget",
+      "name": "Code: Validar Budget",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 560]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_budget", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "anio": "={{ $json.anio }}",
+            "mes": "={{ $json.mes }}",
+            "zona": "={{ $json.zona }}",
+            "contratista_id": "={{ $json.contratista_id }}",
+            "categoria": "={{ $json.categoria }}",
+            "monto_budget": "={{ $json.monto_budget }}",
+            "version": "={{ $json.version }}"
+          }
+        },
+        "options": { "onConflict": "ignore" }
+      },
+      "id": "postgres-upsert-budget",
+      "name": "Postgres: Upsert Budget",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 560],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_agent_log", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "wf_01",
+            "workflow_nombre": "Sync Tarifarios + Budget",
+            "estado": "ok"
+          }
+        }
+      },
+      "id": "log-ok",
+      "name": "Log OK",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 560],
+      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "C0AUTK8B1HR", "mode": "id" },
+        "text": "❌ *Error en WF-01 Sync Tarifarios/Budget*\n```{{ $json.error?.message || JSON.stringify($json) }}```",
+        "otherOptions": {}
+      },
+      "id": "slack-error",
+      "name": "Slack: Error Sync",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [720, 720],
+      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+    }
+  ],
+  "connections": {
+    "Cron 06:00 Diario": { "main": [[{ "node": "Verificar Kill Switch", "type": "main", "index": 0 }]] },
+    "Verificar Kill Switch": { "main": [[{ "node": "¿Agente activo?", "type": "main", "index": 0 }]] },
+    "¿Agente activo?": {
+      "main": [
+        [
+          { "node": "Sheets: Leer Registro Contratistas", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    },
+    "Sheets: Leer Registro Contratistas": { "main": [[{ "node": "Code: Filtrar Activos", "type": "main", "index": 0 }]] },
+    "Code: Filtrar Activos": { "main": [[{ "node": "Split por Contratista", "type": "main", "index": 0 }]] },
+    "Split por Contratista": { "main": [[], [{ "node": "Sheets: Leer Tarifario Contratista", "type": "main", "index": 0 }]] },
+    "Sheets: Leer Tarifario Contratista": { "main": [[{ "node": "Code: Unpivot OR Grupos", "type": "main", "index": 0 }]] },
+    "Code: Unpivot OR Grupos": { "main": [[{ "node": "Postgres: Upsert Tarifario", "type": "main", "index": 0 }]] },
+    "Postgres: Upsert Tarifario": { "main": [[{ "node": "Log Iteración", "type": "main", "index": 0 }]] },
+    "Log Iteración": { "main": [[{ "node": "Split por Contratista", "type": "main", "index": 0 }]] },
+    "Sheets: Leer Budget": { "main": [[{ "node": "Code: Validar Budget", "type": "main", "index": 0 }]] },
+    "Code: Validar Budget": { "main": [[{ "node": "Postgres: Upsert Budget", "type": "main", "index": 0 }]] },
+    "Postgres: Upsert Budget": { "main": [[{ "node": "Log OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Sync" }],
+  "meta": {
+    "notes": "Lee registro de contratistas desde hoja Config (pestaña Contratistas) → por cada contratista activo lee su Google Sheet individual → unpivot 3 grupos OR → upsert opex_tarifario. Rama B: sync budget desde sheet separado. Agregar/quitar contratistas editando la hoja Config."
+  }
+}
