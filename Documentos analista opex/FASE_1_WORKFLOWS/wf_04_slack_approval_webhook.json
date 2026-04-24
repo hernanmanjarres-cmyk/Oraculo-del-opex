@@ -112,7 +112,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opex_approvals\nSET estado = 'aprobado',\n    aprobado_en = NOW(),\n    aprobado_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.id_entidad }}'\n  AND estado = 'pendiente'\nRETURNING id, tipo_comunicacion, destinatario, cuerpo_final, cuerpo_borrador, alert_id;",
+        "query": "UPDATE opex_alerts\nSET estado = 'resolved',\n    resuelta_en = NOW(),\n    resuelta_por = '{{ $json.user_name }}'\nWHERE id = '{{ $json.id_entidad }}'\nRETURNING id AS alert_id, codigo_alerta, contratista_nombre, zona, tipo_servicio, contratista_id;",
         "options": {}
       },
       "id": "aprobar-en-db",
@@ -124,25 +124,12 @@
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "opex_communications", "mode": "list" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "approval_id": "={{ $json.id }}",
-            "alert_id": "={{ $json.alert_id }}",
-            "tipo_comunicacion": "={{ $json.tipo_comunicacion }}",
-            "destinatario": "={{ $json.destinatario }}",
-            "cuerpo_final": "={{ $json.cuerpo_final || $json.cuerpo_borrador }}",
-            "enviado_por": "={{ $('Parsear y Validar Payload Slack').first().json.user_name }}",
-            "canal": "n8n_smtp"
-          }
-        },
+        "operation": "executeQuery",
+        "query": "INSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'real_problem', 'Aprobado como problema real desde Slack', 'slack', NOW(),\n  '{{ $('Parsear y Validar Payload Slack').first().json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id AS case_id, alert_id, codigo_alerta;",
         "options": {}
       },
       "id": "log-comunicacion",
-      "name": "Registrar Comunicación Enviada",
+      "name": "Registrar Caso Aprobado",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [960, 240],
@@ -156,7 +143,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"✅ Comunicación aprobada y registrada por @{{ $('Parsear y Validar Payload Slack').first().json.user_name }}\\nTipo: {{ $json.tipo_comunicacion }} | Destinatario: {{ $json.destinatario }}\"\n}",
+        "jsonBody": "={\n  \"channel\": \"C0AUWJ91V1T\",\n  \"text\": \"✅ Alerta aprobada como problema real por @{{ $('Parsear y Validar Payload Slack').first().json.user_name }}\\nRegla: {{ $json.codigo_alerta }} | Caso registrado: {{ $json.case_id }}\"\n}",
         "options": {}
       },
       "id": "slack-confirm-aprobacion",
