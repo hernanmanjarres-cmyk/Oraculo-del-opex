@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\n\nlet payload;\ntry {\n  payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n} catch(e) {\n  throw new Error('Payload Slack inválido: ' + e.message);\n}\n\nconst action = payload.actions?.[0];\nconst actionId = action?.action_id || '';\nconst actionValue = action?.value || '';\nconst userId = payload.user?.id || 'desconocido';\nconst userName = payload.user?.username || payload.user?.name || 'desconocido';\nconst messageTs = payload.message?.ts || '';\nconst channelId = payload.channel?.id || '';\n\nlet tipoAccion = 'desconocida';\nif (actionId === 'aprobar_comunicacion' || actionId.startsWith('aprobar_')) tipoAccion = 'aprobar';\nelse if (actionId === 'rechazar_comunicacion' || actionId.startsWith('rechazar_')) tipoAccion = 'rechazar';\nelse if (actionId === 'falso_positivo' || actionId.startsWith('fp_')) tipoAccion = 'false_positive';\nelse if (actionId === 'pausar_alertas') tipoAccion = 'pausar';\nelse if (actionId === 'ver_cola_aprobacion') tipoAccion = 'ver_cola';\nelse if (actionId === 'abrir_dashboard') tipoAccion = 'abrir_dashboard';\nelse if (actionId === 'recalibrar_aplicar') tipoAccion = 'recalibrar_aplicar';\nelse if (actionId === 'recalibrar_ignorar') tipoAccion = 'recalibrar_ignorar';\n\nconst idEntidad = actionValue.replace(/^(aprobar_|rechazar_|fp_)/, '') || actionValue;\n\nreturn [{\n  json: {\n    tipo_accion: tipoAccion,\n    action_id: actionId,\n    id_entidad: idEntidad,\n    user_id: userId,\n    user_name: userName,\n    message_ts: messageTs,\n    channel_id: channelId\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body;\n\nlet payload;\ntry {\n  payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n} catch(e) {\n  throw new Error('Payload Slack inválido: ' + e.message);\n}\n\nconst action = payload.actions?.[0];\nconst actionId = action?.action_id || '';\nconst actionValue = action?.value || '';\nconst userId = payload.user?.id || 'desconocido';\nconst userName = payload.user?.username || payload.user?.name || 'desconocido';\nconst messageTs = payload.message?.ts || '';\nconst channelId = payload.channel?.id || '';\n\nlet tipoAccion = 'desconocida';\nif (actionId === 'aprobar_comunicacion' || actionId.startsWith('aprobar_')) tipoAccion = 'aprobar';\nelse if (actionId === 'falso_positivo' || actionId.startsWith('fp_')) tipoAccion = 'false_positive';\nelse if (actionId === 'pausar_alertas') tipoAccion = 'pausar';\nelse if (actionId === 'ver_cola_aprobacion') tipoAccion = 'ver_cola';\nelse if (actionId === 'abrir_dashboard') tipoAccion = 'abrir_dashboard';\nelse if (actionId === 'recalibrar_aplicar') tipoAccion = 'recalibrar_aplicar';\nelse if (actionId === 'recalibrar_ignorar') tipoAccion = 'recalibrar_ignorar';\n\nconst idEntidad = actionValue.replace(/^(aprobar_|fp_)/, '') || actionValue;\n\nreturn [{\n  json: {\n    tipo_accion: tipoAccion,\n    action_id: actionId,\n    id_entidad: idEntidad,\n    user_id: userId,\n    user_name: userName,\n    message_ts: messageTs,\n    channel_id: channelId\n  }\n}];"
       },
       "id": "parsear-payload",
       "name": "Parsear y Validar Payload Slack",
@@ -54,17 +54,6 @@
               },
               "renameOutput": true,
               "outputKey": "aprobar"
-            },
-            {
-              "conditions": {
-                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
-                "conditions": [
-                  { "leftValue": "={{ $json.tipo_accion }}", "rightValue": "rechazar", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "rechazar"
             },
             {
               "conditions": {
@@ -125,7 +114,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'real_problem', 'Aprobado como problema real desde Slack', 'slack', NOW(),\n  '{{ $('Parsear y Validar Payload Slack').first().json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id AS case_id, alert_id, codigo_alerta;",
+        "query": "INSERT INTO opex_cases (\n  alert_id, codigo_alerta, contratista_id, tipo_servicio, zona,\n  veredicto, causa_raiz_texto, canal_cierre, cerrado_en, cerrado_por,\n  tiempo_resolucion_horas\n)\nSELECT\n  a.id, a.codigo_alerta, a.contratista_id, a.tipo_servicio, a.zona,\n  'confirmado', 'Aprobado como problema real desde Slack', 'slack', NOW(),\n  '{{ $('Parsear y Validar Payload Slack').first().json.user_name }}',\n  EXTRACT(EPOCH FROM (NOW() - a.generada_en))/3600\nFROM opex_alerts a\nWHERE a.id = '{{ $json.alert_id }}'\nRETURNING id AS case_id, alert_id, codigo_alerta;",
         "options": {}
       },
       "id": "log-comunicacion",
@@ -152,19 +141,6 @@
       "typeVersion": 4.3,
       "position": [1200, 240],
       "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE opex_approvals\nSET estado = 'rechazado',\n    aprobado_por = '{{ $json.user_name }}',\n    motivo_rechazo = 'Rechazado desde Slack'\nWHERE id = '{{ $json.id_entidad }}'\nRETURNING id, alert_id;",
-        "options": {}
-      },
-      "id": "rechazar-en-db",
-      "name": "Marcar Rechazado en DB",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [720, 420],
-      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -322,14 +298,13 @@
     "Switch por Tipo de Acción": {
       "main": [
         [{ "node": "Marcar Aprobado en DB", "type": "main", "index": 0 }],
-        [{ "node": "Marcar Rechazado en DB", "type": "main", "index": 0 }],
         [{ "node": "Preparar False Positive", "type": "main", "index": 0 }],
         [{ "node": "Activar Kill Switch (Pausar)", "type": "main", "index": 0 }],
         [{ "node": "Query Cola de Alertas", "type": "main", "index": 0 }]
       ]
     },
-    "Marcar Aprobado en DB": { "main": [[{ "node": "Registrar Comunicación Enviada", "type": "main", "index": 0 }]] },
-    "Registrar Comunicación Enviada": { "main": [[{ "node": "Confirmar Aprobación en Slack", "type": "main", "index": 0 }]] },
+    "Marcar Aprobado en DB": { "main": [[{ "node": "Registrar Caso Aprobado", "type": "main", "index": 0 }]] },
+    "Registrar Caso Aprobado": { "main": [[{ "node": "Confirmar Aprobación en Slack", "type": "main", "index": 0 }]] },
     "Preparar False Positive": { "main": [[{ "node": "Registrar FP en DB y Crear Case", "type": "main", "index": 0 }]] },
     "Registrar FP en DB y Crear Case": { "main": [[{ "node": "Actualizar FP Rate en Reglas", "type": "main", "index": 0 }]] },
     "Actualizar FP Rate en Reglas": { "main": [[{ "node": "¿FP Rate alto?", "type": "main", "index": 0 }]] },
@@ -349,6 +324,6 @@
   },
   "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-1" }, { "name": "Aprobaciones" }, { "name": "Feedback-Loop" }],
   "meta": {
-    "notes": "Webhook que recibe acciones de Slack (botones). Maneja: aprobar, rechazar, falso positivo, pausar, ver_cola. Los nodos Slack usan HTTP Request a chat.postMessage con credencial Header Auth account 12 (Bearer xoxb-...). El flujo FP actualiza fp_rate en opex_rules (mecanismo evolutivo)."
+    "notes": "Webhook que recibe acciones de Slack (botones). Maneja: aprobar, falso positivo, pausar, ver_cola. Los nodos Slack usan HTTP Request a chat.postMessage con credencial Header Auth account 12 (Bearer xoxb-...). El flujo FP actualiza fp_rate en opex_rules (mecanismo evolutivo)."
   }
 }
