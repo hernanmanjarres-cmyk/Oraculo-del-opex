@@ -818,36 +818,48 @@ Los 9 workflows de las fases 1–2 están **activos en n8n cloud**. JSON version
 
 ### WF-07 — Cierre Mensual (`wf_07_monthly_close.json`)
 
-- **Trigger:** Cron mensual día 1 a las 07:00.
-- **Estado:** Estructura presente, **refactor pendiente** (mismo patrón: migrar credenciales a `92nLfZ0IlzU004no`, reemplazar Slack v2.2 por Code + HTTP Request).
+- **Trigger:** Cron día 1 de cada mes a las 09:00.
+- **Flujo:** Query agregada del mes anterior (ejecución, budget, alertas, top desviaciones, top contratistas, por zona, forecast día 20) → Code "Preparar Datos para IA" arma `prompt_ia` y CSVs de pivots → AI Agent + sub-node OpenAI gpt-4o-mini genera narrativa ejecutiva (3 párrafos, ≤250 palabras) → Code "Armar Reporte Final" recupera datos vía `$('Preparar Datos para IA').first().json`, monta `mensaje_slack` y `slack_blocks` (sección + divider + actions con botón "Aprobar cierre" / "Ver dashboard") → INSERT en `opex_closes` con `estado='borrador'` + HTTP Request a `#opex-cierre` (`C0AUXUFH1HU`).
+- **Estado:** ✅ Refactor completo committeado (`44d8cef`). Cierre queda en `borrador` hasta aprobación humana.
 
-### WF-08 — Feedback Loop (no listado en JSONs visibles)
+### WF-08 — Feedback Loop / Cierre de Alertas (`wf_08_alert_feedback_loop.json`)
 
-- **Estado:** Activo según el inventario; revisar JSON.
+- **Trigger:** Webhook `POST /opex-close-alert` (llamado desde WF-04 al cerrar una alerta o desde dashboard).
+- **Flujo:** ACK 200 inmediato + rama de procesamiento → Validar payload (`alert_id`, `veredicto`, `causa_raiz_*`, `monto_recuperado`) → Query la alerta con `causa_raiz_sugerida` (IA) → Code "Preparar Datos del Case" calcula `tiempo_resolucion_horas` y compara causa raíz IA vs humana (`ia_acerto`) → Postgres ejecuta UPDATE en `opex_alerts.estado` + INSERT en `opex_cases` con `RETURNING id, codigo_alerta` → Postgres recalcula `fp_rate` / `tp_rate` / `n_falsos_positivos` / `n_activaciones` en `opex_rules` (ventana 30 días) → Code "Evaluar Threshold" arma `slack_blocks` si `fp_rate ≥ 0.40` → If con config v2 → HTTP Request a `#opex-alertas` (`C0AVCTBV665`) avisando degradación de calidad.
+- **Estado:** ✅ Refactor completo committeado (`44d8cef`). Webhook listo para integrarse desde WF-04.
 
-### WF-09 — Recalibración
+### WF-09 — Recalibración Mensual (`wf_09_monthly_recalibration.json`)
 
-- **Estado:** Activo. Refactor pendiente con el mismo patrón que WF-07.
+- **Trigger:** Cron día 3 de cada mes a las 10:00 (después de cierre día 1 + revisión día 2).
+- **Flujo:** Dos queries en paralelo (métricas reglas 3 meses + métricas globales del agente: MAE forecast, cobertura alertas útiles, tiempo mediano cierre, ahorro 3M, precisión IA) → Code "Calcular Propuestas" aplica reglas: si `fp_rate_3m ≥ 40%` y `casos ≥ 5` propone subir umbral (+30%) o z-score (+0.5); si `fp_rate < 10%` y `tp ≥ 3` confirma umbral → Code "Formatear Reporte" genera `slack_blocks` (header + KPIs vs metas + propuestas + actions "Aplicar todos" / "Ignorar") → HTTP Request a `#opex-alertas` → If `hay_cambios` → Code "Preparar Updates" genera SQL parametrizado (`UPDATE opex_rules SET <campo> = <valor>, version = version + 1...`) → Log en `opex_agent_log`.
+- **Importante:** los UPDATEs **no se aplican automáticamente** — quedan preparados como queries y el log registra qué se propuso. La aplicación efectiva requiere acción manual o un futuro WF que reciba el botón "Aplicar todos" del Slack.
+- **Estado:** ✅ Refactor completo committeado (`44d8cef`).
 
 ## A.4 Schema Supabase efectivo
 
 Tablas operativas en uso (ver `Documentos analista opex/FASE_0_FUNDACIONES/00_supabase_schema.sql` y `00b_tarifario_or_patch.sql` para detalle):
 
-- `opex_transactions` — transacciones ingestadas desde Metabase 66793.
+- `opex_transactions` — transacciones ingestadas desde Metabase 66793 (columnas clave: `tx_id_fuente`, `ot_id`, `contratista_id`, `tipo_servicio`, `zona`, `fecha_tx`, `costo_total`, `cantidad`, `costo_unitario`, `tiene_acta_cierre`).
 - `opex_tarifario` — tarifas vigentes por contratista/ítem/grupo OR (3 grupos × 67 ítems × 18 contratistas).
 - `opex_or_mapping` — 23 ORs mapeados a sus grupos.
-- `opex_alertas` — alertas tipificadas A1–A13 con severidad y estado.
-- `opex_cases` — casos cerrados con `veredicto` ∈ `('confirmado','false_positive','pendiente','escalado')` (CHECK constraint).
+- `opex_budget` — presupuesto mensual por zona/contratista/categoría (vacío hasta crear el Sheet).
+- `opex_baseline` — promedio móvil + desviación estándar por `(tipo_servicio, zona, contratista)` (recálculo semanal pendiente).
+- `opex_rules` — catálogo de reglas A1–A14 con umbrales versionados, `fp_rate` y `tp_rate` evolutivos.
+- `opex_alerts` — alertas tipificadas con severidad y estado (`open|ack|in_progress|resolved|false_positive`). **Append-only**, contiene `query_evidencia` y `snapshot_json` para trazabilidad forense.
+- `opex_cases` — casos cerrados con `veredicto` ∈ `('confirmado','false_positive','pendiente','escalado')` (CHECK constraint), `causa_raiz_codigo`, `causa_raiz_texto`, `causa_raiz_ia`, `ia_acerto`, `monto_recuperado`, `tiempo_resolucion_horas`.
+- `opex_approvals` — cola de aprobación (definida en schema pero **no se usa hoy**; WF-04 y WF-05 actualizan directamente `opex_alerts`/`opex_cases`).
 - `opex_forecasts` — proyecciones rolling diarias (18 columnas mapeadas explícitamente desde WF-06).
-- `opex_approvals` — cola de aprobación (no se usa hoy; WF-04 actualiza directamente `opex_alertas`/`opex_cases`).
+- `opex_closes` — snapshot del cierre mensual (`narrativa_ejecutiva`, `top_drivers_json`, `pivot_zona_csv`, `pivot_contratista_csv`, `error_forecast_pct`, `estado='borrador'` hasta aprobación).
+- `opex_agent_log` — bitácora de ejecuciones de cada workflow.
+- `opex_config` — flags globales (incluye `agente_pausado` que WF-04 pone en `true` cuando el analista pulsa "Pausar").
 - `get_tarifa_vigente(contratista_id, item_codigo, or_nombre, fecha, jornada)` — función SQL con incrementos por jornada.
 
-> **Diferencia con el diseño:** la matriz de la sección 9.1 menciona `opex_alerts` (en inglés). En implementación se usa `opex_alertas` y la tabla `opex_cases` se introdujo como capa de cierre formal con veredicto controlado por CHECK.
+> **Notación:** todas las tablas usan nombres en inglés (`opex_alerts`, `opex_cases`, etc.) según el schema en `00_supabase_schema.sql`.
 
 ## A.5 Decisiones de alcance modificadas
 
 1. **Rama "Rechazar" eliminada de WF-04.** El diseño (sec. 9.1) preveía estado `rejected`. En la práctica el analista utiliza "Falso positivo" para descartar, evitando ambigüedad operativa.
-2. **`opex_approvals` deprecada.** WF-05 originalmente insertaba en una cola intermedia; se eliminó el nodo "Crear en Cola de Aprobación" y la actualización se hace directa sobre `opex_alertas`.
+2. **`opex_approvals` deprecada.** WF-05 originalmente insertaba en una cola intermedia; se eliminó el nodo "Crear en Cola de Aprobación" y la actualización se hace directa sobre `opex_alerts`.
 3. **AI Agent reemplaza nodo LLM standalone.** El sub-nodo `lmChatGoogleGemini` / `lmChatOpenAi` solo expone puerto `ai_languageModel`, no `main`. El patrón productivo es **AI Agent + sub-node** conectados por `ai_languageModel`.
 4. **Gemini → OpenAI gpt-4o-mini.** Cuota free-tier de Gemini se agotó en pruebas; gpt-4o-mini es barato (~$0.15 por millón de tokens input) y suficiente para clasificación de causa raíz y narrativa corta.
 5. **Slack v2.2 nativo no se usa para Block Kit dinámico** (ver A.6).
@@ -939,23 +951,36 @@ WF-02 consolida ~26k filas de Metabase en 1 batch SQL (en lugar de N items indiv
 
 ## A.8 Estado operativo (snapshot 2026-04-27)
 
-✅ **Operativo en producción:**
-- WF-01 sincroniza ~3,600 tarifas diariamente.
-- WF-02 ingiere transacciones desde Metabase 66793.
-- WF-03 envía resumen diario 07:30.
-- WF-04 procesa aprobaciones con 4 ramas (sin Rechazar).
-- WF-05 detecta anomalías A1–A13 (incluye A12 con `get_tarifa_vigente`) y enriquece con OpenAI gpt-4o-mini.
-- WF-06 forecast rolling EWMA con persistencia de 18 columnas y alerta A10 a `#opex-alertas`.
+✅ **Refactor unificado completado en los 9 workflows.** Todos los WF productivos ya usan:
+- Credencial Postgres `92nLfZ0IlzU004no` "Supabase Oráculo del Opex".
+- Slack vía Code + HTTP Request `chat.postMessage` con Header Auth `GciOWwHMTLVJJuAu` (Block Kit dinámico).
+- Switch/If con config v2 completa.
+- `alwaysOutputData: true` donde aplica.
+- AI Agent + sub-node OpenAI gpt-4o-mini para clasificación/narrativa.
 
-⏳ **Pendientes:**
+| WF | Estado | Disparador | Notas |
+|---|---|---|---|
+| WF-01 | ✅ Operativo | Cron 06:00 diario | ~3,600 tarifas sincronizadas |
+| WF-02 | ✅ Operativo | Cron horario | Pendiente reemplazar `METABASE_API_KEY_AQUI` |
+| WF-03 | ✅ Operativo | Cron 07:30 | Botón "Abrir dashboard" sin URL |
+| WF-04 | ✅ Operativo | Webhook Slack | 4 ramas (Aprobar / FP / Pausar / Ver cola) |
+| WF-05 | ✅ Operativo | Cron horario | A1–A13 + A12 con `get_tarifa_vigente`, OpenAI gpt-4o-mini |
+| WF-06 | ✅ Refactor committeado | Cron 05:30 | Validación end-to-end final en curso |
+| WF-07 | ✅ Refactor committeado | Cron día 1 09:00 | Cierre queda en `borrador` |
+| WF-08 | ✅ Refactor committeado | Webhook `/opex-close-alert` | Integración desde WF-04 pendiente |
+| WF-09 | ✅ Refactor committeado | Cron día 3 10:00 | UPDATEs preparados pero no aplicados |
+
+⏳ **Pendientes operativos:**
 - Reemplazar `METABASE_API_KEY_AQUI` en WF-02.
 - Crear Sheet de Budget mensual y reconectar la rama Budget de WF-01.
-- Botón "Abrir dashboard" en WF-03 sin `url` hasta que exista dashboard Metabase OPEX.
-- Refactor WF-07 (cierre mensual) con el mismo patrón Slack + credenciales unificadas.
-- Refactor WF-09 (recalibración) con el mismo patrón.
+- Validar end-to-end de WF-06, WF-07, WF-08, WF-09 en n8n cloud (reimportar y ejecutar manual).
+- Conectar el ACK de WF-04 hacia el webhook `/opex-close-alert` de WF-08 (hoy WF-04 actualiza directo; WF-08 es la versión "rica" con métricas).
+- Botón "Abrir dashboard" en WF-03 / WF-07 sin `url` hasta que exista dashboard Metabase OPEX.
+- Validación de signing secret en webhook WF-04 y WF-08.
+- Aplicación efectiva de los UPDATEs propuestos por WF-09 (hoy solo se loguean): falta WF que reciba el botón "Aplicar todos" del Slack y ejecute las queries.
 - Generación de PDF para cierre mensual (Puppeteer/Gotenberg) — diferida.
 - Storage de evidencia en bucket externo — diferido.
-- Validación de signing secret en webhook WF-04.
+- Configuración de credencial Claude API como fallback de OpenAI — diferida.
 
 ## A.9 Repositorio y versionado
 
@@ -965,6 +990,7 @@ WF-02 consolida ~26k filas de Metabase en 1 batch SQL (en lugar de N items indiv
   - `Documentos analista opex/FASE_0_FUNDACIONES/` — schemas SQL, setup credenciales, plantillas Sheets, runbooks.
   - `Documentos analista opex/FASE_1_WORKFLOWS/` — JSON de WF-01 a WF-04.
   - `Documentos analista opex/FASE_2_WORKFLOWS/` — JSON de WF-05 a WF-07.
+  - `Documentos analista opex/FASE_3_EVOLUTIVO/` — JSON de WF-08 (feedback loop) y WF-09 (recalibración).
   - `Documentos analista opex/DOCS_OPERATIVOS/` — runbooks operativos.
   - `metabase_cards_n8n_documentation.md` (raíz) — documentación de cards Metabase.
 
