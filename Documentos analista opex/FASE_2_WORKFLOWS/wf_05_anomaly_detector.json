@@ -122,19 +122,23 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.0-flash",
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
         "options": {}
       },
-      "id": "gemini-lm",
-      "name": "Gemini 2.0 Flash",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1,
-      "position": [1440, 480],
-      "credentials": { "googleAIStudioApi": { "id": "4", "name": "Gemini API BIA" } }
+      "id": "openai-lm",
+      "name": "OpenAI gpt-4o-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1440, 480]
     },
     {
       "parameters": {
-        "jsCode": "// Combinar alerta original con respuesta del AI Agent.\n// El Agent emite un item por cada item de entrada y conserva pairing → $input.first().json\n// trae tanto los campos del Agent (output) como los heredados de la alerta.\nconst entrada = $input.first().json;\nconst rawText = entrada.output || entrada.text || entrada.content || '';\n\nlet iaJson = {};\ntry {\n  const match = String(rawText).match(/\\{[\\s\\S]*\\}/);\n  if (match) iaJson = JSON.parse(match[0]);\n} catch (e) {}\n\nreturn [{\n  json: {\n    ...entrada,\n    causa_raiz_sugerida: iaJson.causa_raiz || 'Clasificación pendiente',\n    narrativa_ia: iaJson.narrativa || entrada.narrativa_corta\n  }\n}];"
+        "jsCode": "// El AI Agent reemplaza el JSON con su output, perdiendo los campos de la alerta original.\n// Recuperamos la alerta cruzando con 'Combinar Resultados Detectores' (paired item) y\n// fusionamos con la clasificación devuelta por el LLM.\nconst ia = $input.first().json;\nconst alerta = $('Combinar Resultados Detectores').item.json;\nconst rawText = ia.output || ia.text || ia.content || '';\n\nlet iaJson = {};\ntry {\n  const match = String(rawText).match(/\\{[\\s\\S]*\\}/);\n  if (match) iaJson = JSON.parse(match[0]);\n} catch (e) {}\n\nreturn [{\n  json: {\n    ...alerta,\n    causa_raiz_sugerida: iaJson.causa_raiz || 'Clasificación pendiente',\n    narrativa_ia: iaJson.narrativa || alerta.narrativa_corta\n  }\n}];"
       },
       "id": "enriquecer-con-ia",
       "name": "Enriquecer Alerta con IA",
@@ -239,7 +243,7 @@
       ]
     },
     "AI Agent: Clasificar Anomalía": { "main": [[{ "node": "Enriquecer Alerta con IA", "type": "main", "index": 0 }]] },
-    "Gemini 2.0 Flash": { "ai_languageModel": [[{ "node": "AI Agent: Clasificar Anomalía", "type": "ai_languageModel", "index": 0 }]] },
+    "OpenAI gpt-4o-mini": { "ai_languageModel": [[{ "node": "AI Agent: Clasificar Anomalía", "type": "ai_languageModel", "index": 0 }]] },
     "Enriquecer Alerta con IA": { "main": [[{ "node": "Insertar Alerta Anomalía", "type": "main", "index": 0 }]] },
     "Insertar Alerta Anomalía": { "main": [[{ "node": "¿Severidad notificable?", "type": "main", "index": 0 }]] },
     "¿Severidad notificable?": {
