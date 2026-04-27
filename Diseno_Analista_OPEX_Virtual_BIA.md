@@ -863,6 +863,7 @@ Tablas operativas en uso (ver `Documentos analista opex/FASE_0_FUNDACIONES/00_su
 3. **AI Agent reemplaza nodo LLM standalone.** El sub-nodo `lmChatGoogleGemini` / `lmChatOpenAi` solo expone puerto `ai_languageModel`, no `main`. El patrón productivo es **AI Agent + sub-node** conectados por `ai_languageModel`.
 4. **Gemini → OpenAI gpt-4o-mini.** Cuota free-tier de Gemini se agotó en pruebas; gpt-4o-mini es barato (~$0.15 por millón de tokens input) y suficiente para clasificación de causa raíz y narrativa corta.
 5. **Slack v2.2 nativo no se usa para Block Kit dinámico** (ver A.6).
+6. **Budget pasa a ser Teórico calculado por el sistema (2026-04-27).** El diseño original asumía un Sheet poblado por Finanzas. El usuario decidió que el agente debe **calcular** el budget desde el backlog vigente (Metabase card 65209) + tarifa vigente, sin input humano. Implica nuevo WF-01b y deprecación de la rama Budget Sheet de WF-01. Detalle en A.10 y `Documentos analista opex/FASE_4_BUDGET_TEORICO/`.
 
 ## A.6 Patrones técnicos aprendidos
 
@@ -972,7 +973,9 @@ WF-02 consolida ~26k filas de Metabase en 1 batch SQL (en lugar de N items indiv
 
 ⏳ **Pendientes operativos:**
 - Reemplazar `METABASE_API_KEY_AQUI` en WF-02.
-- Crear Sheet de Budget mensual y reconectar la rama Budget de WF-01.
+- ~~Crear Sheet de Budget mensual y reconectar la rama Budget de WF-01.~~ **Deprecado el 2026-04-27** — el budget pasa a ser calculado por el sistema vía WF-01b (ver A.10).
+- Diseñar e implementar WF-01b (Budget Teórico desde Pipeline) según A.10.
+- Procesar card Metabase 19440 (histórico 12 meses) para construir matriz `(zona, tipo_servicio) → contratista_id`.
 - Validar end-to-end de WF-06, WF-07, WF-08, WF-09 en n8n cloud (reimportar y ejecutar manual).
 - Conectar el ACK de WF-04 hacia el webhook `/opex-close-alert` de WF-08 (hoy WF-04 actualiza directo; WF-08 es la versión "rica" con métricas).
 - Botón "Abrir dashboard" en WF-03 / WF-07 sin `url` hasta que exista dashboard Metabase OPEX.
@@ -991,8 +994,43 @@ WF-02 consolida ~26k filas de Metabase en 1 batch SQL (en lugar de N items indiv
   - `Documentos analista opex/FASE_1_WORKFLOWS/` — JSON de WF-01 a WF-04.
   - `Documentos analista opex/FASE_2_WORKFLOWS/` — JSON de WF-05 a WF-07.
   - `Documentos analista opex/FASE_3_EVOLUTIVO/` — JSON de WF-08 (feedback loop) y WF-09 (recalibración).
+  - `Documentos analista opex/FASE_4_BUDGET_TEORICO/` — diseño de WF-01b (Budget Teórico desde Pipeline) y diccionario de cards Metabase 65209 / 19440.
   - `Documentos analista opex/DOCS_OPERATIVOS/` — runbooks operativos.
   - `metabase_cards_n8n_documentation.md` (raíz) — documentación de cards Metabase.
 
 Cada workflow está versionado en JSON; los cambios productivos en n8n cloud se exportan al repo con commit descriptivo.
+
+---
+
+## A.10 Budget Teórico desde Pipeline (WF-01b en diseño)
+
+**Detalle completo:** `Documentos analista opex/FASE_4_BUDGET_TEORICO/01_WF_01b_diseno.md`.
+
+### Resumen
+
+El usuario decidió el 2026-04-27 que el agente debe **calcular** el presupuesto OPEX en lugar de leerlo de un Sheet. Esto reemplaza la rama Budget de WF-01 y agrega un nuevo workflow (WF-01b) que combina:
+
+- **Backlog activo** desde Metabase card **65209** (fronteras vigentes con costos estimados, banda y fase).
+- **Tarifa vigente** desde la función Supabase `get_tarifa_vigente()`.
+- **Asignación de contratista** derivada del histórico (Metabase card **19440**, últimos 12 meses).
+
+### Reglas de negocio nuevas
+
+- **Zonas canónicas:**
+  - `centro` = ENEL CUNDINAMARCA.
+  - `costa` = AFINIA CARIBE_MAR + AIRE CARIBE_SOL.
+  - `interior` = el resto del país.
+- **`tipo_servicio` canónico** (≠ `tipo_de_medida`): `VIPES`, `INST`, `NORM`, `LEGA`.
+- **Bandas que entran al budget:** 🟢 `INSTALAR` y 🟡 `INSTALAR - MENOS PRIORITARIO`. Las bandas 🔴 y ⚪ se monitorean para análisis pero no suman al budget.
+- **Ciclo cubierto:** Solo activación. Otras categorías OPEX (mantenimiento, calibración, telemedida) no entran a este motor.
+- **Finanzas no participa** en este agente: no hay aprobaciones humanas sobre el budget calculado.
+
+### Pendientes para implementar
+
+1. Procesar card 19440 (~27.4 MB) para construir matriz `(zona, tipo_servicio) → contratista_id`.
+2. Decidir dónde persistir esa matriz (`opex_zona_contratista_default` vs JSON en `opex_config`).
+3. Confirmar mapeo `fase_actual` → `tipo_servicio` para los cuatro códigos canónicos (NORM en particular).
+4. Definir `categoria_contable` para Budget Teórico.
+5. Construir y testear WF-01b en n8n cloud.
+6. Limpieza: decidir si la rama Budget Sheet de WF-01 se elimina del JSON o queda desconectada como referencia histórica.
 
