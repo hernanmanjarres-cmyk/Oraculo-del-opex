@@ -687,3 +687,286 @@ El Analista OPEX Virtual es, de los dos agentes diseñados, el que puede arranca
 Las dos decisiones críticas para arrancar son: (a) confirmar granularidad del budget y vigencia del tarifario, y (b) acordar con Finanzas el protocolo de comunicación saliente a contratistas (tono, plazos, doble aprobación para desvíos altos). Con esas dos palancas resueltas, el agente puede entregar valor medible desde la semana 2.
 
 **Próximo paso sugerido:** sesión de 60 min con el analista OPEX + coordinador de Finanzas para validar las 10 preguntas abiertas, acordar umbrales iniciales y consensuar la plantilla de correo saliente.
+
+---
+
+# Apéndice A — Estado de implementación real (actualizado 2026-04-27)
+
+> Este apéndice documenta lo que efectivamente se construyó, cómo se desvió del diseño original y los patrones operativos aprendidos durante la implementación. El documento de diseño (secciones 0–24) es la visión canónica; este apéndice es el espejo de la realidad.
+
+## A.1 Stack real vs. diseño original
+
+| Componente | Diseño (sec. 5.2 / 19) | Implementación real | Razón del cambio |
+|---|---|---|---|
+| Orquestador | n8n self-hosted en Cloud Run | **n8n cloud 1.123.33** (proyecto "Oráculo del OPEX") | Time-to-market; sin necesidad de infra propia para MVP |
+| Base de datos | Cloud SQL Postgres dedicado | **Supabase** (Session Pooler `aws-1-us-east-1.pooler.supabase.com`, user `postgres.jgyvgckbintxqrihitcw`, port 5432, SSL Ignore) | Ya existe en BIA; ahorra setup |
+| LLM primario | Gemini 2.x Flash/Pro | **OpenAI gpt-4o-mini** | Cuota Gemini free-tier agotada en pruebas; gpt-4o-mini es barato y suficiente para clasificación |
+| LLM fallback | Claude API | **No configurado** (sin créditos en cuenta) | Pendiente; OpenAI cubre el rol primario hoy |
+| Tarifario/Budget | Tablas versionadas en Cloud SQL | **Google Sheets "Tarifarios BIA"** sincronizado a `opex_tarifario` en Supabase vía WF-01 (cron diario 06:00) | El equipo OPEX ya gestiona Sheets; se mantiene como fuente de verdad y se sincroniza |
+| Triggers | Cloud Scheduler | **Schedule Trigger nativo de n8n** | Suficiente en cloud n8n |
+| Storage de evidencia | Cloud Storage | **No implementado** (snapshot in-row en JSONB) | Pospuesto a Fase 3 |
+| Ticketing | Linear/Jira/Notion + Slack | **Slack canales dedicados** (sin sistema de tickets externo) | Operaciones aún no formaliza ticketing; Slack como cola |
+| Generación PDF | Puppeteer / Gotenberg | **No implementado todavía** (WF-07 entrega Slack + Sheet) | Diferido a iteración posterior |
+| Secret Manager | Secret Manager GCP | **n8n credentials store** | Suficiente para el alcance actual |
+
+## A.2 Credenciales y recursos productivos
+
+| Recurso | ID / valor | Notas |
+|---|---|---|
+| Supabase Postgres | Credential id `92nLfZ0IlzU004no` ("Supabase Oráculo del Opex") | Session Pooler; SSL Ignore |
+| Slack OAuth | Credential id `3` ("Slack OPEX BIA") | Usado en `chat.postMessage` cuando aplica |
+| Slack Header Auth (HTTP Request) | Credential id `GciOWwHMTLVJJuAu` ("Header Auth account 12") | Patrón obligatorio para Block Kit dinámico (ver A.6) |
+| Google Sheets | Credential id `4` (Service Account "Google OPEX BIA") | Lectura del libro "Tarifarios BIA" |
+| Metabase | API Key inline en WF-02 nodo "Metabase: Fetch Costos OPEX" | Pendiente reemplazar el placeholder `METABASE_API_KEY_AQUI` |
+| OpenAI | Credential propia configurada en n8n | Modelo `gpt-4o-mini` para clasificación/narrativa |
+| Sheet tarifarios | ID `1ATh2kaZZHnWAh8UHDJKKYd5lccqvUAolU6ElJhAU4zk` | Pestaña `Contratistas` con columnas `contratista_id | sheets_file_id | hoja | activo` |
+
+### Canales Slack operativos
+
+| Canal | ID | Uso |
+|---|---|---|
+| `#opex-alertas` | `C0AVCTBV665` | Alertas críticas (anomalías severidad alta, forecast crítico) |
+| `#opex-aprobacion` | `C0AUWJ91V1T` | Cola de aprobación (alertas medias, cierres pendientes de revisión) |
+| `#opex-cierre` | `C0AUXUFH1HU` | Resumen mensual y cierres |
+| `#opex-errors` | `C0AUTK8B1HR` | Error Trigger global, fallos de workflows |
+
+### Metabase cards de referencia
+
+| Card ID | Nombre | Uso |
+|---|---|---|
+| **66793** | Costos asociados a opex | **Fuente principal de WF-02** (~26k filas, filtrada a últimos 30 días en Code node). Columnas clave: `titulo` (ID único OT), `contratista`, `operador_de_red`, `fecha_programada`, `total_cost`, `fase_actual`, `mercado`, `tipo_de_servicio` |
+| 66727 | CAC_BIA | Agregado por cliente |
+| 63163 | Opex Costs General | Detalle costos por visita |
+| 55773 | Visitas General | Master visitas |
+
+> Documentación completa de cards en `metabase_cards_n8n_documentation.md` en la raíz del proyecto.
+
+## A.3 Workflows construidos (FASE 1 + FASE 2)
+
+Los 9 workflows de las fases 1–2 están **activos en n8n cloud**. JSON versionados en `Documentos analista opex/FASE_1_WORKFLOWS/` y `FASE_2_WORKFLOWS/`.
+
+### WF-01 — Sync Tarifarios desde Sheets (`wf_01_data_sync_sheets.json`)
+
+- **Trigger:** Cron diario 06:00.
+- **Flujo:** Lee la pestaña `Contratistas` del libro "Tarifarios BIA" → SplitInBatches por contratista (output 1 = loop, output 0 = done) → Lee la pestaña dinámica indicada por la columna `hoja` → INSERT/UPSERT a `opex_tarifario`.
+- **Estado:** ✅ ~3,600 tarifas reales cargadas (18 contratistas × 67 ítems × 3 grupos OR).
+- **Pendiente:** rama de Budget desconectada hasta crear el Sheet de presupuesto mensual con columnas `mes | anio | zona | contratista_id | categoria | monto_budget`.
+- **Contratistas activos:** GMAS, POWER_GRID, DR_TELEMEDIDA, SGE, JEM, AR_INGENIERIA, C3, C3_BOGOTA, ISELEC, DISELEC, GATRIA, ISEMEC, ISEMEC_BOGOTA, S&SE, REHOBOT, MONTAJES_MTE, ELECPROYECTOS, MCR.
+
+### WF-02 — OPEX Monitor (`wf_02_opex_monitor.json`)
+
+- **Trigger:** Cron horario.
+- **Flujo:** Fetch Metabase card 66793 → Code node consolida 26k filas en 1 batch SQL → INSERT a `opex_transactions` → Query enriquecido con `get_tarifa_vigente()` → Reglas A1–A9, A13 → Slack alertas altas a `#opex-alertas`.
+- **Estado:** ✅ Operativo. Pendiente: reemplazar `METABASE_API_KEY_AQUI`.
+
+### WF-03 — Daily Slack Summary (`wf_03_daily_slack_summary.json`)
+
+- **Trigger:** Cron 07:30.
+- **Flujo:** Agrega métricas del día anterior + MTD + forecast actual → Code "Formatear Resumen" + HTTP Request a `chat.postMessage` con Block Kit dinámico.
+- **Estado:** ✅ Operativo. Botón "Abrir dashboard" sin `url` (placeholder hasta que exista dashboard Metabase OPEX).
+
+### WF-04 — Slack Approval Webhook (`wf_04_slack_approval_webhook.json`)
+
+- **Trigger:** Webhook (signing secret pendiente de validación).
+- **Switch v3.2** enruta el `action_id` recibido a 4 ramas:
+  - `aprobar` → marca alerta `resolved` + crea registro en `opex_cases` con `veredicto = 'confirmado'`.
+  - `falso_positivo` → marca alerta `false_positive` + caso `veredicto = 'false_positive'`.
+  - `pausar` → flag global `agente_pausado = true`.
+  - `ver_cola` → responde con resumen de cola actual.
+- **Decisión:** rama "Rechazar" eliminada del diseño (parser, switch rule, nodo Postgres "Marcar Rechazado"). El analista usa "Falso positivo" para descartar.
+- **Estado:** ✅ Cerrado y operativo en producción.
+
+### WF-05 — Anomaly Detector (`wf_05_anomaly_detector.json`)
+
+- **Trigger:** Cron horario.
+- **Flujo:** N detectores en paralelo (A1–A9, **A12 fuga silenciosa**, A13) → "Combinar Resultados Detectores" (`$input.all()`) → AI Agent + sub-node OpenAI gpt-4o-mini para `causa_raiz` y `narrativa` → Code "Enriquecer Alerta con IA" recupera `alerta` original vía `$('Combinar Resultados Detectores').item.json` → Code "Formatear Notificación Slack" → HTTP Request a `chat.postMessage`.
+- **A12 (fuga silenciosa)** implementada con `get_tarifa_vigente()`:
+
+  ```sql
+  WITH tx_con_tarifa AS (
+    SELECT t.contratista_id, t.contratista_nombre, t.costo_total, t.cantidad,
+      get_tarifa_vigente(
+        t.contratista_id, t.item_codigo,
+        COALESCE(NULLIF(t.or_nombre,''), 'OTROS_OR'),
+        t.fecha_tx::DATE, 'diurna'
+      ) AS tarifa_vigente
+    FROM opex_transactions t
+    WHERE t.fecha_tx >= DATE_TRUNC('month', CURRENT_DATE)
+      AND t.cantidad IS NOT NULL AND t.cantidad > 0
+      AND t.item_codigo IS NOT NULL
+  )
+  SELECT 'A12' AS codigo_alerta, ...
+  FROM tx_con_tarifa ct
+  WHERE ct.tarifa_vigente IS NOT NULL
+  GROUP BY ct.contratista_id
+  HAVING SUM(ct.cantidad * ct.tarifa_vigente) > 0
+    AND ((SUM(ct.costo_total) - SUM(ct.cantidad * ct.tarifa_vigente))
+         / NULLIF(SUM(ct.cantidad * ct.tarifa_vigente), 0)) > 0.08
+    AND NOT EXISTS (...)
+  ```
+
+- **Estado:** ✅ Operativo end-to-end con gpt-4o-mini.
+
+### WF-06 — Forecast Rolling EWMA (`wf_06_forecast_rolling.json`)
+
+- **Trigger:** Cron diario 05:30.
+- **Flujo:** 3 queries encadenadas serialmente (histórico 25 días → pipeline OTs pendientes → budget) → Code "Calcular EWMA" (proyección central + P20/P80) → INSERT a `opex_forecasts` con mapeo explícito de 18 columnas → Code "Formatear Forecast Slack" + HTTP Request a `#opex-alertas` cuando se dispara A10.
+- **Decisiones técnicas:**
+  - `alwaysOutputData: true` en los 3 nodos query (evita romper la cadena cuando una query devuelve 0 filas).
+  - Postgres Insert en `mappingMode: defineBelow` con 18 columnas explícitas (autoMap fallaba con flags internos `generar_alerta_A10/A8` que no existen en el schema).
+- **Estado:** ✅ Refactor completo committeado (`3e8d563`). Validación final del flujo en curso.
+
+### WF-07 — Cierre Mensual (`wf_07_monthly_close.json`)
+
+- **Trigger:** Cron mensual día 1 a las 07:00.
+- **Estado:** Estructura presente, **refactor pendiente** (mismo patrón: migrar credenciales a `92nLfZ0IlzU004no`, reemplazar Slack v2.2 por Code + HTTP Request).
+
+### WF-08 — Feedback Loop (no listado en JSONs visibles)
+
+- **Estado:** Activo según el inventario; revisar JSON.
+
+### WF-09 — Recalibración
+
+- **Estado:** Activo. Refactor pendiente con el mismo patrón que WF-07.
+
+## A.4 Schema Supabase efectivo
+
+Tablas operativas en uso (ver `Documentos analista opex/FASE_0_FUNDACIONES/00_supabase_schema.sql` y `00b_tarifario_or_patch.sql` para detalle):
+
+- `opex_transactions` — transacciones ingestadas desde Metabase 66793.
+- `opex_tarifario` — tarifas vigentes por contratista/ítem/grupo OR (3 grupos × 67 ítems × 18 contratistas).
+- `opex_or_mapping` — 23 ORs mapeados a sus grupos.
+- `opex_alertas` — alertas tipificadas A1–A13 con severidad y estado.
+- `opex_cases` — casos cerrados con `veredicto` ∈ `('confirmado','false_positive','pendiente','escalado')` (CHECK constraint).
+- `opex_forecasts` — proyecciones rolling diarias (18 columnas mapeadas explícitamente desde WF-06).
+- `opex_approvals` — cola de aprobación (no se usa hoy; WF-04 actualiza directamente `opex_alertas`/`opex_cases`).
+- `get_tarifa_vigente(contratista_id, item_codigo, or_nombre, fecha, jornada)` — función SQL con incrementos por jornada.
+
+> **Diferencia con el diseño:** la matriz de la sección 9.1 menciona `opex_alerts` (en inglés). En implementación se usa `opex_alertas` y la tabla `opex_cases` se introdujo como capa de cierre formal con veredicto controlado por CHECK.
+
+## A.5 Decisiones de alcance modificadas
+
+1. **Rama "Rechazar" eliminada de WF-04.** El diseño (sec. 9.1) preveía estado `rejected`. En la práctica el analista utiliza "Falso positivo" para descartar, evitando ambigüedad operativa.
+2. **`opex_approvals` deprecada.** WF-05 originalmente insertaba en una cola intermedia; se eliminó el nodo "Crear en Cola de Aprobación" y la actualización se hace directa sobre `opex_alertas`.
+3. **AI Agent reemplaza nodo LLM standalone.** El sub-nodo `lmChatGoogleGemini` / `lmChatOpenAi` solo expone puerto `ai_languageModel`, no `main`. El patrón productivo es **AI Agent + sub-node** conectados por `ai_languageModel`.
+4. **Gemini → OpenAI gpt-4o-mini.** Cuota free-tier de Gemini se agotó en pruebas; gpt-4o-mini es barato (~$0.15 por millón de tokens input) y suficiente para clasificación de causa raíz y narrativa corta.
+5. **Slack v2.2 nativo no se usa para Block Kit dinámico** (ver A.6).
+
+## A.6 Patrones técnicos aprendidos
+
+### Patrón 1 — Slack Block Kit dinámico vía HTTP Request
+
+El nodo Slack v2.2 de n8n **rechaza arrays de blocks generados en runtime** (acepta solo blocks "estáticos" o un único string). Para enviar Block Kit con contenido dinámico:
+
+```
+[Code: Formatear Notificación Slack]
+  → genera { channel, slack_blocks }
+[HTTP Request → POST https://slack.com/api/chat.postMessage]
+  Authentication: Header Auth (credential GciOWwHMTLVJJuAu)
+  Body: { channel: {{$json.channel}}, blocks: {{$json.slack_blocks}} }
+```
+
+Este patrón está aplicado en WF-03, WF-05, WF-06 y se extenderá a WF-07 y WF-09.
+
+### Patrón 2 — Switch v3.2 requiere config completa al importar JSON
+
+El Switch v3.2 **ignora silenciosamente las condiciones** si faltan campos. Sin `mode`, `combinator`, `operator.name` u `options`, todos los items caen al Output 0 sin error. Config mínima:
+
+```json
+{
+  "parameters": {
+    "mode": "rules",
+    "rules": {
+      "values": [{
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 2 },
+          "conditions": [{
+            "leftValue": "={{ $json.campo }}",
+            "rightValue": "valor",
+            "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" }
+          }],
+          "combinator": "and"
+        },
+        "renameOutput": true,
+        "outputKey": "rama"
+      }]
+    },
+    "options": { "fallbackOutput": "none" }
+  }
+}
+```
+
+Aplicado en WF-04 (y en cualquier futuro Switch). Síntoma característico: todo va a Output 0 aunque upstream genere valores diferentes.
+
+### Patrón 3 — Cross-references en n8n con merges convergentes
+
+Cuando varios detectores en paralelo se unen en un Merge/Combinar:
+
+- Usar `$input.all()` (no `$('NodeName').all()`) — este último falla con "Node X hasn't been executed" si una rama upstream tuvo 0 items en el contexto del item actual.
+- En Code nodes que necesitan recuperar el `alerta` original tras el AI Agent: `$('Combinar Resultados Detectores').item.json` — patrón usado en WF-05 "Enriquecer Alerta con IA".
+
+### Patrón 4 — `alwaysOutputData: true` en queries encadenadas
+
+Cuando una query devuelve 0 filas y otros nodos downstream necesitan ejecutarse igual, marcar `alwaysOutputData: true` en el nodo Postgres. Aplicado en los 3 nodos query de WF-06.
+
+### Patrón 5 — Postgres Insert con mapeo explícito
+
+Para tablas con columnas que no coinciden 1:1 con el JSON de entrada (caso típico: flags internos como `generar_alerta_A10`), usar `mappingMode: "defineBelow"` con un objeto `value` explícito. `autoMapInputData` falla con "Column X does not exist" si hay claves extra.
+
+### Patrón 6 — Postgres Insert con `RETURNING` para encadenar datos
+
+En WF-04 (rama Falso Positivo), el `RETURNING codigo_alerta` permite que el siguiente nodo acceda a `$json.codigo_alerta` directamente sin cross-references frágiles.
+
+### Patrón 7 — Batch SQL para Metabase
+
+WF-02 consolida ~26k filas de Metabase en 1 batch SQL (en lugar de N items individuales) usando un Code node que compone el INSERT. Evita OOM y reduce ~26k queries a 1.
+
+## A.7 Errores recurrentes documentados
+
+| Síntoma | Causa | Resolución |
+|---|---|---|
+| `opex_cases_veredicto_check` violation | Valor `'real_problem'` no permitido | Schema solo acepta `('confirmado','false_positive','pendiente','escalado')` — usar `'confirmado'` |
+| Switch enruta todo a Output 0 | Falta `mode/combinator/operator.name` al importar JSON | Aplicar config completa A.6 patrón 2 |
+| "Node X hasn't been executed" | Cross-reference frágil en merge convergente | Usar `$input.all()` en lugar de `$('X').all()` |
+| Slack node v2.2 rechaza blocks dinámicos | Limitación del nodo nativo | Migrar a Code + HTTP Request (A.6 patrón 1) |
+| Gemini API quota exceeded (`limit: 0`) | Free tier agotado | Migrar a OpenAI gpt-4o-mini |
+| "Cannot assign to read only property 'name'" | Convergent paralelo sin items en una rama | Usar `$input.all()` |
+| AI Agent reemplaza JSON downstream | Output del agente sustituye al item original | Recuperar contexto vía `$('NodeAnterior').item.json` en Code post-AI |
+| Workflow se detiene en query con 0 filas | Comportamiento default Postgres node | `alwaysOutputData: true` |
+| "Column X does not exist" en Insert | Flags internos no existentes en schema | `mappingMode: "defineBelow"` con mapeo explícito |
+| SplitInBatches: salida incorrecta | Output 0 = done, Output 1 = loop | Conectar el procesamiento al Output 1 |
+| Log Iteración con múltiples ítems upstream | `$('Split').item.json` falla | Usar `$input.first().json` |
+
+## A.8 Estado operativo (snapshot 2026-04-27)
+
+✅ **Operativo en producción:**
+- WF-01 sincroniza ~3,600 tarifas diariamente.
+- WF-02 ingiere transacciones desde Metabase 66793.
+- WF-03 envía resumen diario 07:30.
+- WF-04 procesa aprobaciones con 4 ramas (sin Rechazar).
+- WF-05 detecta anomalías A1–A13 (incluye A12 con `get_tarifa_vigente`) y enriquece con OpenAI gpt-4o-mini.
+- WF-06 forecast rolling EWMA con persistencia de 18 columnas y alerta A10 a `#opex-alertas`.
+
+⏳ **Pendientes:**
+- Reemplazar `METABASE_API_KEY_AQUI` en WF-02.
+- Crear Sheet de Budget mensual y reconectar la rama Budget de WF-01.
+- Botón "Abrir dashboard" en WF-03 sin `url` hasta que exista dashboard Metabase OPEX.
+- Refactor WF-07 (cierre mensual) con el mismo patrón Slack + credenciales unificadas.
+- Refactor WF-09 (recalibración) con el mismo patrón.
+- Generación de PDF para cierre mensual (Puppeteer/Gotenberg) — diferida.
+- Storage de evidencia en bucket externo — diferido.
+- Validación de signing secret en webhook WF-04.
+
+## A.9 Repositorio y versionado
+
+- **Repo:** `https://github.com/hernanmanjarres-cmyk/Oraculo-del-opex.git`
+- **Branch principal:** `main`
+- **Estructura:**
+  - `Documentos analista opex/FASE_0_FUNDACIONES/` — schemas SQL, setup credenciales, plantillas Sheets, runbooks.
+  - `Documentos analista opex/FASE_1_WORKFLOWS/` — JSON de WF-01 a WF-04.
+  - `Documentos analista opex/FASE_2_WORKFLOWS/` — JSON de WF-05 a WF-07.
+  - `Documentos analista opex/DOCS_OPERATIVOS/` — runbooks operativos.
+  - `metabase_cards_n8n_documentation.md` (raíz) — documentación de cards Metabase.
+
+Cada workflow está versionado en JSON; los cambios productivos en n8n cloud se exportan al repo con commit descriptivo.
+
