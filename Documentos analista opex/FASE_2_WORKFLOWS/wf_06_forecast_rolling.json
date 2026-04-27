@@ -23,7 +23,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [240, 180],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -36,7 +37,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [240, 420],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -49,7 +51,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [240, 600],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -67,17 +70,36 @@
         "schema": { "__rl": true, "value": "public", "mode": "list" },
         "table": { "__rl": true, "value": "opex_forecasts", "mode": "list" },
         "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {}
+          "mappingMode": "defineBelow",
+          "value": {
+            "anio": "={{ $json.anio }}",
+            "mes": "={{ $json.mes }}",
+            "fecha_calculo": "={{ $json.fecha_calculo }}",
+            "dia_del_mes": "={{ $json.dia_del_mes }}",
+            "zona": "={{ $json.zona }}",
+            "contratista_id": "={{ $json.contratista_id }}",
+            "categoria_contable": "={{ $json.categoria_contable }}",
+            "ejecutado_mtd": "={{ $json.ejecutado_mtd }}",
+            "ritmo_ewma": "={{ $json.ritmo_ewma }}",
+            "pipeline_esperado": "={{ $json.pipeline_esperado }}",
+            "proyeccion_central": "={{ $json.proyeccion_central }}",
+            "proyeccion_p20": "={{ $json.proyeccion_p20 }}",
+            "proyeccion_p80": "={{ $json.proyeccion_p80 }}",
+            "budget_mes": "={{ $json.budget_mes }}",
+            "desviacion_pct": "={{ $json.desviacion_pct }}",
+            "nivel_confianza": "={{ $json.nivel_confianza }}",
+            "metodo": "={{ $json.metodo }}",
+            "alerta_generada": "={{ $json.generar_alerta_A10 || $json.generar_alerta_A8 || false }}"
+          }
         },
-        "options": { "onConflict": "ignore" }
+        "options": {}
       },
       "id": "guardar-forecast",
       "name": "Guardar Forecast en Supabase",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 420],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -122,55 +144,41 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1200, 180],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "C0AVCTBV665", "mode": "id" },
-        "blocksUi": {
-          "blocksValues": [
-            {
-              "type": "section",
-              "text": {
-                "type": "mrkdwn",
-                "text": ":rotating_light: *Forecast crítico — Mes actual*\nProyección cierre: *${{ Number($json.proyeccion_central).toLocaleString('es-CO') }}* | Budget: *${{ Number($json.budget_mes || 0).toLocaleString('es-CO') }}*\nVariación proyectada: *{{ $json.desviacion_pct > 0 ? '+' : '' }}{{ Number($json.desviacion_pct).toFixed(1) }}%*  |  Confianza: {{ (Number($json.nivel_confianza) * 100).toFixed(0) }}%\n\nBanda: P20 ${{ Number($json.proyeccion_p20).toLocaleString('es-CO') }} — P80 ${{ Number($json.proyeccion_p80).toLocaleString('es-CO') }}\n\n_Acción sugerida: revisar con coordinador los principales drivers antes del cierre._"
-              }
-            },
-            {
-              "type": "actions",
-              "elements": [
-                {
-                  "type": "button",
-                  "text": { "type": "plain_text", "text": "Ver dashboard" },
-                  "action_id": "abrir_dashboard",
-                  "style": "primary",
-                  "value": "dashboard"
-                }
-              ]
-            }
-          ]
-        },
-        "otherOptions": {}
+        "jsCode": "const f = $json;\nconst fmt = (n) => `$${Number(n || 0).toLocaleString('es-CO')}`;\nconst desv = Number(f.desviacion_pct || 0);\nconst signo = desv > 0 ? '+' : '';\nconst confianza = Math.round(Number(f.nivel_confianza || 0) * 100);\n\nconst slack_blocks = [\n  {\n    type: 'section',\n    text: {\n      type: 'mrkdwn',\n      text: `🚨 *Forecast crítico — Mes actual*\\nProyección cierre: *${fmt(f.proyeccion_central)}* | Budget: *${fmt(f.budget_mes)}*\\nVariación proyectada: *${signo}${desv.toFixed(1)}%*  |  Confianza: ${confianza}%\\n\\nBanda: P20 ${fmt(f.proyeccion_p20)} — P80 ${fmt(f.proyeccion_p80)}\\n\\n_Acción sugerida: revisar con coordinador los principales drivers antes del cierre._`\n    }\n  },\n  {\n    type: 'actions',\n    elements: [\n      { type: 'button', text: { type: 'plain_text', text: 'Ver dashboard' }, action_id: 'abrir_dashboard', style: 'primary', value: 'dashboard' }\n    ]\n  }\n];\n\nreturn [{ json: { slack_blocks } }];"
+      },
+      "id": "formatear-slack-forecast",
+      "name": "Formatear Forecast Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0AVCTBV665\",\n  \"text\": \"Forecast OPEX crítico\",\n  \"blocks\": {{ JSON.stringify($json.slack_blocks) }}\n}",
+        "options": {}
       },
       "id": "slack-forecast-critico",
       "name": "Notificar Forecast Crítico Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [1200, 420],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1440, 420],
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     }
   ],
   "connections": {
-    "Cron Diario 08:00": {
-      "main": [[
-        { "node": "Query Ejecución Diaria (25 días)", "type": "main", "index": 0 },
-        { "node": "Query Pipeline OTs Pendientes", "type": "main", "index": 0 },
-        { "node": "Query Budget del Mes", "type": "main", "index": 0 }
-      ]]
-    },
-    "Query Ejecución Diaria (25 días)": { "main": [[{ "node": "Calcular EWMA Forecast", "type": "main", "index": 0 }]] },
-    "Query Pipeline OTs Pendientes": { "main": [[{ "node": "Calcular EWMA Forecast", "type": "main", "index": 0 }]] },
+    "Cron Diario 08:00": { "main": [[{ "node": "Query Ejecución Diaria (25 días)", "type": "main", "index": 0 }]] },
+    "Query Ejecución Diaria (25 días)": { "main": [[{ "node": "Query Pipeline OTs Pendientes", "type": "main", "index": 0 }]] },
+    "Query Pipeline OTs Pendientes": { "main": [[{ "node": "Query Budget del Mes", "type": "main", "index": 0 }]] },
     "Query Budget del Mes": { "main": [[{ "node": "Calcular EWMA Forecast", "type": "main", "index": 0 }]] },
     "Calcular EWMA Forecast": { "main": [[{ "node": "Guardar Forecast en Supabase", "type": "main", "index": 0 }]] },
     "Guardar Forecast en Supabase": { "main": [[{ "node": "¿Generar A10 (Forecast crítico)?", "type": "main", "index": 0 }]] },
@@ -178,15 +186,16 @@
       "main": [
         [
           { "node": "Insertar Alerta A10", "type": "main", "index": 0 },
-          { "node": "Notificar Forecast Crítico Slack", "type": "main", "index": 0 }
+          { "node": "Formatear Forecast Slack", "type": "main", "index": 0 }
         ],
         []
       ]
-    }
+    },
+    "Formatear Forecast Slack": { "main": [[{ "node": "Notificar Forecast Crítico Slack", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1", "saveManualExecutions": true },
   "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-2" }, { "name": "Forecast" }],
   "meta": {
-    "notes": "Forecast rolling EWMA α=0.3. Calcula proyección de cierre por zona/contratista/categoría. Genera A10 (forecast crítico) si proyección > budget × 1.10 con ≥5 días al cierre. Datos guardados en opex_forecasts."
+    "notes": "Forecast rolling EWMA α=0.3. Calcula proyección de cierre por zona/contratista/categoría. Genera A10 (forecast crítico) si proyección > budget × 1.10 con ≥5 días al cierre. Las 3 queries (histórico, pipeline, budget) van encadenadas en serie para preservar pairing en cross-references del Code EWMA. Slack vía HTTP Request → chat.postMessage (Header Auth account 12)."
   }
 }
