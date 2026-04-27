@@ -22,7 +22,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [240, 300],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -45,7 +45,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 120],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -58,7 +58,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 300],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -71,12 +71,12 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 480],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- DETECTOR 4: Fuga silenciosa de margen (A12)\n-- Costo real agregado vs costo teórico (suma tarifa×cantidad) por contratista/mes > umbral\nSELECT\n  'A12' AS codigo_alerta, 'alta' AS severidad,\n  NULL AS tx_id,\n  t.contratista_id,\n  MAX(t.contratista_nombre) AS contratista_nombre,\n  t.tipo_servicio, t.zona,\n  NULL AS ot_id,\n  SUM(t.costo_total) AS valor_observado,\n  SUM(t.cantidad * tar.tarifa) AS valor_esperado,\n  NULL AS zscore,\n  ROUND(\n    ((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) * 100,\n    2\n  ) AS delta_pct,\n  CONCAT(\n    'Fuga acumulada mes: $', \n    TO_CHAR(SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa), 'FM999,999,999'),\n    ' vs costo teórico (', \n    ROUND(((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) * 100, 1),\n    '% sobre tarifa)'\n  ) AS narrativa_corta\nFROM opex_transactions t\nJOIN LATERAL (\n  SELECT tarifa FROM opex_tarifario tar\n  WHERE tar.contratista_id = t.contratista_id\n    AND tar.tipo_servicio = t.tipo_servicio\n    AND (tar.zona = t.zona OR tar.zona IS NULL)\n    AND tar.effective_from <= t.fecha_tx\n    AND (tar.effective_to IS NULL OR tar.effective_to >= t.fecha_tx)\n  ORDER BY (tar.zona = t.zona) DESC, tar.effective_from DESC\n  LIMIT 1\n) tar ON true\nWHERE t.fecha_tx >= DATE_TRUNC('month', CURRENT_DATE)\n  AND t.cantidad IS NOT NULL AND t.cantidad > 0\nGROUP BY t.contratista_id, t.tipo_servicio, t.zona\nHAVING\n  SUM(t.cantidad * tar.tarifa) > 0\n  AND ((SUM(t.costo_total) - SUM(t.cantidad * tar.tarifa)) / NULLIF(SUM(t.cantidad * tar.tarifa), 0)) > 0.08\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts a\n    WHERE a.contratista_id = t.contratista_id\n      AND a.codigo_alerta = 'A12'\n      AND a.generada_en >= DATE_TRUNC('month', CURRENT_DATE)\n      AND a.estado != 'false_positive'\n  );",
+        "query": "-- DETECTOR 4: Fuga silenciosa de margen (A12)\n-- Costo real agregado vs costo teórico (cantidad × tarifa vigente) por contratista/mes > 8%\nWITH tx_con_tarifa AS (\n  SELECT\n    t.contratista_id,\n    t.contratista_nombre,\n    t.costo_total,\n    t.cantidad,\n    get_tarifa_vigente(\n      t.contratista_id,\n      t.item_codigo,\n      COALESCE(NULLIF(t.or_nombre,''), 'OTROS_OR'),\n      t.fecha_tx::DATE,\n      'diurna'\n    ) AS tarifa_vigente\n  FROM opex_transactions t\n  WHERE t.fecha_tx >= DATE_TRUNC('month', CURRENT_DATE)\n    AND t.cantidad IS NOT NULL AND t.cantidad > 0\n    AND t.item_codigo IS NOT NULL\n)\nSELECT\n  'A12' AS codigo_alerta, 'alta' AS severidad,\n  NULL AS tx_id,\n  ct.contratista_id,\n  MAX(ct.contratista_nombre) AS contratista_nombre,\n  NULL AS tipo_servicio,\n  NULL AS zona,\n  NULL AS ot_id,\n  SUM(ct.costo_total) AS valor_observado,\n  SUM(ct.cantidad * ct.tarifa_vigente) AS valor_esperado,\n  NULL AS zscore,\n  ROUND(\n    ((SUM(ct.costo_total) - SUM(ct.cantidad * ct.tarifa_vigente)) / NULLIF(SUM(ct.cantidad * ct.tarifa_vigente), 0)) * 100,\n    2\n  ) AS delta_pct,\n  CONCAT(\n    'Fuga acumulada mes: $',\n    TO_CHAR(SUM(ct.costo_total) - SUM(ct.cantidad * ct.tarifa_vigente), 'FM999,999,999'),\n    ' vs costo teórico (',\n    ROUND(((SUM(ct.costo_total) - SUM(ct.cantidad * ct.tarifa_vigente)) / NULLIF(SUM(ct.cantidad * ct.tarifa_vigente), 0)) * 100, 1),\n    '% sobre tarifa)'\n  ) AS narrativa_corta\nFROM tx_con_tarifa ct\nWHERE ct.tarifa_vigente IS NOT NULL\nGROUP BY ct.contratista_id\nHAVING\n  SUM(ct.cantidad * ct.tarifa_vigente) > 0\n  AND ((SUM(ct.costo_total) - SUM(ct.cantidad * ct.tarifa_vigente)) / NULLIF(SUM(ct.cantidad * ct.tarifa_vigente), 0)) > 0.08\n  AND NOT EXISTS (\n    SELECT 1 FROM opex_alerts a\n    WHERE a.contratista_id = ct.contratista_id\n      AND a.codigo_alerta = 'A12'\n      AND a.generada_en >= DATE_TRUNC('month', CURRENT_DATE)\n      AND a.estado != 'false_positive'\n  );",
         "options": {}
       },
       "id": "detector-fuga",
@@ -84,11 +84,11 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [720, 660],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "jsCode": "// Combinar resultados de los 4 detectores\nconst duplicados = $('Detector: Duplicados (A6)').all();\nconst sinSoporte = $('Detector: Sin Soporte (A7)').all();\nconst patron = $('Detector: Patrón Sistemático (A11)').all();\nconst fuga = $('Detector: Fuga Silenciosa (A12)').all();\n\nconst todas = [...duplicados, ...sinSoporte, ...patron, ...fuga];\n\nif (todas.length === 0) return [{ json: { sin_alertas: true } }];\n\nreturn todas.map(item => ({ json: { ...item.json } }));"
+        "jsCode": "// Combinar resultados de los 4 detectores que convergen en este nodo.\n// $input.all() recoge automáticamente los items de las 4 ramas upstream.\nconst todas = $input.all();\n\nif (todas.length === 0) return [{ json: { sin_alertas: true } }];\n\nreturn todas.map(item => ({ json: { ...item.json } }));"
       },
       "id": "combinar-detectores",
       "name": "Combinar Resultados Detectores",
@@ -110,27 +110,31 @@
     },
     {
       "parameters": {
-        "model": "gemini-2.0-flash",
-        "options": {},
-        "messages": {
-          "values": [
-            {
-              "role": "user",
-              "content": "Eres el Analista OPEX Virtual de BIA Energy. Analiza la siguiente anomalía detectada y proporciona:\n1. Clasificación de causa raíz (máx 1 línea): elige de [Facturación incorrecta, Material extra no autorizado, Error de datos, Retrabajo, Cambio de alcance sin aprobación, Tarifa desactualizada, Posible fraude, Otro]\n2. Narrativa financiera (máx 2 oraciones): explicación para un comité financiero, sin jerga técnica.\n3. Borrador de comunicación (si aplica): 3-4 líneas para correo al contratista o ticket interno.\n\nDatos de la anomalía:\n- Código: {{ $json.codigo_alerta }}\n- Contratista: {{ $json.contratista_nombre || $json.contratista_id }}\n- Tipo servicio: {{ $json.tipo_servicio }}\n- Zona: {{ $json.zona }}\n- Descripción: {{ $json.narrativa_corta }}\n- Valor observado: ${{ Number($json.valor_observado || 0).toLocaleString('es-CO') }}\n- Valor esperado: ${{ Number($json.valor_esperado || 0).toLocaleString('es-CO') }}\n\nResponde en JSON: { \"causa_raiz\": \"...\", \"narrativa\": \"...\", \"borrador_comunicacion\": \"...\" }"
-            }
-          ]
-        }
+        "promptType": "define",
+        "text": "=Eres el Analista OPEX Virtual de BIA Energy. Analiza la siguiente anomalía detectada y responde SOLO con JSON válido en una sola línea, con esta estructura exacta: { \"causa_raiz\": \"...\", \"narrativa\": \"...\" }.\n\nReglas:\n1. \"causa_raiz\" (máx 1 línea): elige de [Facturación incorrecta, Material extra no autorizado, Error de datos, Retrabajo, Cambio de alcance sin aprobación, Tarifa desactualizada, Posible fraude, Otro].\n2. \"narrativa\" (máx 2 oraciones): explicación financiera sin jerga técnica.\n\nDatos de la anomalía:\n- Código: {{ $json.codigo_alerta }}\n- Contratista: {{ $json.contratista_nombre || $json.contratista_id }}\n- Tipo servicio: {{ $json.tipo_servicio }}\n- Zona: {{ $json.zona }}\n- Descripción: {{ $json.narrativa_corta }}\n- Valor observado: ${{ Number($json.valor_observado || 0).toLocaleString('es-CO') }}\n- Valor esperado: ${{ Number($json.valor_esperado || 0).toLocaleString('es-CO') }}",
+        "options": {}
       },
-      "id": "gemini-clasificacion",
-      "name": "Gemini: Clasificar y Redactar",
+      "id": "ai-agent-clasificacion",
+      "name": "AI Agent: Clasificar Anomalía",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "gemini-lm",
+      "name": "Gemini 2.0 Flash",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [1440, 300],
+      "position": [1440, 480],
       "credentials": { "googleAIStudioApi": { "id": "4", "name": "Gemini API BIA" } }
     },
     {
       "parameters": {
-        "jsCode": "// Combinar alerta con respuesta de IA\nconst alertaData = $('Combinar Resultados Detectores').item.json;\nconst iaResponse = $input.first().json;\n\nlet iaJson = {};\ntry {\n  // Intentar parsear la respuesta JSON de Gemini\n  const text = iaResponse.content || iaResponse.text || iaResponse.message || '';\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (match) iaJson = JSON.parse(match[0]);\n} catch(e) {}\n\nreturn [{\n  json: {\n    ...alertaData,\n    causa_raiz_sugerida: iaJson.causa_raiz || 'Clasificación pendiente',\n    narrativa_ia: iaJson.narrativa || alertaData.narrativa_corta,\n    borrador_comunicacion: iaJson.borrador_comunicacion || null\n  }\n}];"
+        "jsCode": "// Combinar alerta original con respuesta del AI Agent.\n// El Agent emite un item por cada item de entrada y conserva pairing → $input.first().json\n// trae tanto los campos del Agent (output) como los heredados de la alerta.\nconst entrada = $input.first().json;\nconst rawText = entrada.output || entrada.text || entrada.content || '';\n\nlet iaJson = {};\ntry {\n  const match = String(rawText).match(/\\{[\\s\\S]*\\}/);\n  if (match) iaJson = JSON.parse(match[0]);\n} catch (e) {}\n\nreturn [{\n  json: {\n    ...entrada,\n    causa_raiz_sugerida: iaJson.causa_raiz || 'Clasificación pendiente',\n    narrativa_ia: iaJson.narrativa || entrada.narrativa_corta\n  }\n}];"
       },
       "id": "enriquecer-con-ia",
       "name": "Enriquecer Alerta con IA",
@@ -169,7 +173,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1920, 300],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
@@ -185,69 +189,31 @@
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "opex_approvals", "mode": "list" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "alert_id": "={{ $json.id }}",
-            "tipo_comunicacion": "={{ $json.severidad === 'critica' ? 'correo_contratista' : 'ticket_interno' }}",
-            "destinatario": "={{ $json.contratista_nombre || $json.contratista_id }}",
-            "asunto": "={{ 'Anomalía detectada — ' + $json.codigo_alerta + ' — ' + ($json.contratista_nombre || '') }}",
-            "cuerpo_borrador": "={{ $('Enriquecer Alerta con IA').item.json.borrador_comunicacion || 'Borrador pendiente de generación' }}",
-            "estado": "pendiente",
-            "expira_en": "={{ new Date(Date.now() + 48*60*60*1000).toISOString() }}"
-          }
-        }
+        "jsCode": "const alerta = $json;\nconst ia = $('Enriquecer Alerta con IA').first().json;\n\nconst sevIcon = alerta.severidad === 'critica' ? '🚨' : '⚠️';\nconst channel = alerta.severidad === 'critica' ? 'C0AVCTBV665' : 'C0AUWJ91V1T';\nconst nombre = alerta.contratista_nombre || alerta.contratista_id;\nconst narrativa = ia.narrativa_ia || alerta.narrativa_corta || '';\nconst causa = ia.causa_raiz_sugerida || 'N/D';\n\nconst slack_blocks = [\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text: `${sevIcon} *[${alerta.codigo_alerta}] ${String(alerta.severidad).toUpperCase()} — ${nombre}*\\n${narrativa}\\n\\n_Causa raíz sugerida (IA): ${causa}_` }\n  },\n  {\n    type: 'actions',\n    elements: [\n      { type: 'button', text: { type: 'plain_text', text: 'Aprobar' }, action_id: `aprobar_${alerta.id}`, style: 'primary', value: `aprobar_${alerta.id}` },\n      { type: 'button', text: { type: 'plain_text', text: 'Falso positivo' }, action_id: `fp_${alerta.id}`, style: 'danger', value: `fp_${alerta.id}` }\n    ]\n  }\n];\n\nreturn [{ json: { channel, slack_blocks, codigo_alerta: alerta.codigo_alerta } }];"
       },
-      "id": "crear-aprobacion",
-      "name": "Crear en Cola de Aprobación",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [2400, 180],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "id": "formatear-slack-anomalia",
+      "name": "Formatear Notificación Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 300]
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "={{ $json.severidad === 'critica' ? 'C0AVCTBV665' : 'C0AUWJ91V1T' }}", "mode": "id" },
-        "blocksUi": {
-          "blocksValues": [
-            {
-              "type": "section",
-              "text": {
-                "type": "mrkdwn",
-                "text": "={{ ($json.severidad === 'critica' ? ':rotating_light:' : ':warning:') + ' *[' + $json.codigo_alerta + '] ' + $json.severidad.toUpperCase() + ' — ' + ($json.contratista_nombre || $json.contratista_id) + '*\\n' + ($('Enriquecer Alerta con IA').item.json.narrativa_ia || $json.narrativa_corta) + '\\n\\n_Causa raíz sugerida (IA): ' + ($('Enriquecer Alerta con IA').item.json.causa_raiz_sugerida || 'N/D') + '_' }}"
-              }
-            },
-            {
-              "type": "actions",
-              "elements": [
-                {
-                  "type": "button",
-                  "text": { "type": "plain_text", "text": "✉️ Ver borrador comunicación" },
-                  "action_id": "ver_borrador",
-                  "value": "={{ $json.id }}"
-                },
-                {
-                  "type": "button",
-                  "text": { "type": "plain_text", "text": "❌ Falso positivo" },
-                  "action_id": "fp_={{ $json.id }}",
-                  "value": "={{ $json.id }}"
-                }
-              ]
-            }
-          ]
-        },
-        "otherOptions": {}
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"{{ $json.channel }}\",\n  \"text\": \"Anomalía OPEX {{ $json.codigo_alerta }}\",\n  \"blocks\": {{ JSON.stringify($json.slack_blocks) }}\n}",
+        "options": {}
       },
       "id": "slack-anomalia",
       "name": "Notificar Anomalía en Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [2400, 420],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [2640, 300],
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     }
   ],
   "connections": {
@@ -268,26 +234,25 @@
     "Combinar Resultados Detectores": { "main": [[{ "node": "¿Anomalías encontradas?", "type": "main", "index": 0 }]] },
     "¿Anomalías encontradas?": {
       "main": [
-        [{ "node": "Gemini: Clasificar y Redactar", "type": "main", "index": 0 }],
+        [{ "node": "AI Agent: Clasificar Anomalía", "type": "main", "index": 0 }],
         []
       ]
     },
-    "Gemini: Clasificar y Redactar": { "main": [[{ "node": "Enriquecer Alerta con IA", "type": "main", "index": 0 }]] },
+    "AI Agent: Clasificar Anomalía": { "main": [[{ "node": "Enriquecer Alerta con IA", "type": "main", "index": 0 }]] },
+    "Gemini 2.0 Flash": { "ai_languageModel": [[{ "node": "AI Agent: Clasificar Anomalía", "type": "ai_languageModel", "index": 0 }]] },
     "Enriquecer Alerta con IA": { "main": [[{ "node": "Insertar Alerta Anomalía", "type": "main", "index": 0 }]] },
     "Insertar Alerta Anomalía": { "main": [[{ "node": "¿Severidad notificable?", "type": "main", "index": 0 }]] },
     "¿Severidad notificable?": {
       "main": [
-        [
-          { "node": "Crear en Cola de Aprobación", "type": "main", "index": 0 },
-          { "node": "Notificar Anomalía en Slack", "type": "main", "index": 0 }
-        ],
+        [{ "node": "Formatear Notificación Slack", "type": "main", "index": 0 }],
         []
       ]
-    }
+    },
+    "Formatear Notificación Slack": { "main": [[{ "node": "Notificar Anomalía en Slack", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1", "saveManualExecutions": true },
   "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-2" }, { "name": "Anomalias" }],
   "meta": {
-    "notes": "Detectores paralelos: A6 duplicados, A7 sin soporte, A11 patrón sistemático, A12 fuga silenciosa. Gemini clasifica causa raíz y redacta borrador. Crea cola de aprobación para comunicaciones."
+    "notes": "Detectores paralelos: A6 duplicados, A7 sin soporte, A11 patrón sistemático, A12 fuga silenciosa (usa get_tarifa_vigente con item_codigo + or_nombre). Gemini clasifica causa raíz y reescribe narrativa. Notifica a Slack con HTTP Request → chat.postMessage (Header Auth account 12) y botones Aprobar/FP enrutados a WF-04."
   }
 }
