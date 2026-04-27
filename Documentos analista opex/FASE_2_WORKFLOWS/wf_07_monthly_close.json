@@ -14,7 +14,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Datos de cierre del mes anterior\nWITH mes_anterior AS (\n  SELECT\n    EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '1 month')::INT AS anio,\n    EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month')::INT AS mes\n),\nejecucion AS (\n  SELECT\n    m.anio, m.mes,\n    SUM(t.costo_total) AS ejecucion_total,\n    COUNT(*) AS n_transacciones\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY m.anio, m.mes\n),\nbudget AS (\n  SELECT SUM(b.monto_budget) AS budget_total\n  FROM opex_budget b, mes_anterior m\n  WHERE b.anio = m.anio AND b.mes = m.mes\n    AND b.zona IS NULL AND b.contratista_id IS NULL\n),\nalertas_mes AS (\n  SELECT\n    COUNT(*) AS total_detectadas,\n    COUNT(*) FILTER (WHERE a.estado IN ('resolved','false_positive')) AS cerradas,\n    COUNT(*) FILTER (WHERE a.estado IN ('open','ack','in_progress')) AS abiertas_al_cierre,\n    COUNT(*) FILTER (WHERE a.veredicto = 'false_positive') AS falsos_positivos,\n    COALESCE(SUM(c.monto_recuperado), 0) AS monto_recuperado\n  FROM opex_alerts a, mes_anterior m\n  LEFT JOIN opex_cases c ON c.alert_id = a.id\n  WHERE EXTRACT(YEAR FROM a.generada_en) = m.anio\n    AND EXTRACT(MONTH FROM a.generada_en) = m.mes\n),\ntop_desviaciones AS (\n  SELECT\n    a.contratista_nombre, a.zona, a.tipo_servicio,\n    a.delta_pct, a.valor_observado, a.valor_esperado,\n    a.narrativa_corta\n  FROM opex_alerts a, mes_anterior m\n  WHERE EXTRACT(YEAR FROM a.generada_en) = m.anio\n    AND EXTRACT(MONTH FROM a.generada_en) = m.mes\n    AND a.severidad IN ('alta','critica')\n  ORDER BY ABS(a.delta_pct) DESC NULLS LAST\n  LIMIT 5\n),\ntop_contratistas AS (\n  SELECT\n    t.contratista_id, t.contratista_nombre,\n    SUM(t.costo_total) AS total_ejecutado,\n    COUNT(*) AS n_ots\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY t.contratista_id, t.contratista_nombre\n  ORDER BY total_ejecutado DESC\n  LIMIT 5\n),\npor_zona AS (\n  SELECT\n    t.zona,\n    SUM(t.costo_total) AS ejecutado,\n    COUNT(*) AS n_ots\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY t.zona\n  ORDER BY ejecutado DESC\n),\nforecast_dia20 AS (\n  SELECT proyeccion_central\n  FROM opex_forecasts f, mes_anterior m\n  WHERE f.anio = m.anio AND f.mes = m.mes AND f.dia_del_mes = 20\n  ORDER BY f.fecha_calculo DESC\n  LIMIT 1\n)\nSELECT\n  e.anio, e.mes, e.ejecucion_total, e.n_transacciones,\n  b.budget_total,\n  ROUND(((e.ejecucion_total - b.budget_total) / NULLIF(b.budget_total, 0)) * 100, 2) AS variacion_pct,\n  al.total_detectadas AS alertas_detectadas,\n  al.cerradas AS alertas_cerradas,\n  al.abiertas_al_cierre,\n  al.falsos_positivos,\n  al.monto_recuperado,\n  (\n    SELECT json_agg(row_to_json(top_desviaciones))\n    FROM top_desviaciones\n  ) AS top_desviaciones,\n  (\n    SELECT json_agg(row_to_json(top_contratistas))\n    FROM top_contratistas\n  ) AS top_contratistas,\n  (\n    SELECT json_agg(row_to_json(por_zona))\n    FROM por_zona\n  ) AS por_zona,\n  fd.proyeccion_central AS forecast_dia20\nFROM ejecucion e\nCROSS JOIN budget b\nCROSS JOIN alertas_mes al\nLEFT JOIN forecast_dia20 fd ON true;",
+        "query": "-- Datos de cierre del mes anterior\nWITH mes_anterior AS (\n  SELECT\n    EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '1 month')::INT AS anio,\n    EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month')::INT AS mes\n),\nejecucion AS (\n  SELECT\n    m.anio, m.mes,\n    SUM(t.costo_total) AS ejecucion_total,\n    COUNT(*) AS n_transacciones\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY m.anio, m.mes\n),\nbudget AS (\n  SELECT SUM(b.monto_budget) AS budget_total\n  FROM opex_budget b, mes_anterior m\n  WHERE b.anio = m.anio AND b.mes = m.mes\n    AND b.zona IS NULL AND b.contratista_id IS NULL\n),\nalertas_mes AS (\n  SELECT\n    COUNT(*) AS total_detectadas,\n    COUNT(*) FILTER (WHERE a.estado IN ('resolved','false_positive')) AS cerradas,\n    COUNT(*) FILTER (WHERE a.estado IN ('open','ack','in_progress')) AS abiertas_al_cierre,\n    COUNT(*) FILTER (WHERE c.veredicto = 'false_positive') AS falsos_positivos,\n    COALESCE(SUM(c.monto_recuperado), 0) AS monto_recuperado\n  FROM opex_alerts a, mes_anterior m\n  LEFT JOIN opex_cases c ON c.alert_id = a.id\n  WHERE EXTRACT(YEAR FROM a.generada_en) = m.anio\n    AND EXTRACT(MONTH FROM a.generada_en) = m.mes\n),\ntop_desviaciones AS (\n  SELECT\n    a.contratista_nombre, a.zona, a.tipo_servicio,\n    a.delta_pct, a.valor_observado, a.valor_esperado,\n    a.narrativa_corta\n  FROM opex_alerts a, mes_anterior m\n  WHERE EXTRACT(YEAR FROM a.generada_en) = m.anio\n    AND EXTRACT(MONTH FROM a.generada_en) = m.mes\n    AND a.severidad IN ('alta','critica')\n  ORDER BY ABS(a.delta_pct) DESC NULLS LAST\n  LIMIT 5\n),\ntop_contratistas AS (\n  SELECT\n    t.contratista_id, t.contratista_nombre,\n    SUM(t.costo_total) AS total_ejecutado,\n    COUNT(*) AS n_ots\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY t.contratista_id, t.contratista_nombre\n  ORDER BY total_ejecutado DESC\n  LIMIT 5\n),\npor_zona AS (\n  SELECT\n    t.zona,\n    SUM(t.costo_total) AS ejecutado,\n    COUNT(*) AS n_ots\n  FROM opex_transactions t, mes_anterior m\n  WHERE EXTRACT(YEAR FROM t.fecha_tx) = m.anio\n    AND EXTRACT(MONTH FROM t.fecha_tx) = m.mes\n  GROUP BY t.zona\n  ORDER BY ejecutado DESC\n),\nforecast_dia20 AS (\n  SELECT proyeccion_central\n  FROM opex_forecasts f, mes_anterior m\n  WHERE f.anio = m.anio AND f.mes = m.mes AND f.dia_del_mes = 20\n  ORDER BY f.fecha_calculo DESC\n  LIMIT 1\n)\nSELECT\n  e.anio, e.mes, e.ejecucion_total, e.n_transacciones,\n  b.budget_total,\n  ROUND(((e.ejecucion_total - b.budget_total) / NULLIF(b.budget_total, 0)) * 100, 2) AS variacion_pct,\n  al.total_detectadas AS alertas_detectadas,\n  al.cerradas AS alertas_cerradas,\n  al.abiertas_al_cierre,\n  al.falsos_positivos,\n  al.monto_recuperado,\n  (\n    SELECT json_agg(row_to_json(top_desviaciones))\n    FROM top_desviaciones\n  ) AS top_desviaciones,\n  (\n    SELECT json_agg(row_to_json(top_contratistas))\n    FROM top_contratistas\n  ) AS top_contratistas,\n  (\n    SELECT json_agg(row_to_json(por_zona))\n    FROM por_zona\n  ) AS por_zona,\n  fd.proyeccion_central AS forecast_dia20\nFROM ejecucion e\nCROSS JOIN budget b\nCROSS JOIN alertas_mes al\nLEFT JOIN forecast_dia20 fd ON true;",
         "options": {}
       },
       "id": "query-datos-cierre",
@@ -22,11 +22,12 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [240, 300],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\nconst meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];\nconst nombreMes = meses[(d.mes - 1)] || `mes ${d.mes}`;\n\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\nconst fmtPct = (n) => `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%`;\n\nconst zonas = d.por_zona || [];\nconst pivotZonaCSV = 'zona,ejecutado,n_ots\\n' + zonas.map(z => `${z.zona},${z.ejecutado},${z.n_ots}`).join('\\n');\n\nconst contratistas = d.top_contratistas || [];\nconst pivotContratistaCSV = 'contratista_id,contratista_nombre,ejecutado,n_ots\\n' + contratistas.map(c => `${c.contratista_id},\"${c.contratista_nombre}\",${c.total_ejecutado},${c.n_ots}`).join('\\n');\n\nconst topDesv = d.top_desviaciones || [];\nconst topDesvTexto = topDesv.slice(0,5).map((t,i) =>\n  `${i+1}. ${t.contratista_nombre || 'N/D'} — ${t.zona || ''} — ${t.narrativa_corta || ''}`\n).join('\\n');\n\nlet errorForecastPct = null;\nif (d.forecast_dia20 && d.ejecucion_total) {\n  errorForecastPct = ((Number(d.forecast_dia20) - Number(d.ejecucion_total)) / Number(d.ejecucion_total)) * 100;\n}\n\nreturn [{\n  json: {\n    anio: d.anio,\n    mes: d.mes,\n    nombre_mes: nombreMes,\n    ejecucion_total: d.ejecucion_total,\n    budget_total: d.budget_total,\n    variacion_pct: d.variacion_pct,\n    alertas_detectadas: d.alertas_detectadas,\n    alertas_cerradas: d.alertas_cerradas,\n    alertas_abiertas_cierre: d.abiertas_al_cierre,\n    monto_recuperado: d.monto_recuperado,\n    error_forecast_pct: errorForecastPct,\n    pivot_zona_csv: pivotZonaCSV,\n    pivot_contratista_csv: pivotContratistaCSV,\n    top_desviaciones_texto: topDesvTexto,\n    top_drivers_json: JSON.stringify(topDesv),\n    contexto_para_ia: `Mes de cierre: ${nombreMes} ${d.anio}\\nEjecución total: ${fmt(d.ejecucion_total)}\\nBudget: ${fmt(d.budget_total)}\\nVariación: ${fmtPct(d.variacion_pct || 0)}\\n\\nTop desviaciones:\\n${topDesvTexto}\\n\\nPor zona:\\n${zonas.map(z => `${z.zona}: ${fmt(z.ejecutado)} (${z.n_ots} OTs)`).join('\\n')}\\n\\nAlertas detectadas: ${d.alertas_detectadas || 0}\\nAlertas cerradas: ${d.alertas_cerradas || 0}\\nAlertas abiertas al cierre: ${d.abiertas_al_cierre || 0}\\nMonto recuperado por alertas: ${fmt(d.monto_recuperado)}\\n${errorForecastPct !== null ? `Error del forecast al día 20: ${fmtPct(errorForecastPct)}` : ''}`\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\n\nif (!d || !d.anio) {\n  return [{ json: { sin_datos: true, motivo: 'Query de cierre devolvió 0 filas' } }];\n}\n\nconst meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];\nconst nombreMes = meses[(d.mes - 1)] || `mes ${d.mes}`;\n\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\nconst fmtPct = (n) => `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%`;\n\nconst zonas = d.por_zona || [];\nconst pivotZonaCSV = 'zona,ejecutado,n_ots\\n' + zonas.map(z => `${z.zona},${z.ejecutado},${z.n_ots}`).join('\\n');\n\nconst contratistas = d.top_contratistas || [];\nconst pivotContratistaCSV = 'contratista_id,contratista_nombre,ejecutado,n_ots\\n' + contratistas.map(c => `${c.contratista_id},\"${c.contratista_nombre}\",${c.total_ejecutado},${c.n_ots}`).join('\\n');\n\nconst topDesv = d.top_desviaciones || [];\nconst topDesvTexto = topDesv.slice(0,5).map((t,i) =>\n  `${i+1}. ${t.contratista_nombre || 'N/D'} — ${t.zona || ''} — ${t.narrativa_corta || ''}`\n).join('\\n');\n\nlet errorForecastPct = null;\nif (d.forecast_dia20 && d.ejecucion_total) {\n  errorForecastPct = ((Number(d.forecast_dia20) - Number(d.ejecucion_total)) / Number(d.ejecucion_total)) * 100;\n}\n\nconst contextoIA = `Mes de cierre: ${nombreMes} ${d.anio}\nEjecución total: ${fmt(d.ejecucion_total)}\nBudget: ${fmt(d.budget_total)}\nVariación: ${fmtPct(d.variacion_pct || 0)}\n\nTop desviaciones:\n${topDesvTexto}\n\nPor zona:\n${zonas.map(z => `${z.zona}: ${fmt(z.ejecutado)} (${z.n_ots} OTs)`).join('\\n')}\n\nAlertas detectadas: ${d.alertas_detectadas || 0}\nAlertas cerradas: ${d.alertas_cerradas || 0}\nAlertas abiertas al cierre: ${d.abiertas_al_cierre || 0}\nMonto recuperado por alertas: ${fmt(d.monto_recuperado)}\n${errorForecastPct !== null ? `Error del forecast al día 20: ${fmtPct(errorForecastPct)}` : ''}`;\n\nconst promptIA = `Eres el Analista OPEX Virtual de BIA Energy. Genera el resumen ejecutivo de cierre mensual.\n\nDatos del mes:\n${contextoIA}\n\nInstrucciones:\n1. Escribe exactamente 3 párrafos en español profesional (estilo memo financiero).\n2. Párrafo 1: Resumen del mes — ejecución total vs budget, variación, conclusión de performance.\n3. Párrafo 2: Principales drivers de variación. Menciona zonas y contratistas específicos de los datos.\n4. Párrafo 3: Anomalías relevantes detectadas, monto recuperado y recomendaciones concretas para el próximo mes.\n5. Si hay desvío positivo significativo (>5%), mencionar medidas de contención sugeridas.\n6. Tono: ejecutivo, basado en hechos, sin especulación. Máximo 250 palabras.\n\nResponde solo con el texto de los 3 párrafos, sin headers ni bullets.`;\n\nreturn [{\n  json: {\n    sin_datos: false,\n    anio: d.anio,\n    mes: d.mes,\n    nombre_mes: nombreMes,\n    ejecucion_total: d.ejecucion_total,\n    budget_total: d.budget_total,\n    variacion_pct: d.variacion_pct,\n    alertas_detectadas: d.alertas_detectadas,\n    alertas_cerradas: d.alertas_cerradas,\n    alertas_abiertas_cierre: d.abiertas_al_cierre,\n    falsos_positivos: d.falsos_positivos,\n    monto_recuperado: d.monto_recuperado,\n    forecast_dia20: d.forecast_dia20,\n    error_forecast_pct: errorForecastPct,\n    pivot_zona_csv: pivotZonaCSV,\n    pivot_contratista_csv: pivotContratistaCSV,\n    top_desviaciones_texto: topDesvTexto,\n    top_drivers_json: JSON.stringify(topDesv),\n    contexto_para_ia: contextoIA,\n    prompt_ia: promptIA\n  }\n}];"
       },
       "id": "preparar-datos",
       "name": "Preparar Datos para IA",
@@ -36,25 +37,30 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleGeminiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: 'Eres el Analista OPEX Virtual de BIA Energy. Genera el resumen ejecutivo de cierre mensual.\\n\\nDatos del mes:\\n' + $('Preparar Datos para IA').item.json.contexto_para_ia + '\\n\\nInstrucciones:\\n1. Escribe exactamente 3 párrafos en español profesional (estilo memo financiero).\\n2. Párrafo 1: Resumen del mes — ejecución total vs budget, variación, conclusión de performance.\\n3. Párrafo 2: Principales drivers de variación. Menciona zonas y contratistas específicos de los datos.\\n4. Párrafo 3: Anomalías relevantes detectadas, monto recuperado y recomendaciones concretas para el próximo mes.\\n5. Si hay desvío positivo significativo (>5%), mencionar medidas de contención sugeridas.\\n6. Tono: ejecutivo, basado en hechos, sin especulación. Máximo 250 palabras.\\n\\nRespuesta: solo el texto de los 3 párrafos, sin headers ni bullets.' }] }], generationConfig: { maxOutputTokens: 1500, temperature: 0.3 } }) }}",
+        "promptType": "define",
+        "text": "={{ $json.prompt_ia }}",
         "options": {}
       },
-      "id": "gemini-narrativa",
-      "name": "Gemini: Narrativa Ejecutiva Cierre",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [720, 300],
-      "credentials": { "googleGeminiApi": { "id": "4", "name": "Gemini API BIA" } }
+      "id": "ai-agent-narrativa",
+      "name": "AI Agent: Narrativa Cierre",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [720, 300]
     },
     {
       "parameters": {
-        "jsCode": "const datos = $('Preparar Datos para IA').first().json;\nconst iaResponse = $input.first().json;\n\n// Extraer texto de la respuesta de Gemini\nconst narrativa = iaResponse?.candidates?.[0]?.content?.parts?.[0]?.text || 'Narrativa no disponible';\n\nconst meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];\nconst nombreMes = meses[(datos.mes - 1)];\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\nconst fmtPct = (n) => `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%`;\n\nconst mensajeSlack = `*Cierre OPEX — ${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${datos.anio}*\n\nEjecución total: *${fmt(datos.ejecucion_total)}* | Budget: *${fmt(datos.budget_total)}* | Variación: *${fmtPct(datos.variacion_pct || 0)}*\n\n${narrativa}\n\nAnomalías detectadas: ${datos.alertas_detectadas || 0} | Cerradas: ${datos.alertas_cerradas || 0} | Abiertas al cierre: ${datos.alertas_abiertas_cierre || 0}\nMonto recuperado: *${fmt(datos.monto_recuperado)}*\n${datos.error_forecast_pct !== null ? `Precisión del forecast (día 20): Error ${fmtPct(datos.error_forecast_pct)}` : ''}`;\n\nreturn [{\n  json: {\n    ...datos,\n    narrativa_ejecutiva: narrativa,\n    mensaje_slack: mensajeSlack\n  }\n}];"
+        "model": "gpt-4o-mini",
+        "options": { "temperature": 0.3, "maxTokens": 1500 }
+      },
+      "id": "openai-cierre",
+      "name": "OpenAI gpt-4o-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [720, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const datos = $('Preparar Datos para IA').first().json;\nconst iaResponse = $input.first().json;\n\nconst narrativa = iaResponse?.output || iaResponse?.text || iaResponse?.content || 'Narrativa no disponible';\n\nconst meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];\nconst nombreMes = meses[(datos.mes - 1)];\nconst fmt = (n) => n ? `$${Number(n).toLocaleString('es-CO')}` : '$0';\nconst fmtPct = (n) => `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%`;\n\nconst tituloMes = nombreMes ? (nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)) : `Mes ${datos.mes}`;\n\nconst mensajeSlack = `*Cierre OPEX — ${tituloMes} ${datos.anio}*\\n\\nEjecución total: *${fmt(datos.ejecucion_total)}* | Budget: *${fmt(datos.budget_total)}* | Variación: *${fmtPct(datos.variacion_pct || 0)}*\\n\\n${narrativa}\\n\\nAnomalías detectadas: ${datos.alertas_detectadas || 0} | Cerradas: ${datos.alertas_cerradas || 0} | Abiertas al cierre: ${datos.alertas_abiertas_cierre || 0}\\nMonto recuperado: *${fmt(datos.monto_recuperado)}*${datos.error_forecast_pct !== null && datos.error_forecast_pct !== undefined ? `\\nPrecisión del forecast (día 20): Error ${fmtPct(datos.error_forecast_pct)}` : ''}`;\n\nconst zonasCount = (datos.pivot_zona_csv || '').split('\\n').length - 1;\n\nconst slack_blocks = [\n  { type: 'section', text: { type: 'mrkdwn', text: mensajeSlack } },\n  { type: 'divider' },\n  { type: 'section', text: { type: 'mrkdwn', text: `*Pivots adjuntos:*\\n• \\`pivot_zona.csv\\` (${zonasCount} zonas)\\n• \\`pivot_contratista.csv\\` (top contratistas)` } },\n  {\n    type: 'actions',\n    elements: [\n      { type: 'button', text: { type: 'plain_text', text: '✅ Aprobar cierre' }, action_id: 'aprobar_cierre', style: 'primary', value: `${datos.anio}-${datos.mes}` },\n      { type: 'button', text: { type: 'plain_text', text: '📊 Ver dashboard' }, action_id: 'abrir_dashboard', value: 'dashboard_cierre' }\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ...datos,\n    narrativa_ejecutiva: narrativa,\n    mensaje_slack: mensajeSlack,\n    channel: 'C0AUXUFH1HU',\n    slack_blocks\n  }\n}];"
       },
       "id": "armar-reporte",
       "name": "Armar Reporte Final",
@@ -95,56 +101,31 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1200, 180],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "C0AUXUFH1HU", "mode": "id" },
-        "blocksUi": {
-          "blocksValues": [
-            {
-              "type": "section",
-              "text": { "type": "mrkdwn", "text": "={{ $json.mensaje_slack }}" }
-            },
-            {
-              "type": "divider"
-            },
-            {
-              "type": "section",
-              "text": {
-                "type": "mrkdwn",
-                "text": "*Pivots adjuntos:*\n• `pivot_zona.csv` ({{ $json.pivot_zona_csv.split('\\n').length - 1 }} zonas)\n• `pivot_contratista.csv` (top contratistas)"
-              }
-            },
-            {
-              "type": "actions",
-              "elements": [
-                {
-                  "type": "button",
-                  "text": { "type": "plain_text", "text": "✅ Aprobar cierre" },
-                  "action_id": "aprobar_cierre",
-                  "style": "primary",
-                  "value": "={{ $json.anio + '-' + $json.mes }}"
-                },
-                {
-                  "type": "button",
-                  "text": { "type": "plain_text", "text": "📊 Ver dashboard" },
-                  "action_id": "abrir_dashboard",
-                  "value": "dashboard_cierre"
-                }
-              ]
-            }
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json; charset=utf-8" }
           ]
         },
-        "otherOptions": {}
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $json.channel, blocks: $json.slack_blocks, text: 'Cierre OPEX ' + $json.nombre_mes + ' ' + $json.anio }) }}",
+        "options": {}
       },
-      "id": "slack-cierre",
-      "name": "Publicar Cierre en Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
+      "id": "slack-cierre-http",
+      "name": "Publicar Cierre en Slack (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [1200, 420],
-      "credentials": { "slackApi": { "id": "3", "name": "Slack OPEX BIA" } }
+      "credentials": { "httpHeaderAuth": { "id": "GciOWwHMTLVJJuAu", "name": "Header Auth account 12" } }
     },
     {
       "parameters": {
@@ -166,25 +147,26 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1440, 300],
-      "credentials": { "postgres": { "id": "2", "name": "Supabase OPEX BIA" } }
+      "credentials": { "postgres": { "id": "92nLfZ0IlzU004no", "name": "Supabase Oráculo del Opex" } }
     }
   ],
   "connections": {
     "Cron Día 1 del Mes 09:00": { "main": [[{ "node": "Query Datos Cierre Mes Anterior", "type": "main", "index": 0 }]] },
     "Query Datos Cierre Mes Anterior": { "main": [[{ "node": "Preparar Datos para IA", "type": "main", "index": 0 }]] },
-    "Preparar Datos para IA": { "main": [[{ "node": "Gemini: Narrativa Ejecutiva Cierre", "type": "main", "index": 0 }]] },
-    "Gemini: Narrativa Ejecutiva Cierre": { "main": [[{ "node": "Armar Reporte Final", "type": "main", "index": 0 }]] },
+    "Preparar Datos para IA": { "main": [[{ "node": "AI Agent: Narrativa Cierre", "type": "main", "index": 0 }]] },
+    "OpenAI gpt-4o-mini": { "ai_languageModel": [[{ "node": "AI Agent: Narrativa Cierre", "type": "ai_languageModel", "index": 0 }]] },
+    "AI Agent: Narrativa Cierre": { "main": [[{ "node": "Armar Reporte Final", "type": "main", "index": 0 }]] },
     "Armar Reporte Final": {
       "main": [[
         { "node": "Guardar Cierre en Supabase", "type": "main", "index": 0 },
-        { "node": "Publicar Cierre en Slack", "type": "main", "index": 0 }
+        { "node": "Publicar Cierre en Slack (HTTP)", "type": "main", "index": 0 }
       ]]
     },
-    "Publicar Cierre en Slack": { "main": [[{ "node": "Log Cierre", "type": "main", "index": 0 }]] }
+    "Publicar Cierre en Slack (HTTP)": { "main": [[{ "node": "Log Cierre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1", "saveManualExecutions": true },
   "tags": [{ "name": "OPEX-BIA" }, { "name": "Fase-2" }, { "name": "Cierre-Mensual" }],
   "meta": {
-    "notes": "Cierre mensual automatizado. Se ejecuta el día 1 de cada mes. Gemini 2.0 Flash genera la narrativa ejecutiva. Pivots por zona y contratista. Publica en #opex-cierre con botón de aprobación. Guarda en opex_closes."
+    "notes": "Cierre mensual automatizado. Cron día 1 de cada mes 09:00. AI Agent + OpenAI gpt-4o-mini genera narrativa ejecutiva. Pivots por zona y contratista. Publica en #opex-cierre (C0AUXUFH1HU) vía HTTP Request con Header Auth (Block Kit dinámico). Guarda en opex_closes.estado='borrador' (queda pendiente de aprobación humana). Credencial Postgres unificada: 92nLfZ0IlzU004no Supabase Oráculo del Opex."
   }
 }
