@@ -1,0 +1,194 @@
+// ============================================================
+// DATABASE: OPEX Agent BIA Energy — Supabase (PostgreSQL)
+// Date: April 28, 2026
+// Author: Hernan Manjarres
+// ============================================================
+
+Table fronteras {
+  bia_code              varchar   [pk]
+  contract_id           integer
+  frontier_name         varchar
+  grid_operator         varchar
+  measurement_type      varchar
+  market_type           varchar
+  market_region         varchar
+  city                  varchar
+  department            varchar
+  sic_code              varchar
+  kam_assigned          varchar
+  current_phase         varchar
+  kwh_per_month         numeric
+  voltage_level         varchar
+  measurement_factor    integer
+  contract_sign_date    timestamp
+  installation_date     timestamp
+  activation_date       timestamp
+  is_commercial_border  boolean
+  ingested_at           timestamp
+
+  Note: 'Source: Card 55705 - Hubspot General | ~5,670 rows | Master table of frontiers/contracts'
+}
+
+Table contractors {
+  id             varchar   [pk]
+  name           varchar
+  sheets_file_id varchar
+  sheet_name     varchar
+  contractor_type varchar
+  is_active      boolean
+
+  Note: 'Source: Excel Tarifarios BIA - Contratistas sheet | 22 contractors (GMAS, POWER_GRID, SGE, JEM, AR_INGENIERIA, C3, C3_BOGOTA, ISELEC, DISELEC, GATRIA, ISEMEC, etc.)'
+}
+
+Table tariff_catalog {
+  item_code     integer   [pk]
+  activity_name varchar
+
+  Note: 'Catalog of 80 service items - same across all contractors. Ex: Apertura de portacircuito, Instalacion semidirecta exterior, etc.'
+}
+
+Table tariff_rates {
+  id                      integer   [pk, increment]
+  contractor_id           varchar
+  item_code               integer
+  or_group                varchar
+  base_rate               numeric
+  night_rate              numeric
+  sunday_rate             numeric
+  night_sunday_rate       numeric
+  night_surcharge_pct     numeric
+  sunday_surcharge_pct    numeric
+  night_sunday_surcharge_pct numeric
+  valid_from              date
+  valid_to                date
+
+  Note: 'Tariff prices per contractor x OR group x item. OR groups: ENEL_AIRE_EMCALI_AFINIA / CELSIA_ELECTROHUILA_ESSA / OTROS_OR. Surcharges: night +20%, sunday +20%, night+sunday +35%'
+}
+
+Table visits {
+  id                    varchar   [pk]
+  bia_code              varchar
+  contract_id           integer
+  title                 varchar
+  service_type_id       varchar
+  service_name          varchar
+  contractor            varchar
+  electrician_status_id varchar
+  status_label          varchar
+  visit_date            timestamp
+  city                  varchar
+  grid_operator         varchar
+  act_pdf_url           varchar
+  is_bia                boolean
+  ingested_at           timestamp
+
+  Note: 'Source: Card 55773 - Visitas General | ~26,139 rows | 1 row per work order'
+}
+
+Table opex_costs {
+  id                integer   [pk]
+  visit_id          varchar
+  wo_id             varchar
+  service_cost      integer
+  material_cost     integer
+  transport_cost    integer
+  other_cost        integer
+  total_cost        integer
+  status            varchar
+  contractor_id     varchar
+  tariff_item_id    integer
+  created_at        timestamp
+  ingested_at       timestamp
+
+  Note: 'Source: Card 63163 - Opex Costs General | ~23,295 rows | 1 row per cost record'
+}
+
+Table opex_items_per_visit {
+  id             integer   [pk, increment]
+  visit_id       varchar
+  work_order_id  varchar
+  item_code      varchar
+  item_name      varchar
+  quantity       numeric
+  unit_price     numeric
+  total_price    numeric
+
+  Note: 'PENDING - extraction of JSONB field selected_tariff_items from opex_costs'
+}
+
+Table scopes {
+  id                        varchar   [pk]
+  bia_code                  varchar
+  contract_id               integer
+  scope_type                varchar
+  current_phase             varchar
+  measurement_type_found    varchar
+  measurement_type_to_install varchar
+  viable_to_install         varchar
+  payback_calculated        varchar
+  requires_or_disconnection varchar
+  created_at                timestamp
+  ingested_at               timestamp
+
+  Note: 'Source: Card 55707 - Alcances General (DB 1916) | ~5,703 rows'
+}
+
+Table backlog_scoring {
+  bia_code              varchar   [pk]
+  estimated_opex_cost   numeric
+  sales_opex_cost       numeric
+  sales_payback_months  numeric
+  opex_delta            numeric
+  delta_traffic_light   varchar
+  recommendation_band   varchar
+  cac_per_kwh           numeric
+  net_aging_days        integer
+  scheduled_date        timestamp
+  updated_at            timestamp
+
+  Note: 'Source: Card 65209 - Backlog v3 | ~140 rows | frontiers in pre-installation pipeline'
+}
+
+Table opex_neighborhoods {
+  id             integer   [pk, increment]
+  region         varchar
+  measurement_type varchar
+  service_type   varchar
+  avg_cost       numeric
+  p75_cost       numeric
+  total_work_orders integer
+  calculated_at  timestamp
+
+  Note: 'Materialized view for forecast - computed from visits + opex_costs history'
+}
+
+Table opex_recovery {
+  id              integer   [pk, increment]
+  bia_code        varchar
+  month           integer
+  year            integer
+  recoverable_amount numeric
+  recovered_amount   numeric
+  recovery_status    varchar
+  recovery_source    varchar
+
+  Note: 'FUTURE - source to confirm with Finance team (possible: facturacion_dian.invoices)'
+}
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+
+Ref: visits.bia_code              > fronteras.bia_code
+Ref: scopes.bia_code              > fronteras.bia_code
+Ref: backlog_scoring.bia_code     > fronteras.bia_code
+Ref: opex_recovery.bia_code       > fronteras.bia_code
+
+Ref: opex_costs.visit_id          > visits.id
+Ref: opex_items_per_visit.visit_id > visits.id
+
+Ref: opex_costs.contractor_id     > contractors.id
+Ref: tariff_rates.contractor_id   > contractors.id
+
+Ref: tariff_rates.item_code       > tariff_catalog.item_code
+Ref: opex_costs.tariff_item_id    > tariff_catalog.item_code
