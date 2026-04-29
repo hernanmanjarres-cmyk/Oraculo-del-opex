@@ -61,18 +61,26 @@
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "fronteras", "mode": "list" },
-        "conflictColumns": "bia_code",
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["bia_code"], "schema": [] },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'fronteras', CONFLICT = 'bia_code', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq01-sq01-sq01-000000001001",
+      "name": "SQL fronteras",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1290, 500],
+      "notes": "Construye INSERT ... ON CONFLICT SQL en chunks de 500 filas. Evita el error de schema en el nodo Postgres upsert."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa1-0005-0005-0005-000000000005",
       "name": "SB ← fronteras",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1290, 500],
+      "position": [1550, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     },
@@ -82,7 +90,7 @@
       "name": "Reset 1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1550, 500],
+      "position": [1810, 500],
       "notes": "Resetea a 1 item — evita que MB → visits se ejecute N veces."
     },
     {
@@ -99,14 +107,14 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, is_bia, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
         "options": {}
       },
       "id": "wfa1-0006-0006-0006-000000000006",
       "name": "MB → visits",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1810, 500]
+      "position": [2070, 500]
     },
     {
       "parameters": {
@@ -116,22 +124,29 @@
       "name": "Transform visits",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2070, 500]
+      "position": [2330, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "visits", "mode": "list" },
-        "conflictColumns": "id",
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["id"], "schema": [] },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'visits', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq02-sq02-sq02-000000001002",
+      "name": "SQL visits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2590, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa1-0008-0008-0008-000000000008",
       "name": "SB ← visits",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2330, 500],
+      "position": [2850, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     },
@@ -141,7 +156,7 @@
       "name": "Reset 2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2590, 500]
+      "position": [3110, 500]
     },
     {
       "parameters": {
@@ -164,7 +179,7 @@
       "name": "MB → opex_costs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2850, 500]
+      "position": [3370, 500]
     },
     {
       "parameters": {
@@ -174,22 +189,29 @@
       "name": "Transform opex_costs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3110, 500]
+      "position": [3630, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "opex_costs", "mode": "list" },
-        "conflictColumns": "id",
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["id"], "schema": [] },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'opex_costs', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq03-sq03-sq03-000000001003",
+      "name": "SQL opex_costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3890, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa1-0011-0011-0011-000000000011",
       "name": "SB ← opex_costs",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3370, 500],
+      "position": [4150, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     },
@@ -199,7 +221,7 @@
       "name": "Reset 3",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3630, 500]
+      "position": [4410, 500]
     },
     {
       "parameters": {
@@ -222,7 +244,7 @@
       "name": "MB → opex_cost_items",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3890, 500]
+      "position": [4670, 500]
     },
     {
       "parameters": {
@@ -232,21 +254,30 @@
       "name": "Transform opex_cost_items",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4150, 500]
+      "position": [4930, 500]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "opex_cost_items", "mode": "list" },
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "schema": [] },
-        "options": { "queryBatching": "transaction" }
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'opex_cost_items', CHUNK = 500;\nconst cols = ['opex_cost_id','visit_id','item_number','activity_name','quantity','amount_cop','ingested_at'];\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq04-sq04-sq04-000000001004",
+      "name": "SQL opex_cost_items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5190, 500],
+      "notes": "INSERT puro (sin ON CONFLICT) — tabla ya fue TRUNCADA al inicio del workflow."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-0014-0014-0014-000000000014",
       "name": "SB ← opex_cost_items",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [4410, 500],
+      "position": [5450, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     },
@@ -256,7 +287,7 @@
       "name": "Reset 4",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4670, 500]
+      "position": [5710, 500]
     },
     {
       "parameters": {
@@ -279,7 +310,7 @@
       "name": "MB → scopes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4930, 500]
+      "position": [5970, 500]
     },
     {
       "parameters": {
@@ -289,22 +320,29 @@
       "name": "Transform scopes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5190, 500]
+      "position": [6230, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "scopes", "mode": "list" },
-        "conflictColumns": "id",
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["id"], "schema": [] },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'scopes', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq05-sq05-sq05-000000001005",
+      "name": "SQL scopes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6490, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa1-0017-0017-0017-000000000017",
       "name": "SB ← scopes",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [5450, 500],
+      "position": [6750, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     },
@@ -314,7 +352,7 @@
       "name": "Reset 5",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5710, 500]
+      "position": [7010, 500]
     },
     {
       "parameters": {
@@ -337,7 +375,7 @@
       "name": "MB → backlog",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [5970, 500]
+      "position": [7270, 500]
     },
     {
       "parameters": {
@@ -347,51 +385,64 @@
       "name": "Transform backlog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [6230, 500]
+      "position": [7530, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "backlog_scoring", "mode": "list" },
-        "conflictColumns": "bia_code",
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["bia_code"], "schema": [] },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'backlog_scoring', CONFLICT = 'bia_code', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sq06-sq06-sq06-000000001006",
+      "name": "SQL backlog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [7790, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa1-0020-0020-0020-000000000020",
       "name": "SB ← backlog_scoring",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [6490, 500],
+      "position": [8050, 500],
       "continueOnFail": true,
       "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
     }
   ],
   "connections": {
-    "Cada hora":                  { "main": [[{ "node": "Truncate opex_cost_items",  "type": "main", "index": 0 }]] },
-    "Truncate opex_cost_items":   { "main": [[{ "node": "MB → fronteras",            "type": "main", "index": 0 }]] },
-    "MB → fronteras":             { "main": [[{ "node": "Transform fronteras",        "type": "main", "index": 0 }]] },
-    "Transform fronteras":        { "main": [[{ "node": "SB ← fronteras",            "type": "main", "index": 0 }]] },
-    "SB ← fronteras":             { "main": [[{ "node": "Reset 1",                   "type": "main", "index": 0 }]] },
-    "Reset 1":                    { "main": [[{ "node": "MB → visits",               "type": "main", "index": 0 }]] },
-    "MB → visits":                { "main": [[{ "node": "Transform visits",           "type": "main", "index": 0 }]] },
-    "Transform visits":           { "main": [[{ "node": "SB ← visits",               "type": "main", "index": 0 }]] },
-    "SB ← visits":                { "main": [[{ "node": "Reset 2",                   "type": "main", "index": 0 }]] },
-    "Reset 2":                    { "main": [[{ "node": "MB → opex_costs",           "type": "main", "index": 0 }]] },
-    "MB → opex_costs":            { "main": [[{ "node": "Transform opex_costs",      "type": "main", "index": 0 }]] },
-    "Transform opex_costs":       { "main": [[{ "node": "SB ← opex_costs",           "type": "main", "index": 0 }]] },
-    "SB ← opex_costs":            { "main": [[{ "node": "Reset 3",                   "type": "main", "index": 0 }]] },
-    "Reset 3":                    { "main": [[{ "node": "MB → opex_cost_items",      "type": "main", "index": 0 }]] },
-    "MB → opex_cost_items":       { "main": [[{ "node": "Transform opex_cost_items", "type": "main", "index": 0 }]] },
-    "Transform opex_cost_items":  { "main": [[{ "node": "SB ← opex_cost_items",      "type": "main", "index": 0 }]] },
-    "SB ← opex_cost_items":       { "main": [[{ "node": "Reset 4",                   "type": "main", "index": 0 }]] },
-    "Reset 4":                    { "main": [[{ "node": "MB → scopes",               "type": "main", "index": 0 }]] },
-    "MB → scopes":                { "main": [[{ "node": "Transform scopes",           "type": "main", "index": 0 }]] },
-    "Transform scopes":           { "main": [[{ "node": "SB ← scopes",               "type": "main", "index": 0 }]] },
-    "SB ← scopes":                { "main": [[{ "node": "Reset 5",                   "type": "main", "index": 0 }]] },
-    "Reset 5":                    { "main": [[{ "node": "MB → backlog",              "type": "main", "index": 0 }]] },
-    "MB → backlog":               { "main": [[{ "node": "Transform backlog",          "type": "main", "index": 0 }]] },
-    "Transform backlog":          { "main": [[{ "node": "SB ← backlog_scoring",      "type": "main", "index": 0 }]] }
+    "Cada hora":                    { "main": [[{ "node": "Truncate opex_cost_items",    "type": "main", "index": 0 }]] },
+    "Truncate opex_cost_items":     { "main": [[{ "node": "MB → fronteras",              "type": "main", "index": 0 }]] },
+    "MB → fronteras":               { "main": [[{ "node": "Transform fronteras",          "type": "main", "index": 0 }]] },
+    "Transform fronteras":          { "main": [[{ "node": "SQL fronteras",               "type": "main", "index": 0 }]] },
+    "SQL fronteras":                { "main": [[{ "node": "SB ← fronteras",              "type": "main", "index": 0 }]] },
+    "SB ← fronteras":               { "main": [[{ "node": "Reset 1",                     "type": "main", "index": 0 }]] },
+    "Reset 1":                      { "main": [[{ "node": "MB → visits",                 "type": "main", "index": 0 }]] },
+    "MB → visits":                  { "main": [[{ "node": "Transform visits",             "type": "main", "index": 0 }]] },
+    "Transform visits":             { "main": [[{ "node": "SQL visits",                  "type": "main", "index": 0 }]] },
+    "SQL visits":                   { "main": [[{ "node": "SB ← visits",                 "type": "main", "index": 0 }]] },
+    "SB ← visits":                  { "main": [[{ "node": "Reset 2",                     "type": "main", "index": 0 }]] },
+    "Reset 2":                      { "main": [[{ "node": "MB → opex_costs",             "type": "main", "index": 0 }]] },
+    "MB → opex_costs":              { "main": [[{ "node": "Transform opex_costs",        "type": "main", "index": 0 }]] },
+    "Transform opex_costs":         { "main": [[{ "node": "SQL opex_costs",              "type": "main", "index": 0 }]] },
+    "SQL opex_costs":               { "main": [[{ "node": "SB ← opex_costs",             "type": "main", "index": 0 }]] },
+    "SB ← opex_costs":              { "main": [[{ "node": "Reset 3",                     "type": "main", "index": 0 }]] },
+    "Reset 3":                      { "main": [[{ "node": "MB → opex_cost_items",        "type": "main", "index": 0 }]] },
+    "MB → opex_cost_items":         { "main": [[{ "node": "Transform opex_cost_items",   "type": "main", "index": 0 }]] },
+    "Transform opex_cost_items":    { "main": [[{ "node": "SQL opex_cost_items",         "type": "main", "index": 0 }]] },
+    "SQL opex_cost_items":          { "main": [[{ "node": "SB ← opex_cost_items",        "type": "main", "index": 0 }]] },
+    "SB ← opex_cost_items":         { "main": [[{ "node": "Reset 4",                     "type": "main", "index": 0 }]] },
+    "Reset 4":                      { "main": [[{ "node": "MB → scopes",                 "type": "main", "index": 0 }]] },
+    "MB → scopes":                  { "main": [[{ "node": "Transform scopes",             "type": "main", "index": 0 }]] },
+    "Transform scopes":             { "main": [[{ "node": "SQL scopes",                  "type": "main", "index": 0 }]] },
+    "SQL scopes":                   { "main": [[{ "node": "SB ← scopes",                 "type": "main", "index": 0 }]] },
+    "SB ← scopes":                  { "main": [[{ "node": "Reset 5",                     "type": "main", "index": 0 }]] },
+    "Reset 5":                      { "main": [[{ "node": "MB → backlog",                "type": "main", "index": 0 }]] },
+    "MB → backlog":                 { "main": [[{ "node": "Transform backlog",            "type": "main", "index": 0 }]] },
+    "Transform backlog":            { "main": [[{ "node": "SQL backlog",                 "type": "main", "index": 0 }]] },
+    "SQL backlog":                  { "main": [[{ "node": "SB ← backlog_scoring",        "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": {
