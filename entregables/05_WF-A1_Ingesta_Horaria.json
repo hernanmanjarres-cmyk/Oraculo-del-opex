@@ -3,13 +3,23 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
       },
       "id": "wfa1-0001-0001-0001-000000000001",
       "name": "Cada hora",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 500]
+      "position": [
+        250,
+        500
+      ]
     },
     {
       "parameters": {
@@ -21,142 +31,179 @@
       "name": "Truncate opex_cost_items",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [510, 500],
+      "position": [
+        510,
+        500
+      ],
       "credentials": {
-        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
       }
     },
     {
       "parameters": {
+        "jsCode": "const baseQuery = `SELECT codigo_bia AS bia_code, contract_id, titulo AS frontier_title, fase_actual AS current_phase, sic AS sic_code, niu, nic, operador_de_red AS grid_operator, tipo_de_mercado AS market_type, tipo_de_medida AS measurement_type, nivel_de_tension AS voltage_level, factor_de_medida AS measurement_factor, energia AS energy_kwh_month, ciudad AS city, departamento AS department, direccion_de_la_frontera AS address, kam_asignado AS kam_assigned, operation_account_executive, numero_de_documento_de_la_empresa AS company_nit, razon_social_de_la_empresa AS company_name, codigo_ciiu AS company_ciiu, propiedad_de_equipos_en_zona AS equipment_ownership, fecha_firma_del_contrato AS contract_sign_date, fecha_real_de_registro AS installation_date, fecha_real_de_activacion AS activation_date, es_frontera_comercial AS is_commercial_border, recibio_paz_y_salvo AS received_paz_y_salvo, fecha_de_vencimiento_de_paz_y_salvo AS paz_y_salvo_expiry_date, numero_de_requerimiento_xm AS xm_requirement_number, razon_on_hold_y_desistimiento AS on_hold_reason, detalle_de_on_hold_y_desistimiento AS on_hold_detail, serial_medidor_registrado AS meter_serial_registered, tiempo_total_gestion_paz_y_salvo_dias AS days_in_paz_y_salvo, tiempo_total_visita_previa_dias AS days_in_visita_previa, tiempo_total_asignacion_equipos_dias AS days_in_asignacion_equipos, tiempo_total_activar_instalar_dias AS days_in_activar_instalar, tiempo_total_completado_dias AS days_in_completado, tiempo_total_on_hold_dias AS days_in_on_hold, tiempo_total_desistidos_dias AS days_in_desistidos, creado_el AS source_created_at FROM operations.hubspot_general WHERE codigo_bia IS NOT NULL ORDER BY codigo_bia`;\nconst PAGE = 2000;\nconst MAX_PAGES = 5;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+      },
+      "id": "wfa1-ifront-ifront-ifront-init",
+      "name": "Init fronteras",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        770,
+        500
+      ],
+      "notes": "Genera 5 items con offsets pre-calculados para paginar Metabase"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://bia.metabaseapp.com/api/dataset",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT codigo_bia AS bia_code, contract_id, titulo AS frontier_title, fase_actual AS current_phase, sic AS sic_code, niu, nic, operador_de_red AS grid_operator, tipo_de_mercado AS market_type, tipo_de_medida AS measurement_type, nivel_de_tension AS voltage_level, factor_de_medida AS measurement_factor, energia AS energy_kwh_month, ciudad AS city, departamento AS department, direccion_de_la_frontera AS address, kam_asignado AS kam_assigned, operation_account_executive, numero_de_documento_de_la_empresa AS company_nit, razon_social_de_la_empresa AS company_name, codigo_ciiu AS company_ciiu, propiedad_de_equipos_en_zona AS equipment_ownership, fecha_firma_del_contrato AS contract_sign_date, fecha_real_de_registro AS installation_date, fecha_real_de_activacion AS activation_date, es_frontera_comercial AS is_commercial_border, recibio_paz_y_salvo AS received_paz_y_salvo, fecha_de_vencimiento_de_paz_y_salvo AS paz_y_salvo_expiry_date, numero_de_requerimiento_xm AS xm_requirement_number, razon_on_hold_y_desistimiento AS on_hold_reason, detalle_de_on_hold_y_desistimiento AS on_hold_detail, serial_medidor_registrado AS meter_serial_registered, tiempo_total_gestion_paz_y_salvo_dias AS days_in_paz_y_salvo, tiempo_total_visita_previa_dias AS days_in_visita_previa, tiempo_total_asignacion_equipos_dias AS days_in_asignacion_equipos, tiempo_total_activar_instalar_dias AS days_in_activar_instalar, tiempo_total_completado_dias AS days_in_completado, tiempo_total_on_hold_dias AS days_in_on_hold, tiempo_total_desistidos_dias AS days_in_desistidos, creado_el AS source_created_at FROM operations.hubspot_general\"}}",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
         "options": {}
       },
-      "id": "wfa1-0003-0003-0003-000000000003",
-      "name": "MB → fronteras",
+      "id": "wfa1-hfront-hfront-hfront-http",
+      "name": "MB fronteras paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [770, 500]
+      "position": [
+        1020,
+        500
+      ],
+      "notes": "Ejecuta una request por cada item de offset. n8n los corre secuencialmente."
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('fronteras: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('fronteras: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
       },
-      "id": "wfa1-0004-0004-0004-000000000004",
-      "name": "Transform fronteras",
+      "id": "wfa1-cfront-cfront-cfront-coll",
+      "name": "Collect fronteras",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1030, 500]
+      "position": [
+        1270,
+        500
+      ],
+      "notes": "Acumula rows de todas las páginas y aplica filtro PK"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'fronteras', CONFLICT = 'bia_code', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+        "jsCode": "return [{ json: {} }];"
       },
-      "id": "wfa1-sq01-sq01-sq01-000000001001",
-      "name": "SQL fronteras",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1290, 500],
-      "notes": "Construye INSERT ... ON CONFLICT SQL en chunks de 500 filas. Evita el error de schema en el nodo Postgres upsert."
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
-      },
-      "id": "wfa1-0005-0005-0005-000000000005",
-      "name": "SB ← fronteras",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1550, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
-    },
-    {
-      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa1-r001-r001-r001-000000000101",
       "name": "Reset 1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1810, 500],
+      "position": [
+        2020,
+        500
+      ],
       "notes": "Resetea a 1 item — evita que MB → visits se ejecute N veces."
     },
     {
       "parameters": {
+        "jsCode": "const baseQuery = `SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general WHERE id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 20;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+      },
+      "id": "wfa1-ivisit-ivisit-ivisit-init",
+      "name": "Init visits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2070,
+        500
+      ],
+      "notes": "Genera 20 items con offsets pre-calculados para paginar Metabase"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://bia.metabaseapp.com/api/dataset",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
         "options": {}
       },
-      "id": "wfa1-0006-0006-0006-000000000006",
-      "name": "MB → visits",
+      "id": "wfa1-hvisit-hvisit-hvisit-http",
+      "name": "MB visits paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2070, 500]
+      "position": [
+        2320,
+        500
+      ],
+      "notes": "Ejecuta una request por cada item de offset. n8n los corre secuencialmente."
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('visits: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('visits: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
       },
-      "id": "wfa1-0007-0007-0007-000000000007",
-      "name": "Transform visits",
+      "id": "wfa1-cvisit-cvisit-cvisit-coll",
+      "name": "Collect visits",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2330, 500]
+      "position": [
+        2570,
+        500
+      ],
+      "notes": "Acumula rows de todas las páginas y aplica filtro PK"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'visits', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+        "jsCode": "return [{ json: {} }];"
       },
-      "id": "wfa1-sq02-sq02-sq02-000000001002",
-      "name": "SQL visits",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2590, 500]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
-      },
-      "id": "wfa1-0008-0008-0008-000000000008",
-      "name": "SB ← visits",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [2850, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
-    },
-    {
-      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa1-r002-r002-r002-000000000102",
       "name": "Reset 2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3110, 500]
+      "position": [
+        3320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseQuery = `SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true AND id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 20;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+      },
+      "id": "wfa1-iopex_-iopex_-iopex_-init",
+      "name": "Init opex_costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3370,
+        500
+      ],
+      "notes": "Genera 20 items con offsets pre-calculados para paginar Metabase"
     },
     {
       "parameters": {
@@ -165,63 +212,72 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true\"}}",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
         "options": {}
       },
-      "id": "wfa1-0009-0009-0009-000000000009",
-      "name": "MB → opex_costs",
+      "id": "wfa1-hopex_-hopex_-hopex_-http",
+      "name": "MB opex_costs paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3370, 500]
+      "position": [
+        3620,
+        500
+      ],
+      "notes": "Ejecuta una request por cada item de offset. n8n los corre secuencialmente."
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('opex_costs: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('opex_costs: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
       },
-      "id": "wfa1-0010-0010-0010-000000000010",
-      "name": "Transform opex_costs",
+      "id": "wfa1-copex_-copex_-copex_-coll",
+      "name": "Collect opex_costs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3630, 500]
+      "position": [
+        3870,
+        500
+      ],
+      "notes": "Acumula rows de todas las páginas y aplica filtro PK"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'opex_costs', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+        "jsCode": "return [{ json: {} }];"
       },
-      "id": "wfa1-sq03-sq03-sq03-000000001003",
-      "name": "SQL opex_costs",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3890, 500]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
-      },
-      "id": "wfa1-0011-0011-0011-000000000011",
-      "name": "SB ← opex_costs",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [4150, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
-    },
-    {
-      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa1-r003-r003-r003-000000000103",
       "name": "Reset 3",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4410, 500]
+      "position": [
+        4620,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseQuery = `SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true AND oc.id IS NOT NULL ORDER BY oc.id, (item->>'item_number')::integer`;\nconst PAGE = 2000;\nconst MAX_PAGES = 40;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+      },
+      "id": "wfa1-iopex_-iopex_-iopex_-init",
+      "name": "Init opex_cost_items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4670,
+        500
+      ],
+      "notes": "Genera 40 items con offsets pre-calculados para paginar Metabase"
     },
     {
       "parameters": {
@@ -230,64 +286,72 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true\"}}",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
         "options": {}
       },
-      "id": "wfa1-0012-0012-0012-000000000012",
-      "name": "MB → opex_cost_items",
+      "id": "wfa1-hopex_-hopex_-hopex_-http",
+      "name": "MB opex_cost_items paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4670, 500]
+      "position": [
+        4920,
+        500
+      ],
+      "notes": "Ejecuta una request por cada item de offset. n8n los corre secuencialmente."
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('opex_cost_items: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.opex_cost_id != null && o.visit_id != null);\nconsole.log('opex_cost_items: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
       },
-      "id": "wfa1-0013-0013-0013-000000000013",
-      "name": "Transform opex_cost_items",
+      "id": "wfa1-copex_-copex_-copex_-coll",
+      "name": "Collect opex_cost_items",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4930, 500]
+      "position": [
+        5170,
+        500
+      ],
+      "notes": "Acumula rows de todas las páginas y aplica filtro PK"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'opex_cost_items', CHUNK = 500;\nconst cols = ['opex_cost_id','visit_id','item_number','activity_name','quantity','amount_cop','ingested_at'];\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals } });\n}\nreturn out;"
+        "jsCode": "return [{ json: {} }];"
       },
-      "id": "wfa1-sq04-sq04-sq04-000000001004",
-      "name": "SQL opex_cost_items",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [5190, 500],
-      "notes": "INSERT puro (sin ON CONFLICT) — tabla ya fue TRUNCADA al inicio del workflow."
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
-      },
-      "id": "wfa1-0014-0014-0014-000000000014",
-      "name": "SB ← opex_cost_items",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [5450, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
-    },
-    {
-      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa1-r004-r004-r004-000000000104",
       "name": "Reset 4",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5710, 500]
+      "position": [
+        5920,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseQuery = `SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general WHERE id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 10;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+      },
+      "id": "wfa1-iscope-iscope-iscope-init",
+      "name": "Init scopes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5970,
+        500
+      ],
+      "notes": "Genera 10 items con offsets pre-calculados para paginar Metabase"
     },
     {
       "parameters": {
@@ -296,63 +360,58 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general\"}}",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
         "options": {}
       },
-      "id": "wfa1-0015-0015-0015-000000000015",
-      "name": "MB → scopes",
+      "id": "wfa1-hscope-hscope-hscope-http",
+      "name": "MB scopes paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [5970, 500]
+      "position": [
+        6220,
+        500
+      ],
+      "notes": "Ejecuta una request por cada item de offset. n8n los corre secuencialmente."
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('scopes: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('scopes: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
       },
-      "id": "wfa1-0016-0016-0016-000000000016",
-      "name": "Transform scopes",
+      "id": "wfa1-cscope-cscope-cscope-coll",
+      "name": "Collect scopes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [6230, 500]
+      "position": [
+        6470,
+        500
+      ],
+      "notes": "Acumula rows de todas las páginas y aplica filtro PK"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'scopes', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+        "jsCode": "return [{ json: {} }];"
       },
-      "id": "wfa1-sq05-sq05-sq05-000000001005",
-      "name": "SQL scopes",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [6490, 500]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
-      },
-      "id": "wfa1-0017-0017-0017-000000000017",
-      "name": "SB ← scopes",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [6750, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
-    },
-    {
-      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa1-r005-r005-r005-000000000105",
       "name": "Reset 5",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [7010, 500]
+      "position": [
+        7220,
+        500
+      ]
     },
     {
       "parameters": {
@@ -361,8 +420,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -375,74 +440,588 @@
       "name": "MB → backlog",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [7270, 500]
+      "position": [
+        7270,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Card API devuelve array → n8n lo divide en items individuales\n// Usamos $input.all() para reconstruir todos los rows\nconst rows = $input.all().map(item => item.json);\nconst updated_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: {\n    bia_code:                    row.codigo_bia,\n    contract_id:                 row.contract_id,\n    frontier_name:               row.nombre_frontera,\n    grid_operator:               row.operador_de_red,\n    measurement_type:            row.tipo_de_medida,\n    market_type:                 row.tipo_de_mercado,\n    current_phase:               row.fase_actual,\n    city:                        row.ciudad,\n    department:                  row.departamento,\n    kwh_per_month:               row.kwh_mes,\n    scheduled_date:              row.fecha_programada,\n    successful_install_date:     row.fecha_inst_exitosa,\n    contract_sign_date:          row.fecha_firma_del_contrato,\n    estimated_vipe_cost:         row.costo_est_visita_previa,\n    estimated_install_cost_adj:  row.costo_est_instalacion_ajustado,\n    estimated_legalization_cost: row.costo_est_legalizacion,\n    total_estimated_visit_cost:  row.costo_total_estimado_visitas,\n    estimated_opex_cost:         row.costo_opex_estimado,\n    sales_opex_cost:             row.costo_opex_sales,\n    sales_payback_months:        row.payback_sales,\n    opex_delta:                  row.delta_opex,\n    delta_traffic_light:         row.semaforo_delta,\n    recommendation_band:         row.banda,\n    cac_per_kwh:                 row.cac_kwh,\n    net_aging_days:              row.aging_neto_dias,\n    updated_at\n  }\n}));"
+        "jsCode": "// Card API devuelve array → n8n lo divide en items individuales\nconst rows = $input.all().map(item => item.json);\nconst updated_at = new Date().toISOString();\nconst out = rows\n  .map(row => ({\n    bia_code:                    row.codigo_bia,\n    contract_id:                 row.contract_id,\n    frontier_name:               row.nombre_frontera,\n    grid_operator:               row.operador_de_red,\n    measurement_type:            row.tipo_de_medida,\n    market_type:                 row.tipo_de_mercado,\n    current_phase:               row.fase_actual,\n    city:                        row.ciudad,\n    department:                  row.departamento,\n    kwh_per_month:               row.kwh_mes,\n    scheduled_date:              row.fecha_programada,\n    successful_install_date:     row.fecha_inst_exitosa,\n    contract_sign_date:          row.fecha_firma_del_contrato,\n    estimated_vipe_cost:         row.costo_est_visita_previa,\n    estimated_install_cost_adj:  row.costo_est_instalacion_ajustado,\n    estimated_legalization_cost: row.costo_est_legalizacion,\n    total_estimated_visit_cost:  row.costo_total_estimado_visitas,\n    estimated_opex_cost:         row.costo_opex_estimado,\n    sales_opex_cost:             row.costo_opex_sales,\n    sales_payback_months:        row.payback_sales,\n    opex_delta:                  row.delta_opex,\n    delta_traffic_light:         row.semaforo_delta,\n    recommendation_band:         row.banda,\n    cac_per_kwh:                 row.cac_kwh,\n    net_aging_days:              row.aging_neto_dias,\n    updated_at\n  }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('Transform backlog: ' + rows.length + ' rows recibidas, ' + out.length + ' válidas tras filtro bia_code');\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-0019-0019-0019-000000000019",
       "name": "Transform backlog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [7530, 500]
+      "position": [
+        7530,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'backlog_scoring', CONFLICT = 'bia_code', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "fronteras",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "bia_code"
+          ],
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
-      "id": "wfa1-sq06-sq06-sq06-000000001006",
-      "name": "SQL backlog",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [7790, 500]
+      "id": "wfa1-pgfront-pgfront-pgfront-pg",
+      "name": "SB ← fronteras",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1520,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para fronteras. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {}
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "visits",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
-      "id": "wfa1-0020-0020-0020-000000000020",
+      "id": "wfa1-pgvisit-pgvisit-pgvisit-pg",
+      "name": "SB ← visits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2820,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para visits. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "opex_costs",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
+      },
+      "id": "wfa1-pgopex_-pgopex_-pgopex_-pg",
+      "name": "SB ← opex_costs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4120,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para opex_costs. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "opex_cost_items",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
+      },
+      "id": "wfa1-pgopex_-pgopex_-pgopex_-pg",
+      "name": "SB ← opex_cost_items",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        5420,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para opex_cost_items. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "scopes",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
+      },
+      "id": "wfa1-pgscope-pgscope-pgscope-pg",
+      "name": "SB ← scopes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        6720,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para scopes. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "backlog_scoring",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "bia_code"
+          ],
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
+      },
+      "id": "wfa1-pgbk-pgbk-pgbk-pgbk",
       "name": "SB ← backlog_scoring",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [8050, 500],
-      "continueOnFail": true,
-      "credentials": { "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" } }
+      "position": [
+        8050,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "92nLfZ0IlzU004no",
+          "name": "Supabase Oráculo del Opex"
+        }
+      },
+      "notes": "Upsert/Insert nativo para backlog_scoring. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
     }
   ],
   "connections": {
-    "Cada hora":                    { "main": [[{ "node": "Truncate opex_cost_items",    "type": "main", "index": 0 }]] },
-    "Truncate opex_cost_items":     { "main": [[{ "node": "MB → fronteras",              "type": "main", "index": 0 }]] },
-    "MB → fronteras":               { "main": [[{ "node": "Transform fronteras",          "type": "main", "index": 0 }]] },
-    "Transform fronteras":          { "main": [[{ "node": "SQL fronteras",               "type": "main", "index": 0 }]] },
-    "SQL fronteras":                { "main": [[{ "node": "SB ← fronteras",              "type": "main", "index": 0 }]] },
-    "SB ← fronteras":               { "main": [[{ "node": "Reset 1",                     "type": "main", "index": 0 }]] },
-    "Reset 1":                      { "main": [[{ "node": "MB → visits",                 "type": "main", "index": 0 }]] },
-    "MB → visits":                  { "main": [[{ "node": "Transform visits",             "type": "main", "index": 0 }]] },
-    "Transform visits":             { "main": [[{ "node": "SQL visits",                  "type": "main", "index": 0 }]] },
-    "SQL visits":                   { "main": [[{ "node": "SB ← visits",                 "type": "main", "index": 0 }]] },
-    "SB ← visits":                  { "main": [[{ "node": "Reset 2",                     "type": "main", "index": 0 }]] },
-    "Reset 2":                      { "main": [[{ "node": "MB → opex_costs",             "type": "main", "index": 0 }]] },
-    "MB → opex_costs":              { "main": [[{ "node": "Transform opex_costs",        "type": "main", "index": 0 }]] },
-    "Transform opex_costs":         { "main": [[{ "node": "SQL opex_costs",              "type": "main", "index": 0 }]] },
-    "SQL opex_costs":               { "main": [[{ "node": "SB ← opex_costs",             "type": "main", "index": 0 }]] },
-    "SB ← opex_costs":              { "main": [[{ "node": "Reset 3",                     "type": "main", "index": 0 }]] },
-    "Reset 3":                      { "main": [[{ "node": "MB → opex_cost_items",        "type": "main", "index": 0 }]] },
-    "MB → opex_cost_items":         { "main": [[{ "node": "Transform opex_cost_items",   "type": "main", "index": 0 }]] },
-    "Transform opex_cost_items":    { "main": [[{ "node": "SQL opex_cost_items",         "type": "main", "index": 0 }]] },
-    "SQL opex_cost_items":          { "main": [[{ "node": "SB ← opex_cost_items",        "type": "main", "index": 0 }]] },
-    "SB ← opex_cost_items":         { "main": [[{ "node": "Reset 4",                     "type": "main", "index": 0 }]] },
-    "Reset 4":                      { "main": [[{ "node": "MB → scopes",                 "type": "main", "index": 0 }]] },
-    "MB → scopes":                  { "main": [[{ "node": "Transform scopes",             "type": "main", "index": 0 }]] },
-    "Transform scopes":             { "main": [[{ "node": "SQL scopes",                  "type": "main", "index": 0 }]] },
-    "SQL scopes":                   { "main": [[{ "node": "SB ← scopes",                 "type": "main", "index": 0 }]] },
-    "SB ← scopes":                  { "main": [[{ "node": "Reset 5",                     "type": "main", "index": 0 }]] },
-    "Reset 5":                      { "main": [[{ "node": "MB → backlog",                "type": "main", "index": 0 }]] },
-    "MB → backlog":                 { "main": [[{ "node": "Transform backlog",            "type": "main", "index": 0 }]] },
-    "Transform backlog":            { "main": [[{ "node": "SQL backlog",                 "type": "main", "index": 0 }]] },
-    "SQL backlog":                  { "main": [[{ "node": "SB ← backlog_scoring",        "type": "main", "index": 0 }]] }
+    "Cada hora": {
+      "main": [
+        [
+          {
+            "node": "Truncate opex_cost_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Truncate opex_cost_items": {
+      "main": [
+        [
+          {
+            "node": "Init fronteras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init fronteras": {
+      "main": [
+        [
+          {
+            "node": "MB fronteras paged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB fronteras paged": {
+      "main": [
+        [
+          {
+            "node": "Collect fronteras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect fronteras": {
+      "main": [
+        [
+          {
+            "node": "SB ← fronteras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SB ← fronteras": {
+      "main": [
+        [
+          {
+            "node": "Reset 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init visits": {
+      "main": [
+        [
+          {
+            "node": "MB visits paged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB visits paged": {
+      "main": [
+        [
+          {
+            "node": "Collect visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect visits": {
+      "main": [
+        [
+          {
+            "node": "SB ← visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SB ← visits": {
+      "main": [
+        [
+          {
+            "node": "Reset 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init opex_costs": {
+      "main": [
+        [
+          {
+            "node": "MB opex_costs paged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB opex_costs paged": {
+      "main": [
+        [
+          {
+            "node": "Collect opex_costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect opex_costs": {
+      "main": [
+        [
+          {
+            "node": "SB ← opex_costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SB ← opex_costs": {
+      "main": [
+        [
+          {
+            "node": "Reset 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init opex_cost_items": {
+      "main": [
+        [
+          {
+            "node": "MB opex_cost_items paged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB opex_cost_items paged": {
+      "main": [
+        [
+          {
+            "node": "Collect opex_cost_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect opex_cost_items": {
+      "main": [
+        [
+          {
+            "node": "SB ← opex_cost_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SB ← opex_cost_items": {
+      "main": [
+        [
+          {
+            "node": "Reset 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init scopes": {
+      "main": [
+        [
+          {
+            "node": "MB scopes paged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB scopes paged": {
+      "main": [
+        [
+          {
+            "node": "Collect scopes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect scopes": {
+      "main": [
+        [
+          {
+            "node": "SB ← scopes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SB ← scopes": {
+      "main": [
+        [
+          {
+            "node": "Reset 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset 1": {
+      "main": [
+        [
+          {
+            "node": "Init visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset 2": {
+      "main": [
+        [
+          {
+            "node": "Init opex_costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset 3": {
+      "main": [
+        [
+          {
+            "node": "Init opex_cost_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset 4": {
+      "main": [
+        [
+          {
+            "node": "Init scopes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset 5": {
+      "main": [
+        [
+          {
+            "node": "MB → backlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MB → backlog": {
+      "main": [
+        [
+          {
+            "node": "Transform backlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform backlog": {
+      "main": [
+        [
+          {
+            "node": "SB ← backlog_scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
   "settings": {
@@ -450,5 +1029,7 @@
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "meta": { "instanceId": "" }
+  "meta": {
+    "instanceId": ""
+  }
 }

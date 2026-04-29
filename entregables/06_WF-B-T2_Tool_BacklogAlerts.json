@@ -1,0 +1,48 @@
+{
+  "name": "WF-B-T2 | Tool: get_backlog_alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "wfbt2-0001-0001-0001-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bs.bia_code, bs.frontier_name, bs.recommendation_band, bs.delta_traffic_light, bs.opex_delta, bs.cac_per_kwh, bs.net_aging_days, bs.scheduled_date, bs.estimated_opex_cost, bs.sales_opex_cost, f.kam_assigned, f.grid_operator, f.measurement_type, f.city, f.department FROM backlog_scoring bs JOIN fronteras f ON f.bia_code = bs.bia_code WHERE bs.recommendation_band ILIKE '%DESESTIMAR%' OR bs.delta_traffic_light ILIKE '%DÉFICIT ALTO%' OR bs.net_aging_days > 30 ORDER BY bs.net_aging_days DESC NULLS LAST LIMIT 50",
+        "options": {}
+      },
+      "id": "wfbt2-0002-0002-0002-000000000002",
+      "name": "Query backlog alerts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [510, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nif (!rows.length) return [{ json: { result: 'Sin alertas activas en el backlog', rows: [], count: 0 } }];\nreturn [{ json: { result: 'OK', rows, count: rows.length } }];"
+      },
+      "id": "wfbt2-0003-0003-0003-000000000003",
+      "name": "Formatear resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [770, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Query backlog alerts", "type": "main", "index": 0 }]] },
+    "Query backlog alerts":     { "main": [[{ "node": "Formatear resultado",  "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
+  "meta": { "instanceId": "" }
+}

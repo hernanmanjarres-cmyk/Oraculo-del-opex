@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza el input: acepta {message}, {text}, {query} o body plano\nconst body = $input.first().json.body || $input.first().json;\nconst message = body.message || body.text || body.query || body.pregunta || '';\nconst session_id = body.session_id || body.user_id || 'default';\nif (!message) throw new Error('Falta el campo message/text/query en el body');\nreturn [{ json: { message, session_id } }];"
+        "jsCode": "// Normaliza el input: acepta varios shapes del webhook\nconst raw = $input.first().json || {};\n// El body puede llegar como raw.body (webhook v2 con json), raw.body.body (anidado), o el raw completo\nconst body = raw.body?.message || raw.body?.text || raw.body?.query || raw.body?.pregunta\n  ? raw.body\n  : (raw.body?.body || raw.body || raw);\n\nconst message = body.message || body.text || body.query || body.pregunta || body.input || '';\nconst session_id = body.session_id || body.user_id || raw.headers?.['x-session-id'] || 'default';\n\nif (!message || !String(message).trim()) {\n  throw new Error('Falta el campo message/text/query en el body. Recibido: ' + JSON.stringify(raw).slice(0, 500));\n}\nreturn [{ json: { message: String(message).trim(), session_id } }];"
       },
       "id": "wfb-0002-0002-0002-000000000002",
       "name": "Normalizar input",
@@ -78,8 +78,8 @@
     {
       "parameters": {
         "name": "query_supabase",
-        "description": "Ejecuta una query SQL en la base de datos OPEX de Supabase (PostgreSQL). Úsala para consultar fronteras, visits, opex_costs, contratistas, tarifas y cualquier dato operativo. IMPORTANTE: usa solo SELECT. No uses INSERT/UPDATE/DELETE. Limita con LIMIT si esperas muchos resultados.",
-        "workflowId": "={{ $workflow.id }}",
+        "description": "Ejecuta una query SQL en la base de datos OPEX de Supabase (PostgreSQL). Úsala para consultar fronteras, visits, opex_costs, contratistas, tarifas y cualquier dato operativo. IMPORTANTE: usa solo SELECT o WITH. No uses INSERT/UPDATE/DELETE. Limita con LIMIT si esperas muchos resultados.",
+        "workflowId": "T1_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": { "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'La query SQL a ejecutar en PostgreSQL', 'string') }}" }
@@ -95,7 +95,7 @@
       "parameters": {
         "name": "get_backlog_alerts",
         "description": "Obtiene las fronteras del backlog activo que tienen alertas: recomendación DESESTIMAR, semáforo DÉFICIT ALTO, o aging > 30 días. Devuelve bia_code, frontier_name, recommendation_band, delta_traffic_light, opex_delta, cac_per_kwh, net_aging_days, kam_assigned, grid_operator, measurement_type. No requiere parámetros.",
-        "workflowId": "={{ $workflow.id }}",
+        "workflowId": "T2_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {}
@@ -111,7 +111,7 @@
       "parameters": {
         "name": "calcular_costo_estimado",
         "description": "Calcula el costo estimado de una visita dado el tipo de servicio (service_type_id), tipo de medida (measurement_type: Directa/Semidirecta/Indirecta), nombre del contratista y grupo de OR (network_operator_group: ENEL_AIRE_EMCALI_AFINIA / CELSIA_VALLE_ELECTROHUILA_ESSA / OTROS_OR). Consulta tariff_catalog y operation_types para el cálculo. Devuelve el costo estimado en COP.",
-        "workflowId": "={{ $workflow.id }}",
+        "workflowId": "T3_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
@@ -144,79 +144,17 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [1290, 500]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.body?.sql || $json.sql || 'SELECT 1' }}",
-        "options": {}
-      },
-      "id": "wfb-t001-t001-t001-000000010001",
-      "name": "[Tool] Ejecutar SQL",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1550, 300],
-      "continueOnFail": true,
-      "credentials": {
-        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
-      },
-      "notes": "Sub-workflow de query_supabase. Recibe {sql} y devuelve filas."
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT bs.bia_code, bs.frontier_name, bs.recommendation_band, bs.delta_traffic_light, bs.opex_delta, bs.cac_per_kwh, bs.net_aging_days, bs.scheduled_date, f.kam_assigned, f.grid_operator, f.measurement_type FROM backlog_scoring bs JOIN fronteras f ON f.bia_code = bs.bia_code WHERE bs.recommendation_band ILIKE '%DESESTIMAR%' OR bs.delta_traffic_light ILIKE '%DÉFICIT ALTO%' OR bs.net_aging_days > 30 ORDER BY bs.net_aging_days DESC NULLS LAST LIMIT 50",
-        "options": {}
-      },
-      "id": "wfb-t002-t002-t002-000000010002",
-      "name": "[Tool] Backlog alerts",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1550, 500],
-      "continueOnFail": true,
-      "credentials": {
-        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
-      },
-      "notes": "Sub-workflow de get_backlog_alerts. Query fija a v_backlog_alerts."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Sub-workflow de calcular_costo_estimado\n// Inputs: service_type_id, measurement_type, contractor_name, network_operator_group\nconst body = $input.first().json.body || $input.first().json;\nconst service_type_id = body.service_type_id || 'INST';\nconst measurement_type = (body.measurement_type || 'Directa').toLowerCase();\nconst contractor_name = body.contractor_name || null;\nconst or_group = body.network_operator_group || 'ENEL_AIRE_EMCALI_AFINIA';\n\n// Mapear tipo de medida → columna de horas\nconst hoursCol = measurement_type.includes('semi') ? 'semidirect_hours'\n               : measurement_type.includes('ind')  ? 'indirect_hours'\n               : 'direct_hours';\n\nconst sql = `\nSELECT\n  ot.operation_type,\n  ot.${hoursCol} AS hours_required,\n  tc.contractor_id,\n  c.contractor_name,\n  tc.activity_name,\n  tc.base_rate_cop,\n  tc.network_operator_group,\n  ROUND(tc.base_rate_cop * ot.${hoursCol}) AS estimated_cost_cop\nFROM operation_types ot\nCROSS JOIN tariff_catalog tc\nJOIN contractors c ON c.id = tc.contractor_id\nWHERE ot.service_type_id = '${service_type_id}'\n  AND tc.network_operator_group = '${or_group}'\n  ${contractor_name ? `AND c.contractor_name ILIKE '%${contractor_name.replace(/'/g, \"''\")}%'` : ''}\n  AND ot.${hoursCol} IS NOT NULL\nORDER BY estimated_cost_cop\nLIMIT 20\n`;\n\nreturn [{ json: { sql: sql.trim() } }];"
-      },
-      "id": "wfb-t003-t003-t003-000000010003",
-      "name": "[Tool] Build costo SQL",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1550, 700],
-      "notes": "Construye la query de estimación de costo según parámetros del agente."
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "id": "wfb-t004-t004-t004-000000010004",
-      "name": "[Tool] Ejecutar costo SQL",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1810, 700],
-      "continueOnFail": true,
-      "credentials": {
-        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
-      }
     }
   ],
   "connections": {
-    "Webhook entrada":       { "main": [[{ "node": "Normalizar input",       "type": "main", "index": 0 }]] },
-    "Normalizar input":      { "main": [[{ "node": "Agente OPEX (Claude)",   "type": "main", "index": 0 }]] },
-    "Agente OPEX (Claude)":  { "main": [[{ "node": "Respuesta HTTP",         "type": "main", "index": 0 }]] },
-    "Claude Sonnet":         { "ai_languageModel": [[{ "node": "Agente OPEX (Claude)", "type": "ai_languageModel", "index": 0 }]] },
-    "Memoria conversación":  { "ai_memory": [[{ "node": "Agente OPEX (Claude)", "type": "ai_memory", "index": 0 }]] },
-    "query_supabase":        { "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 0 }]] },
-    "get_backlog_alerts":    { "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 1 }]] },
-    "calcular_costo_estimado":{ "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 2 }]] },
-    "[Tool] Build costo SQL":{ "main": [[{ "node": "[Tool] Ejecutar costo SQL", "type": "main", "index": 0 }]] }
+    "Webhook entrada":        { "main": [[{ "node": "Normalizar input",       "type": "main", "index": 0 }]] },
+    "Normalizar input":       { "main": [[{ "node": "Agente OPEX (Claude)",   "type": "main", "index": 0 }]] },
+    "Agente OPEX (Claude)":   { "main": [[{ "node": "Respuesta HTTP",         "type": "main", "index": 0 }]] },
+    "Claude Sonnet":          { "ai_languageModel": [[{ "node": "Agente OPEX (Claude)", "type": "ai_languageModel", "index": 0 }]] },
+    "Memoria conversación":   { "ai_memory":        [[{ "node": "Agente OPEX (Claude)", "type": "ai_memory",        "index": 0 }]] },
+    "query_supabase":         { "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 0 }]] },
+    "get_backlog_alerts":     { "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 1 }]] },
+    "calcular_costo_estimado":{ "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 2 }]] }
   },
   "active": false,
   "settings": {

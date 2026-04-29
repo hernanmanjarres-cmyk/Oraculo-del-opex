@@ -1,0 +1,59 @@
+{
+  "name": "WF-B-T3 | Tool: calcular_costo_estimado",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "wfbt3-0001-0001-0001-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json || {};\nconst input = raw.body || raw.json || raw;\nconst service_type_id = input.service_type_id || 'INST';\nconst measurement_type = String(input.measurement_type || 'Directa').toLowerCase();\nconst contractor_name = input.contractor_name || null;\nconst or_group = input.network_operator_group || 'ENEL_AIRE_EMCALI_AFINIA';\n\nconst hoursCol = measurement_type.includes('semi') ? 'semidirect_hours'\n               : measurement_type.includes('ind')  ? 'indirect_hours'\n               : 'direct_hours';\n\nconst contractorFilter = contractor_name\n  ? `AND c.contractor_name ILIKE '%${String(contractor_name).replace(/'/g, \"''\")}%'`\n  : '';\n\nconst sql = `SELECT\n  ot.service_type_id,\n  ot.operation_type,\n  ot.${hoursCol} AS hours_required,\n  c.contractor_name,\n  tc.activity_name,\n  tc.network_operator_group,\n  tc.base_rate_cop,\n  ROUND(tc.base_rate_cop * ot.${hoursCol}) AS estimated_cost_cop\nFROM operation_types ot\nCROSS JOIN tariff_catalog tc\nJOIN contractors c ON c.id::text = tc.contractor_id\nWHERE ot.service_type_id = '${service_type_id}'\n  AND tc.network_operator_group = '${or_group}'\n  AND ot.${hoursCol} IS NOT NULL\n  AND ot.${hoursCol} > 0\n  ${contractorFilter}\nORDER BY estimated_cost_cop\nLIMIT 30`;\n\nreturn [{ json: { sql } }];"
+      },
+      "id": "wfbt3-0002-0002-0002-000000000002",
+      "name": "Construir SQL costo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [510, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "wfbt3-0003-0003-0003-000000000003",
+      "name": "Ejecutar en Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [770, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nif (!rows.length) return [{ json: { result: 'Sin datos de tarifa para esos parámetros', rows: [], count: 0 } }];\nconst costs = rows.map(r => r.estimated_cost_cop).filter(Boolean);\nconst avg = costs.length ? Math.round(costs.reduce((a,b) => a+b, 0) / costs.length) : 0;\nconst min = costs.length ? Math.min(...costs) : 0;\nconst max = costs.length ? Math.max(...costs) : 0;\nreturn [{ json: { result: 'OK', rows, count: rows.length, summary: { avg_cop: avg, min_cop: min, max_cop: max } } }];"
+      },
+      "id": "wfbt3-0004-0004-0004-000000000004",
+      "name": "Calcular resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1030, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Construir SQL costo",  "type": "main", "index": 0 }]] },
+    "Construir SQL costo":      { "main": [[{ "node": "Ejecutar en Supabase", "type": "main", "index": 0 }]] },
+    "Ejecutar en Supabase":     { "main": [[{ "node": "Calcular resumen",     "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
+  "meta": { "instanceId": "" }
+}

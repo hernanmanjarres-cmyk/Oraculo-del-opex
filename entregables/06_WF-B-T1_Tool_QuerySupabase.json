@@ -1,0 +1,59 @@
+{
+  "name": "WF-B-T1 | Tool: query_supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "wfbt1-0001-0001-0001-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\n// El sub-workflow puede recibir el sql en distintos shapes según cómo lo invoque el agente\nconst sql = input.sql\n         || input.query\n         || input.body?.sql\n         || input.body?.query\n         || (input.json && (input.json.sql || input.json.query))\n         || '';\nif (!sql || !String(sql).trim()) {\n  throw new Error('Parámetro sql requerido. Inputs recibidos: ' + JSON.stringify(input));\n}\nconst sqlStr = String(sql).trim();\nconst normalized = sqlStr.toUpperCase();\nif (!normalized.startsWith('SELECT') && !normalized.startsWith('WITH')) {\n  throw new Error('Solo se permiten queries SELECT o WITH. Se recibió: ' + normalized.split(/\\s+/)[0]);\n}\nreturn [{ json: { sql: sqlStr } }];"
+      },
+      "id": "wfbt1-0002-0002-0002-000000000002",
+      "name": "Validar SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [510, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "wfbt1-0003-0003-0003-000000000003",
+      "name": "Ejecutar en Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [770, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nif (!rows.length) return [{ json: { result: 'Sin resultados', rows: [], count: 0 } }];\nreturn [{ json: { result: 'OK', rows, count: rows.length } }];"
+      },
+      "id": "wfbt1-0004-0004-0004-000000000004",
+      "name": "Formatear resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1030, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Validar SQL",          "type": "main", "index": 0 }]] },
+    "Validar SQL":              { "main": [[{ "node": "Ejecutar en Supabase", "type": "main", "index": 0 }]] },
+    "Ejecutar en Supabase":     { "main": [[{ "node": "Formatear resultado",  "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
+  "meta": { "instanceId": "" }
+}
