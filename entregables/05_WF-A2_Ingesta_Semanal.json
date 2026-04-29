@@ -27,7 +27,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT t.contractor_id::text AS id, t.contractor_name, t.cost_type, t.year AS tariff_year, t.name AS tariff_name, t.valid_from, t.valid_to, true AS is_active, t.id AS source_tariff_id, t.created_at, t.updated_at FROM tariff t ORDER BY t.id\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT t.contractor_id::text AS id, t.contractor_name, t.cost_type, t.year AS tariff_year, t.name AS tariff_name, t.valid_from, t.valid_to, true AS is_active, t.id AS source_tariff_id, t.created_at, t.updated_at FROM tariff t ORDER BY t.id\"}}",
         "options": {}
       },
       "id": "wfa2-0002-0002-0002-000000000002",
@@ -87,7 +88,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT ti.id, ti.tariff_id, t.contractor_id::text AS contractor_id, ti.item_number, ti.activity_name, ti.network_operator_groups[1] AS network_operator_group, ti.amount_cop AS base_rate_cop, ti.created_at, ti.updated_at FROM tariff_item ti JOIN tariff t ON t.id = ti.tariff_id ORDER BY ti.tariff_id, ti.item_number\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT ti.id, ti.tariff_id, t.contractor_id::text AS contractor_id, ti.item_number, ti.activity_name, ti.network_operator_groups[1] AS network_operator_group, ti.amount_cop AS base_rate_cop, ti.created_at, ti.updated_at FROM tariff_item ti JOIN tariff t ON t.id = ti.tariff_id ORDER BY ti.tariff_id, ti.item_number\"}}",
         "options": {}
       },
       "id": "wfa2-0005-0005-0005-000000000005",
@@ -148,7 +150,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, operation_type, service_type_id, direct_hours, semidirect_hours, indirect_hours, created_at, updated_at FROM operation_hours ORDER BY id\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, operation_type, service_type_id, direct_hours, semidirect_hours, indirect_hours, created_at, updated_at FROM operation_hours ORDER BY id\"}}",
         "options": {}
       },
       "id": "wfa2-0008-0008-0008-000000000008",

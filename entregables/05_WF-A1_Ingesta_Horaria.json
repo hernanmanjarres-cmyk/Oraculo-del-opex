@@ -46,7 +46,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT codigo_bia AS bia_code, contract_id, titulo AS frontier_title, fase_actual AS current_phase, sic AS sic_code, niu, nic, operador_de_red AS grid_operator, tipo_de_mercado AS market_type, tipo_de_medida AS measurement_type, nivel_de_tension AS voltage_level, factor_de_medida AS measurement_factor, energia AS energy_kwh_month, ciudad AS city, departamento AS department, direccion_de_la_frontera AS address, kam_asignado AS kam_assigned, operation_account_executive, numero_de_documento_de_la_empresa AS company_nit, razon_social_de_la_empresa AS company_name, codigo_ciiu AS company_ciiu, propiedad_de_equipos_en_zona AS equipment_ownership, fecha_firma_del_contrato AS contract_sign_date, fecha_real_de_registro AS installation_date, fecha_real_de_activacion AS activation_date, es_frontera_comercial AS is_commercial_border, recibio_paz_y_salvo AS received_paz_y_salvo, fecha_de_vencimiento_de_paz_y_salvo AS paz_y_salvo_expiry_date, numero_de_requerimiento_xm AS xm_requirement_number, razon_on_hold_y_desistimiento AS on_hold_reason, detalle_de_on_hold_y_desistimiento AS on_hold_detail, serial_medidor_registrado AS meter_serial_registered, tiempo_total_gestion_paz_y_salvo_dias AS days_in_paz_y_salvo, tiempo_total_visita_previa_dias AS days_in_visita_previa, tiempo_total_asignacion_equipos_dias AS days_in_asignacion_equipos, tiempo_total_activar_instalar_dias AS days_in_activar_instalar, tiempo_total_completado_dias AS days_in_completado, tiempo_total_on_hold_dias AS days_in_on_hold, tiempo_total_desistidos_dias AS days_in_desistidos, creado_el AS source_created_at FROM operations.hubspot_general\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT codigo_bia AS bia_code, contract_id, titulo AS frontier_title, fase_actual AS current_phase, sic AS sic_code, niu, nic, operador_de_red AS grid_operator, tipo_de_mercado AS market_type, tipo_de_medida AS measurement_type, nivel_de_tension AS voltage_level, factor_de_medida AS measurement_factor, energia AS energy_kwh_month, ciudad AS city, departamento AS department, direccion_de_la_frontera AS address, kam_asignado AS kam_assigned, operation_account_executive, numero_de_documento_de_la_empresa AS company_nit, razon_social_de_la_empresa AS company_name, codigo_ciiu AS company_ciiu, propiedad_de_equipos_en_zona AS equipment_ownership, fecha_firma_del_contrato AS contract_sign_date, fecha_real_de_registro AS installation_date, fecha_real_de_activacion AS activation_date, es_frontera_comercial AS is_commercial_border, recibio_paz_y_salvo AS received_paz_y_salvo, fecha_de_vencimiento_de_paz_y_salvo AS paz_y_salvo_expiry_date, numero_de_requerimiento_xm AS xm_requirement_number, razon_on_hold_y_desistimiento AS on_hold_reason, detalle_de_on_hold_y_desistimiento AS on_hold_detail, serial_medidor_registrado AS meter_serial_registered, tiempo_total_gestion_paz_y_salvo_dias AS days_in_paz_y_salvo, tiempo_total_visita_previa_dias AS days_in_visita_previa, tiempo_total_asignacion_equipos_dias AS days_in_asignacion_equipos, tiempo_total_activar_instalar_dias AS days_in_activar_instalar, tiempo_total_completado_dias AS days_in_completado, tiempo_total_on_hold_dias AS days_in_on_hold, tiempo_total_desistidos_dias AS days_in_desistidos, creado_el AS source_created_at FROM operations.hubspot_general\"}}",
         "options": {}
       },
       "id": "wfa1-0003-0003-0003-000000000003",
@@ -107,7 +108,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
         "options": {}
       },
       "id": "wfa1-0006-0006-0006-000000000006",
@@ -168,7 +170,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true\"}}",
         "options": {}
       },
       "id": "wfa1-0009-0009-0009-000000000009",
@@ -229,7 +232,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true\"}}",
         "options": {}
       },
       "id": "wfa1-0012-0012-0012-000000000012",
@@ -291,7 +295,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general\"}}",
+        "specifyBody": "json",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general\"}}",
         "options": {}
       },
       "id": "wfa1-0015-0015-0015-000000000015",
@@ -351,7 +356,8 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "{}",
+        "specifyBody": "json",
+        "jsonBody": "{}",
         "options": {}
       },
       "id": "wfa1-0018-0018-0018-000000000018",
