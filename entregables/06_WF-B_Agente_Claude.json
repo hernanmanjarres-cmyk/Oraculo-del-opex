@@ -1,0 +1,224 @@
+{
+  "name": "WF-B | Agente OPEX — Claude AI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agente-opex",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wfb-0001-0001-0001-000000000001",
+      "name": "Webhook entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "agente-opex-bia"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza el input: acepta {message}, {text}, {query} o body plano\nconst body = $input.first().json.body || $input.first().json;\nconst message = body.message || body.text || body.query || body.pregunta || '';\nconst session_id = body.session_id || body.user_id || 'default';\nif (!message) throw new Error('Falta el campo message/text/query en el body');\nreturn [{ json: { message, session_id } }];"
+      },
+      "id": "wfb-0002-0002-0002-000000000002",
+      "name": "Normalizar input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [510, 500]
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "Eres el Analista OPEX Virtual de BIA Energy. Tu función es responder preguntas sobre costos operativos (OPEX), visitas de campo, contratistas, tarifas y el backlog de instalaciones.\n\nTienes acceso a una base de datos PostgreSQL (Supabase) con las siguientes tablas:\n- **fronteras**: ~5,647 fronteras/contratos. Columnas clave: bia_code (PK), frontier_title, current_phase, grid_operator, market_type, measurement_type, city, department, kam_assigned.\n- **visits**: ~26,139 visitas. Columnas clave: id, bia_code, service_type_id (INST/VIPE/VICO/NORM/ALRT/DESX/LEGA), electrician_status_id (CLOSURE_SUCCESSFUL/CLOSURE_FAILED/CLOSURE_CANCELLED), contractor_name, visit_date.\n- **opex_costs**: ~23,349 registros de costo. Columnas clave: id, visit_id, service_cost, material_cost, transport_cost, other_cost, total_cost (calculado), status (accepted/pending/rejected), contractor_id.\n- **opex_cost_items**: items de tarifa por visita. Columnas: opex_cost_id, visit_id, item_number, activity_name, quantity, amount_cop, total_cop.\n- **contractors**: 13 contratistas. Columnas: id (UUID), contractor_name, tariff_year, valid_from, valid_to.\n- **tariff_catalog**: 2,585 items de tarifa. Columnas: id, contractor_id, item_number, activity_name, network_operator_group, base_rate_cop, night_rate_cop, sunday_rate_cop, night_sunday_rate_cop.\n- **operation_types**: 24 tipos de operación. Columnas: service_type_id, operation_type, direct_hours, semidirect_hours, indirect_hours.\n- **backlog_scoring**: ~140 fronteras activas. Columnas: bia_code, frontier_name, recommendation_band (INSTALAR/INSTALAR - MENOS PRIORITARIO/DESESTIMAR), delta_traffic_light (HOLGURA/AJUSTADO/DÉFICIT MODERADO/DÉFICIT ALTO), opex_delta, cac_per_kwh, net_aging_days.\n- **v_opex_by_frontier** (vista): OPEX total por frontera con totales.\n- **v_backlog_alerts** (vista): fronteras con DÉFICIT ALTO o recomendación DESESTIMAR o aging > 30 días.\n\nPRINCIPIOS:\n1. Responde SIEMPRE en español.\n2. Usa las herramientas disponibles para consultar datos reales antes de responder.\n3. Si la pregunta requiere datos, usa query_supabase con SQL válido para PostgreSQL.\n4. Para preguntas de backlog y alertas usa get_backlog_alerts (más eficiente).\n5. Para calcular costos estimados de una frontera usa calcular_costo_estimado.\n6. Formatea los montos en COP con separadores de miles (ej: $1.234.567).\n7. Si no encuentras datos, dilo claramente. No inventes cifras.\n8. Limita los resultados de queries largas con LIMIT 20 a menos que el usuario pida todo.\n9. Cuando muestres tablas usa formato Markdown.\n\nEJEMPLOS DE PREGUNTAS FRECUENTES:\n- ¿Cuánto costó la instalación en la frontera CO050XXXXX?\n- ¿Qué contratistas tienen más visitas fallidas este mes?\n- ¿Cuáles fronteras del backlog deberían desestimarse?\n- ¿Cuál es el costo promedio de instalación en Bogotá vs Costa?\n- ¿Cuántas visitas CLOSURE_SUCCESSFUL tuvo POWER GRID en abril 2026?"
+        }
+      },
+      "id": "wfb-0003-0003-0003-000000000003",
+      "name": "Agente OPEX (Claude)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [770, 500]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokensToSample": 4096,
+          "temperature": 0
+        }
+      },
+      "id": "wfb-0004-0004-0004-000000000004",
+      "name": "Claude Sonnet",
+      "type": "@n8n/n8n-nodes-langchain.lmAnthropicChat",
+      "typeVersion": 1.3,
+      "position": [770, 720],
+      "credentials": {
+        "anthropicApi": { "id": "ANTHROPIC_CREDENTIAL_ID", "name": "Anthropic BIA" }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Normalizar input').item.json.session_id }}",
+        "contextWindowLength": 20
+      },
+      "id": "wfb-0005-0005-0005-000000000005",
+      "name": "Memoria conversación",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [990, 720]
+    },
+    {
+      "parameters": {
+        "name": "query_supabase",
+        "description": "Ejecuta una query SQL en la base de datos OPEX de Supabase (PostgreSQL). Úsala para consultar fronteras, visits, opex_costs, contratistas, tarifas y cualquier dato operativo. IMPORTANTE: usa solo SELECT. No uses INSERT/UPDATE/DELETE. Limita con LIMIT si esperas muchos resultados.",
+        "workflowId": "={{ $workflow.id }}",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'La query SQL a ejecutar en PostgreSQL', 'string') }}" }
+        }
+      },
+      "id": "wfb-0006-0006-0006-000000000006",
+      "name": "query_supabase",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [550, 720]
+    },
+    {
+      "parameters": {
+        "name": "get_backlog_alerts",
+        "description": "Obtiene las fronteras del backlog activo que tienen alertas: recomendación DESESTIMAR, semáforo DÉFICIT ALTO, o aging > 30 días. Devuelve bia_code, frontier_name, recommendation_band, delta_traffic_light, opex_delta, cac_per_kwh, net_aging_days, kam_assigned, grid_operator, measurement_type. No requiere parámetros.",
+        "workflowId": "={{ $workflow.id }}",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        }
+      },
+      "id": "wfb-0007-0007-0007-000000000007",
+      "name": "get_backlog_alerts",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [660, 720]
+    },
+    {
+      "parameters": {
+        "name": "calcular_costo_estimado",
+        "description": "Calcula el costo estimado de una visita dado el tipo de servicio (service_type_id), tipo de medida (measurement_type: Directa/Semidirecta/Indirecta), nombre del contratista y grupo de OR (network_operator_group: ENEL_AIRE_EMCALI_AFINIA / CELSIA_VALLE_ELECTROHUILA_ESSA / OTROS_OR). Consulta tariff_catalog y operation_types para el cálculo. Devuelve el costo estimado en COP.",
+        "workflowId": "={{ $workflow.id }}",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_type_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('service_type_id', 'Tipo de servicio: INST, VIPE, VICO, NORM, ALRT, DESX, LEGA', 'string') }}",
+            "measurement_type": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('measurement_type', 'Tipo de medida: Directa, Semidirecta o Indirecta', 'string') }}",
+            "contractor_name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contractor_name', 'Nombre del contratista (opcional)', 'string') }}",
+            "network_operator_group": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('network_operator_group', 'Grupo OR: ENEL_AIRE_EMCALI_AFINIA, CELSIA_VALLE_ELECTROHUILA_ESSA o OTROS_OR', 'string') }}"
+          }
+        }
+      },
+      "id": "wfb-0008-0008-0008-000000000008",
+      "name": "calcular_costo_estimado",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [770, 720]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": {{ JSON.stringify($('Agente OPEX (Claude)').item.json.output) }},\n  \"session_id\": {{ JSON.stringify($('Normalizar input').item.json.session_id) }}\n}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+          }
+        }
+      },
+      "id": "wfb-0009-0009-0009-000000000009",
+      "name": "Respuesta HTTP",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1290, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.body?.sql || $json.sql || 'SELECT 1' }}",
+        "options": {}
+      },
+      "id": "wfb-t001-t001-t001-000000010001",
+      "name": "[Tool] Ejecutar SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1550, 300],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      },
+      "notes": "Sub-workflow de query_supabase. Recibe {sql} y devuelve filas."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bs.bia_code, bs.frontier_name, bs.recommendation_band, bs.delta_traffic_light, bs.opex_delta, bs.cac_per_kwh, bs.net_aging_days, bs.scheduled_date, f.kam_assigned, f.grid_operator, f.measurement_type FROM backlog_scoring bs JOIN fronteras f ON f.bia_code = bs.bia_code WHERE bs.recommendation_band ILIKE '%DESESTIMAR%' OR bs.delta_traffic_light ILIKE '%DÉFICIT ALTO%' OR bs.net_aging_days > 30 ORDER BY bs.net_aging_days DESC NULLS LAST LIMIT 50",
+        "options": {}
+      },
+      "id": "wfb-t002-t002-t002-000000010002",
+      "name": "[Tool] Backlog alerts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1550, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      },
+      "notes": "Sub-workflow de get_backlog_alerts. Query fija a v_backlog_alerts."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sub-workflow de calcular_costo_estimado\n// Inputs: service_type_id, measurement_type, contractor_name, network_operator_group\nconst body = $input.first().json.body || $input.first().json;\nconst service_type_id = body.service_type_id || 'INST';\nconst measurement_type = (body.measurement_type || 'Directa').toLowerCase();\nconst contractor_name = body.contractor_name || null;\nconst or_group = body.network_operator_group || 'ENEL_AIRE_EMCALI_AFINIA';\n\n// Mapear tipo de medida → columna de horas\nconst hoursCol = measurement_type.includes('semi') ? 'semidirect_hours'\n               : measurement_type.includes('ind')  ? 'indirect_hours'\n               : 'direct_hours';\n\nconst sql = `\nSELECT\n  ot.operation_type,\n  ot.${hoursCol} AS hours_required,\n  tc.contractor_id,\n  c.contractor_name,\n  tc.activity_name,\n  tc.base_rate_cop,\n  tc.network_operator_group,\n  ROUND(tc.base_rate_cop * ot.${hoursCol}) AS estimated_cost_cop\nFROM operation_types ot\nCROSS JOIN tariff_catalog tc\nJOIN contractors c ON c.id = tc.contractor_id\nWHERE ot.service_type_id = '${service_type_id}'\n  AND tc.network_operator_group = '${or_group}'\n  ${contractor_name ? `AND c.contractor_name ILIKE '%${contractor_name.replace(/'/g, \"''\")}%'` : ''}\n  AND ot.${hoursCol} IS NOT NULL\nORDER BY estimated_cost_cop\nLIMIT 20\n`;\n\nreturn [{ json: { sql: sql.trim() } }];"
+      },
+      "id": "wfb-t003-t003-t003-000000010003",
+      "name": "[Tool] Build costo SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1550, 700],
+      "notes": "Construye la query de estimación de costo según parámetros del agente."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "wfb-t004-t004-t004-000000010004",
+      "name": "[Tool] Ejecutar costo SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1810, 700],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook entrada":       { "main": [[{ "node": "Normalizar input",       "type": "main", "index": 0 }]] },
+    "Normalizar input":      { "main": [[{ "node": "Agente OPEX (Claude)",   "type": "main", "index": 0 }]] },
+    "Agente OPEX (Claude)":  { "main": [[{ "node": "Respuesta HTTP",         "type": "main", "index": 0 }]] },
+    "Claude Sonnet":         { "ai_languageModel": [[{ "node": "Agente OPEX (Claude)", "type": "ai_languageModel", "index": 0 }]] },
+    "Memoria conversación":  { "ai_memory": [[{ "node": "Agente OPEX (Claude)", "type": "ai_memory", "index": 0 }]] },
+    "query_supabase":        { "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 0 }]] },
+    "get_backlog_alerts":    { "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 1 }]] },
+    "calcular_costo_estimado":{ "ai_tool": [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool", "index": 2 }]] },
+    "[Tool] Build costo SQL":{ "main": [[{ "node": "[Tool] Ejecutar costo SQL", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": { "instanceId": "" }
+}
