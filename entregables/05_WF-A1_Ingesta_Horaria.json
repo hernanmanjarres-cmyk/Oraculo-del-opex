@@ -1,0 +1,472 @@
+{
+  "name": "WF-A1 | Ingesta Horaria — Metabase → Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "wfa1-0001-0001-0001-000000000001",
+      "name": "Cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 500],
+      "notes": "Dispara cada hora. Para primera ejecución manual: clic en 'Test workflow'."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "TRUNCATE TABLE opex_cost_items RESTART IDENTITY",
+        "options": {}
+      },
+      "id": "wfa1-0002-0002-0002-000000000002",
+      "name": "Truncate opex_cost_items",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [510, 500],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      },
+      "notes": "Se ejecuta UNA vez (el trigger envía 1 item). Limpia items derivados del JSONB antes de reinsertar."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT codigo_bia AS bia_code, contract_id, titulo AS frontier_title, fase_actual AS current_phase, sic AS sic_code, niu, nic, operador_de_red AS grid_operator, tipo_de_mercado AS market_type, tipo_de_medida AS measurement_type, nivel_de_tension AS voltage_level, factor_de_medida AS measurement_factor, energia AS energy_kwh_month, ciudad AS city, departamento AS department, direccion_de_la_frontera AS address, kam_asignado AS kam_assigned, operation_account_executive, numero_de_documento_de_la_empresa AS company_nit, razon_social_de_la_empresa AS company_name, codigo_ciiu AS company_ciiu, propiedad_de_equipos_en_zona AS equipment_ownership, fecha_firma_del_contrato AS contract_sign_date, fecha_real_de_registro AS installation_date, fecha_real_de_activacion AS activation_date, es_frontera_comercial AS is_commercial_border, recibio_paz_y_salvo AS received_paz_y_salvo, fecha_de_vencimiento_de_paz_y_salvo AS paz_y_salvo_expiry_date, numero_de_requerimiento_xm AS xm_requirement_number, razon_on_hold_y_desistimiento AS on_hold_reason, detalle_de_on_hold_y_desistimiento AS on_hold_detail, serial_medidor_registrado AS meter_serial_registered, tiempo_total_gestion_paz_y_salvo_dias AS days_in_paz_y_salvo, tiempo_total_visita_previa_dias AS days_in_visita_previa, tiempo_total_asignacion_equipos_dias AS days_in_asignacion_equipos, tiempo_total_activar_instalar_dias AS days_in_activar_instalar, tiempo_total_completado_dias AS days_in_completado, tiempo_total_on_hold_dias AS days_in_on_hold, tiempo_total_desistidos_dias AS days_in_desistidos, creado_el AS source_created_at FROM operations.hubspot_general\"}}",
+        "options": {}
+      },
+      "id": "wfa1-0003-0003-0003-000000000003",
+      "name": "MB → fronteras",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [770, 500],
+      "notes": "DB 2344 — prod-bia-gold. ~5,647 filas. CARGA PRIMERO (FK padre de visits, scopes, backlog)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa1-0004-0004-0004-000000000004",
+      "name": "Transform fronteras",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1030, 500],
+      "notes": "Convierte el formato Metabase {data:{cols,rows}} a items individuales n8n. Agrega ingested_at."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "fronteras", "mode": "list" },
+        "conflictColumns": "bia_code",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["bia_code"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa1-0005-0005-0005-000000000005",
+      "name": "SB ← fronteras",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1290, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
+        "options": {}
+      },
+      "id": "wfa1-0006-0006-0006-000000000006",
+      "name": "MB → visits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1550, 500],
+      "notes": "DB 2344 — ~26,139 filas. Requiere fronteras cargado (FK bia_code)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa1-0007-0007-0007-000000000007",
+      "name": "Transform visits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1810, 500]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "visits", "mode": "list" },
+        "conflictColumns": "id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa1-0008-0008-0008-000000000008",
+      "name": "SB ← visits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2070, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      },
+      "notes": "continueOnFail=true: si bia_code no existe en fronteras, la fila falla pero el workflow continúa."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true\"}}",
+        "options": {}
+      },
+      "id": "wfa1-0009-0009-0009-000000000009",
+      "name": "MB → opex_costs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2330, 500],
+      "notes": "DB 2344 — ~23,349 filas. NOTA: total_cost excluido del SELECT porque es columna GENERATED en Supabase."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa1-0010-0010-0010-000000000010",
+      "name": "Transform opex_costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2590, 500],
+      "notes": "total_cost NO se incluye: es GENERATED ALWAYS en Supabase (= service+material+transport+other)."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_costs", "mode": "list" },
+        "conflictColumns": "id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa1-0011-0011-0011-000000000011",
+      "name": "SB ← opex_costs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2850, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true\"}}",
+        "options": {}
+      },
+      "id": "wfa1-0012-0012-0012-000000000012",
+      "name": "MB → opex_cost_items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3110, 500],
+      "notes": "Explota JSONB selected_tariff_items. total_cop excluido (GENERATED en Supabase). Tabla ya fue TRUNCADA al inicio."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa1-0013-0013-0013-000000000013",
+      "name": "Transform opex_cost_items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3370, 500],
+      "notes": "total_cop NO se incluye: es GENERATED ALWAYS en Supabase (= quantity * amount_cop)."
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "opex_cost_items", "mode": "list" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": []
+        },
+        "options": {
+          "queryBatching": "transaction"
+        }
+      },
+      "id": "wfa1-0014-0014-0014-000000000014",
+      "name": "SB ← opex_cost_items",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3630, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      },
+      "notes": "INSERT (no upsert) porque id es BIGSERIAL. queryBatching=transaction para mayor velocidad."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general\"}}",
+        "options": {}
+      },
+      "id": "wfa1-0015-0015-0015-000000000015",
+      "name": "MB → scopes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3890, 500],
+      "notes": "DB 2344 — ~5,743 filas."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa1-0016-0016-0016-000000000016",
+      "name": "Transform scopes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4150, 500]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "scopes", "mode": "list" },
+        "conflictColumns": "id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa1-0017-0017-0017-000000000017",
+      "name": "SB ← scopes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [4410, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/card/65209/query/json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{}",
+        "options": {}
+      },
+      "id": "wfa1-0018-0018-0018-000000000018",
+      "name": "MB → backlog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4670, 500],
+      "notes": "Card API (no SQL). Card 65209 = Backlog v3. Respuesta ya viene como array de objetos."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json;\nconst updated_at = new Date().toISOString();\nif (!Array.isArray(items)) throw new Error('Backlog card no devolvió array. Verifica card 65209.');\nreturn items.map(row => ({\n  json: {\n    bia_code:                    row.codigo_bia,\n    contract_id:                 row.contract_id,\n    frontier_name:               row.nombre_frontera,\n    grid_operator:               row.operador_de_red,\n    measurement_type:            row.tipo_de_medida,\n    market_type:                 row.tipo_de_mercado,\n    current_phase:               row.fase_actual,\n    city:                        row.ciudad,\n    department:                  row.departamento,\n    kwh_per_month:               row.kwh_mes,\n    scheduled_date:              row.fecha_programada,\n    successful_install_date:     row.fecha_inst_exitosa,\n    contract_sign_date:          row.fecha_firma_del_contrato,\n    estimated_vipe_cost:         row.costo_est_visita_previa,\n    estimated_install_cost_adj:  row.costo_est_instalacion_ajustado,\n    estimated_legalization_cost: row.costo_est_legalizacion,\n    total_estimated_visit_cost:  row.costo_total_estimado_visitas,\n    estimated_opex_cost:         row.costo_opex_estimado,\n    sales_opex_cost:             row.costo_opex_sales,\n    sales_payback_months:        row.payback_sales,\n    opex_delta:                  row.delta_opex,\n    delta_traffic_light:         row.semaforo_delta,\n    recommendation_band:         row.banda,\n    cac_per_kwh:                 row.cac_kwh,\n    net_aging_days:              row.aging_neto_dias,\n    updated_at\n  }\n}));"
+      },
+      "id": "wfa1-0019-0019-0019-000000000019",
+      "name": "Transform backlog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4930, 500],
+      "notes": "Mapea nombres ES → EN. delta_traffic_light y recommendation_band vienen con emojis (ej: '🟢 INSTALAR'). No usar igualdad exacta — usar .includes()."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "backlog_scoring", "mode": "list" },
+        "conflictColumns": "bia_code",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["bia_code"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa1-0020-0020-0020-000000000020",
+      "name": "SB ← backlog_scoring",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [5190, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      },
+      "notes": "~140 filas activas. FK a fronteras(bia_code): si fronteras no tiene el bia_code, la fila falla (continueOnFail=true)."
+    }
+  ],
+  "connections": {
+    "Cada hora": {
+      "main": [[{ "node": "Truncate opex_cost_items", "type": "main", "index": 0 }]]
+    },
+    "Truncate opex_cost_items": {
+      "main": [[{ "node": "MB → fronteras", "type": "main", "index": 0 }]]
+    },
+    "MB → fronteras": {
+      "main": [[{ "node": "Transform fronteras", "type": "main", "index": 0 }]]
+    },
+    "Transform fronteras": {
+      "main": [[{ "node": "SB ← fronteras", "type": "main", "index": 0 }]]
+    },
+    "SB ← fronteras": {
+      "main": [[{ "node": "MB → visits", "type": "main", "index": 0 }]]
+    },
+    "MB → visits": {
+      "main": [[{ "node": "Transform visits", "type": "main", "index": 0 }]]
+    },
+    "Transform visits": {
+      "main": [[{ "node": "SB ← visits", "type": "main", "index": 0 }]]
+    },
+    "SB ← visits": {
+      "main": [[{ "node": "MB → opex_costs", "type": "main", "index": 0 }]]
+    },
+    "MB → opex_costs": {
+      "main": [[{ "node": "Transform opex_costs", "type": "main", "index": 0 }]]
+    },
+    "Transform opex_costs": {
+      "main": [[{ "node": "SB ← opex_costs", "type": "main", "index": 0 }]]
+    },
+    "SB ← opex_costs": {
+      "main": [[{ "node": "MB → opex_cost_items", "type": "main", "index": 0 }]]
+    },
+    "MB → opex_cost_items": {
+      "main": [[{ "node": "Transform opex_cost_items", "type": "main", "index": 0 }]]
+    },
+    "Transform opex_cost_items": {
+      "main": [[{ "node": "SB ← opex_cost_items", "type": "main", "index": 0 }]]
+    },
+    "SB ← opex_cost_items": {
+      "main": [[{ "node": "MB → scopes", "type": "main", "index": 0 }]]
+    },
+    "MB → scopes": {
+      "main": [[{ "node": "Transform scopes", "type": "main", "index": 0 }]]
+    },
+    "Transform scopes": {
+      "main": [[{ "node": "SB ← scopes", "type": "main", "index": 0 }]]
+    },
+    "SB ← scopes": {
+      "main": [[{ "node": "MB → backlog", "type": "main", "index": 0 }]]
+    },
+    "MB → backlog": {
+      "main": [[{ "node": "Transform backlog", "type": "main", "index": 0 }]]
+    },
+    "Transform backlog": {
+      "main": [[{ "node": "SB ← backlog_scoring", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}

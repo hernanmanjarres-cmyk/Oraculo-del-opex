@@ -1,0 +1,238 @@
+{
+  "name": "WF-A2 | Ingesta Semanal — Metabase → Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "weeks", "weeksInterval": 1, "triggerAtDay": [1], "triggerAtHour": 2 }]
+        }
+      },
+      "id": "wfa2-0001-0001-0001-000000000001",
+      "name": "Cada lunes 2am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 500],
+      "notes": "Ejecutar ANTES de WF-A1 en la primera carga. contractors es FK padre de tariff_catalog."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT t.contractor_id::text AS id, t.contractor_name, t.cost_type, t.year AS tariff_year, t.name AS tariff_name, t.valid_from, t.valid_to, true AS is_active, t.id AS source_tariff_id, t.created_at, t.updated_at FROM tariff t ORDER BY t.id\"}}",
+        "options": {}
+      },
+      "id": "wfa2-0002-0002-0002-000000000002",
+      "name": "MB → contractors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [510, 500],
+      "notes": "DB 2311 — prod-electrician-services-contractor. 13 filas. FK padre de tariff_catalog."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa2-0003-0003-0003-000000000003",
+      "name": "Transform contractors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [770, 500]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "contractors", "mode": "list" },
+        "conflictColumns": "id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa2-0004-0004-0004-000000000004",
+      "name": "SB ← contractors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1030, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT ti.id, ti.tariff_id, t.contractor_id::text AS contractor_id, ti.item_number, ti.activity_name, ti.network_operator_groups[1] AS network_operator_group, ti.amount_cop AS base_rate_cop, ti.created_at, ti.updated_at FROM tariff_item ti JOIN tariff t ON t.id = ti.tariff_id ORDER BY ti.tariff_id, ti.item_number\"}}",
+        "options": {}
+      },
+      "id": "wfa2-0005-0005-0005-000000000005",
+      "name": "MB → tariff_catalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1290, 500],
+      "notes": "DB 2311 — 2,585 filas. NOTA: night_rate_cop / sunday_rate_cop / night_sunday_rate_cop son GENERATED en Supabase — NO se incluyen en el SELECT. Supabase los calcula automáticamente desde base_rate_cop."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa2-0006-0006-0006-000000000006",
+      "name": "Transform tariff_catalog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1550, 500],
+      "notes": "Las columnas de recargo (night/sunday/night_sunday_rate_cop) son GENERATED ALWAYS — Supabase las calcula automáticamente."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "tariff_catalog", "mode": "list" },
+        "conflictColumns": "id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa2-0007-0007-0007-000000000007",
+      "name": "SB ← tariff_catalog",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1810, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.METABASE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"database\":2311,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, operation_type, service_type_id, direct_hours, semidirect_hours, indirect_hours, created_at, updated_at FROM operation_hours ORDER BY id\"}}",
+        "options": {}
+      },
+      "id": "wfa2-0008-0008-0008-000000000008",
+      "name": "MB → operation_types",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2070, 500],
+      "notes": "DB 2311 — 24 filas. Tipos de operación con horas estimadas."
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cols = r.data.cols.map(c => c.name);\nconst rows = r.data.rows;\nconst ingested_at = new Date().toISOString();\nreturn rows.map(row => ({\n  json: { ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }\n}));"
+      },
+      "id": "wfa2-0009-0009-0009-000000000009",
+      "name": "Transform operation_types",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2330, 500]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "operation_types", "mode": "list" },
+        "conflictColumns": "service_type_id",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["service_type_id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "wfa2-0010-0010-0010-000000000010",
+      "name": "SB ← operation_types",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2590, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      },
+      "notes": "conflictColumns=service_type_id (tiene UNIQUE constraint en DDL). Conflict en id también funciona."
+    }
+  ],
+  "connections": {
+    "Cada lunes 2am": {
+      "main": [[{ "node": "MB → contractors", "type": "main", "index": 0 }]]
+    },
+    "MB → contractors": {
+      "main": [[{ "node": "Transform contractors", "type": "main", "index": 0 }]]
+    },
+    "Transform contractors": {
+      "main": [[{ "node": "SB ← contractors", "type": "main", "index": 0 }]]
+    },
+    "SB ← contractors": {
+      "main": [[{ "node": "MB → tariff_catalog", "type": "main", "index": 0 }]]
+    },
+    "MB → tariff_catalog": {
+      "main": [[{ "node": "Transform tariff_catalog", "type": "main", "index": 0 }]]
+    },
+    "Transform tariff_catalog": {
+      "main": [[{ "node": "SB ← tariff_catalog", "type": "main", "index": 0 }]]
+    },
+    "SB ← tariff_catalog": {
+      "main": [[{ "node": "MB → operation_types", "type": "main", "index": 0 }]]
+    },
+    "MB → operation_types": {
+      "main": [[{ "node": "Transform operation_types", "type": "main", "index": 0 }]]
+    },
+    "Transform operation_types": {
+      "main": [[{ "node": "SB ← operation_types", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
