@@ -48,37 +48,37 @@
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "contractors", "mode": "list" },
-        "conflictColumns": "id",
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": ["id"],
-          "schema": []
-        },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'contractors', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa2-sq01-sq01-sq01-000000001001",
+      "name": "SQL contractors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1030, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa2-0004-0004-0004-000000000004",
       "name": "SB ← contractors",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1030, 500],
+      "position": [1290, 500],
       "continueOnFail": true,
       "credentials": {
         "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
       }
     },
     {
-      "parameters": {
-        "jsCode": "return [{ json: {} }];"
-      },
+      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa2-r001-r001-r001-000000000101",
       "name": "Reset 1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1290, 500],
+      "position": [1550, 500],
       "notes": "Resetea a 1 item para que MB → tariff_catalog se ejecute UNA sola vez."
     },
     {
@@ -102,7 +102,7 @@
       "name": "MB → tariff_catalog",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1550, 500]
+      "position": [1810, 500]
     },
     {
       "parameters": {
@@ -112,41 +112,41 @@
       "name": "Transform tariff_catalog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1810, 500]
+      "position": [2070, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "tariff_catalog", "mode": "list" },
-        "conflictColumns": "id",
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": ["id"],
-          "schema": []
-        },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'tariff_catalog', CONFLICT = 'id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa2-sq02-sq02-sq02-000000001002",
+      "name": "SQL tariff_catalog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2330, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa2-0007-0007-0007-000000000007",
       "name": "SB ← tariff_catalog",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2070, 500],
+      "position": [2590, 500],
       "continueOnFail": true,
       "credentials": {
         "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
       }
     },
     {
-      "parameters": {
-        "jsCode": "return [{ json: {} }];"
-      },
+      "parameters": { "jsCode": "return [{ json: {} }];" },
       "id": "wfa2-r002-r002-r002-000000000102",
       "name": "Reset 2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2330, 500],
+      "position": [2850, 500],
       "notes": "Resetea a 1 item para que MB → operation_types se ejecute UNA sola vez."
     },
     {
@@ -170,7 +170,7 @@
       "name": "MB → operation_types",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2590, 500]
+      "position": [3110, 500]
     },
     {
       "parameters": {
@@ -180,27 +180,29 @@
       "name": "Transform operation_types",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2850, 500]
+      "position": [3370, 500]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": { "__rl": true, "value": "public", "mode": "list" },
-        "table": { "__rl": true, "value": "operation_types", "mode": "list" },
-        "conflictColumns": "service_type_id",
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": ["service_type_id"],
-          "schema": []
-        },
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'operation_types', CONFLICT = 'service_type_id', CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      },
+      "id": "wfa2-sq03-sq03-sq03-000000001003",
+      "name": "SQL operation_types",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3630, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "wfa2-0010-0010-0010-000000000010",
       "name": "SB ← operation_types",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3110, 500],
+      "position": [3890, 500],
       "continueOnFail": true,
       "credentials": {
         "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
@@ -208,17 +210,20 @@
     }
   ],
   "connections": {
-    "Cada lunes 2am":       { "main": [[{ "node": "MB → contractors",      "type": "main", "index": 0 }]] },
-    "MB → contractors":     { "main": [[{ "node": "Transform contractors",  "type": "main", "index": 0 }]] },
-    "Transform contractors":{ "main": [[{ "node": "SB ← contractors",       "type": "main", "index": 0 }]] },
-    "SB ← contractors":     { "main": [[{ "node": "Reset 1",                "type": "main", "index": 0 }]] },
-    "Reset 1":              { "main": [[{ "node": "MB → tariff_catalog",    "type": "main", "index": 0 }]] },
-    "MB → tariff_catalog":  { "main": [[{ "node": "Transform tariff_catalog","type": "main", "index": 0 }]] },
-    "Transform tariff_catalog":{ "main": [[{ "node": "SB ← tariff_catalog", "type": "main", "index": 0 }]] },
-    "SB ← tariff_catalog":  { "main": [[{ "node": "Reset 2",                "type": "main", "index": 0 }]] },
-    "Reset 2":              { "main": [[{ "node": "MB → operation_types",   "type": "main", "index": 0 }]] },
-    "MB → operation_types": { "main": [[{ "node": "Transform operation_types","type": "main", "index": 0 }]] },
-    "Transform operation_types":{ "main": [[{ "node": "SB ← operation_types","type": "main", "index": 0 }]] }
+    "Cada lunes 2am":         { "main": [[{ "node": "MB → contractors",         "type": "main", "index": 0 }]] },
+    "MB → contractors":       { "main": [[{ "node": "Transform contractors",     "type": "main", "index": 0 }]] },
+    "Transform contractors":  { "main": [[{ "node": "SQL contractors",           "type": "main", "index": 0 }]] },
+    "SQL contractors":        { "main": [[{ "node": "SB ← contractors",          "type": "main", "index": 0 }]] },
+    "SB ← contractors":       { "main": [[{ "node": "Reset 1",                   "type": "main", "index": 0 }]] },
+    "Reset 1":                { "main": [[{ "node": "MB → tariff_catalog",       "type": "main", "index": 0 }]] },
+    "MB → tariff_catalog":    { "main": [[{ "node": "Transform tariff_catalog",  "type": "main", "index": 0 }]] },
+    "Transform tariff_catalog":{ "main": [[{ "node": "SQL tariff_catalog",       "type": "main", "index": 0 }]] },
+    "SQL tariff_catalog":     { "main": [[{ "node": "SB ← tariff_catalog",       "type": "main", "index": 0 }]] },
+    "SB ← tariff_catalog":    { "main": [[{ "node": "Reset 2",                   "type": "main", "index": 0 }]] },
+    "Reset 2":                { "main": [[{ "node": "MB → operation_types",      "type": "main", "index": 0 }]] },
+    "MB → operation_types":   { "main": [[{ "node": "Transform operation_types", "type": "main", "index": 0 }]] },
+    "Transform operation_types":{ "main": [[{ "node": "SQL operation_types",     "type": "main", "index": 0 }]] },
+    "SQL operation_types":    { "main": [[{ "node": "SB ← operation_types",      "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": {
