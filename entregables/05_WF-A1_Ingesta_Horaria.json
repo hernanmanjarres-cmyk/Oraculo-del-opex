@@ -107,7 +107,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, is_bia, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
+        "jsonBody": "{\"database\":2344,\"type\":\"native\",\"native\":{\"query\":\"SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general\"}}",
         "options": {}
       },
       "id": "wfa1-0006-0006-0006-000000000006",
