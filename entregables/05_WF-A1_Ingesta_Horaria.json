@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('fronteras: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('fronteras: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('fronteras: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('fronteras: rows válidas tras filtro PK=' + out.length);\nif (!out.length) return [{ json: { _skip: true, count: 0 } }];\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-cfront-cfront-cfront-coll",
       "name": "Collect fronteras",
@@ -166,7 +166,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('visits: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('visits: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('visits: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('visits: rows válidas tras filtro PK=' + out.length);\nif (!out.length) return [{ json: { _skip: true, count: 0 } }];\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-cvisit-cvisit-cvisit-coll",
       "name": "Collect visits",
@@ -240,7 +240,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('opex_costs: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('opex_costs: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('opex_costs: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('opex_costs: rows válidas tras filtro PK=' + out.length);\nif (!out.length) return [{ json: { _skip: true, count: 0 } }];\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-copex_-copex_-copex_-coll",
       "name": "Collect opex_costs",
@@ -388,7 +388,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('scopes: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('scopes: rows válidas tras filtro PK=' + out.length);\nreturn out.map(o => ({ json: o }));"
+        "jsCode": "const responses = $input.all().map(i => i.json);\nconst ingested_at = new Date().toISOString();\nlet allRows = [];\nlet cols = null;\nfor (const r of responses) {\n  if (r.error || r.status === 'failed') {\n    throw new Error('Metabase error: ' + JSON.stringify(r).slice(0, 300));\n  }\n  if (!cols && r.data?.cols) cols = r.data.cols.map(c => c.name);\n  const rows = r.data?.rows || [];\n  allRows = allRows.concat(rows);\n}\nconsole.log('scopes: respuestas=' + responses.length + ', rows totales=' + allRows.length);\nif (!cols) return [{ json: {} }];\nconst out = allRows\n  .map(row => ({ ...Object.fromEntries(cols.map((c, i) => [c, row[i]])), ingested_at }))\n  .filter(o => o.id != null && String(o.id).trim() !== '');\nconsole.log('scopes: rows válidas tras filtro PK=' + out.length);\nif (!out.length) return [{ json: { _skip: true, count: 0 } }];\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-cscope-cscope-cscope-coll",
       "name": "Collect scopes",
@@ -447,7 +447,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Card API devuelve array → n8n lo divide en items individuales\nconst rows = $input.all().map(item => item.json);\nconst updated_at = new Date().toISOString();\nconst out = rows\n  .map(row => ({\n    bia_code:                    row.codigo_bia,\n    contract_id:                 row.contract_id,\n    frontier_name:               row.nombre_frontera,\n    grid_operator:               row.operador_de_red,\n    measurement_type:            row.tipo_de_medida,\n    market_type:                 row.tipo_de_mercado,\n    current_phase:               row.fase_actual,\n    city:                        row.ciudad,\n    department:                  row.departamento,\n    kwh_per_month:               row.kwh_mes,\n    scheduled_date:              row.fecha_programada,\n    successful_install_date:     row.fecha_inst_exitosa,\n    contract_sign_date:          row.fecha_firma_del_contrato,\n    estimated_vipe_cost:         row.costo_est_visita_previa,\n    estimated_install_cost_adj:  row.costo_est_instalacion_ajustado,\n    estimated_legalization_cost: row.costo_est_legalizacion,\n    total_estimated_visit_cost:  row.costo_total_estimado_visitas,\n    estimated_opex_cost:         row.costo_opex_estimado,\n    sales_opex_cost:             row.costo_opex_sales,\n    sales_payback_months:        row.payback_sales,\n    opex_delta:                  row.delta_opex,\n    delta_traffic_light:         row.semaforo_delta,\n    recommendation_band:         row.banda,\n    cac_per_kwh:                 row.cac_kwh,\n    net_aging_days:              row.aging_neto_dias,\n    updated_at\n  }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('Transform backlog: ' + rows.length + ' rows recibidas, ' + out.length + ' válidas tras filtro bia_code');\nreturn out.map(o => ({ json: o }));"
+        "jsCode": "// Card API devuelve array → n8n lo divide en items individuales\nconst rows = $input.all().map(item => item.json);\nconst updated_at = new Date().toISOString();\nconst out = rows\n  .map(row => ({\n    bia_code:                    row.codigo_bia,\n    contract_id:                 row.contract_id,\n    frontier_name:               row.nombre_frontera,\n    grid_operator:               row.operador_de_red,\n    measurement_type:            row.tipo_de_medida,\n    market_type:                 row.tipo_de_mercado,\n    current_phase:               row.fase_actual,\n    city:                        row.ciudad,\n    department:                  row.departamento,\n    kwh_per_month:               row.kwh_mes,\n    scheduled_date:              row.fecha_programada,\n    successful_install_date:     row.fecha_inst_exitosa,\n    contract_sign_date:          row.fecha_firma_del_contrato,\n    estimated_vipe_cost:         row.costo_est_visita_previa,\n    estimated_install_cost_adj:  row.costo_est_instalacion_ajustado,\n    estimated_legalization_cost: row.costo_est_legalizacion,\n    total_estimated_visit_cost:  row.costo_total_estimado_visitas,\n    estimated_opex_cost:         row.costo_opex_estimado,\n    sales_opex_cost:             row.costo_opex_sales,\n    sales_payback_months:        row.payback_sales,\n    opex_delta:                  row.delta_opex,\n    delta_traffic_light:         row.semaforo_delta,\n    recommendation_band:         row.banda,\n    cac_per_kwh:                 row.cac_kwh,\n    net_aging_days:              row.aging_neto_dias,\n    updated_at\n  }))\n  .filter(o => o.bia_code != null && String(o.bia_code).trim() !== '');\nconsole.log('Transform backlog: ' + rows.length + ' rows recibidas, ' + out.length + ' válidas tras filtro bia_code');\nif (!out.length) return [{ json: { _skip: true, count: 0 } }];\nreturn out.map(o => ({ json: o }));"
       },
       "id": "wfa1-0019-0019-0019-000000000019",
       "name": "Transform backlog",
@@ -460,28 +460,9 @@
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "fronteras",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [
-            "bia_code"
-          ],
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgfront-pgfront-pgfront-pg",
       "name": "SB ← fronteras",
@@ -497,32 +478,14 @@
           "name": "Supabase Oráculo del Opex"
         }
       },
-      "notes": "Upsert/Insert nativo para fronteras. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+      "notes": "Upsert/Insert nativo para fronteras. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes.",
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "visits",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [
-            "id"
-          ],
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgvisit-pgvisit-pgvisit-pg",
       "name": "SB ← visits",
@@ -538,32 +501,14 @@
           "name": "Supabase Oráculo del Opex"
         }
       },
-      "notes": "Upsert/Insert nativo para visits. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+      "notes": "Upsert/Insert nativo para visits. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes.",
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "opex_costs",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [
-            "id"
-          ],
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgopex_-pgopex_-pgopex_-pg",
       "name": "SB ← opex_costs",
@@ -579,7 +524,8 @@
           "name": "Supabase Oráculo del Opex"
         }
       },
-      "notes": "Upsert/Insert nativo para opex_costs. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+      "notes": "Upsert/Insert nativo para opex_costs. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes.",
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -619,28 +565,9 @@
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "scopes",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [
-            "id"
-          ],
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgscope-pgscope-pgscope-pg",
       "name": "SB ← scopes",
@@ -656,32 +583,14 @@
           "name": "Supabase Oráculo del Opex"
         }
       },
-      "notes": "Upsert/Insert nativo para scopes. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+      "notes": "Upsert/Insert nativo para scopes. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes.",
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "backlog_scoring",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [
-            "bia_code"
-          ],
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgbk-pgbk-pgbk-pgbk",
       "name": "SB ← backlog_scoring",
@@ -697,7 +606,73 @@
           "name": "Supabase Oráculo del Opex"
         }
       },
-      "notes": "Upsert/Insert nativo para backlog_scoring. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes."
+      "notes": "Upsert/Insert nativo para backlog_scoring. Auto-mapping de campos del item a columnas. Manejo seguro de batches grandes.",
+      "continueOnFail": true
+    },
+    {
+      "id": "wfa1-sqfr-sqfr-sqfr-sql001",
+      "name": "SQL fronteras",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || (items.length === 1 && items[0].json._skip)) return [{ json: { query: 'SELECT 1 -- no hay cambios' } }];\nconst TABLE = 'fronteras';\nconst CONFLICT = 'bia_code';\nconst CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "wfa1-sqvs-sqvs-sqvs-sql001",
+      "name": "SQL visits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2820,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || (items.length === 1 && items[0].json._skip)) return [{ json: { query: 'SELECT 1 -- no hay cambios' } }];\nconst TABLE = 'visits';\nconst CONFLICT = 'id';\nconst CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "wfa1-sqoc-sqoc-sqoc-sql001",
+      "name": "SQL opex_costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4120,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || (items.length === 1 && items[0].json._skip)) return [{ json: { query: 'SELECT 1 -- no hay cambios' } }];\nconst TABLE = 'opex_costs';\nconst CONFLICT = 'id';\nconst CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "wfa1-sqsc-sqsc-sqsc-sql001",
+      "name": "SQL scopes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6720,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || (items.length === 1 && items[0].json._skip)) return [{ json: { query: 'SELECT 1 -- no hay cambios' } }];\nconst TABLE = 'scopes';\nconst CONFLICT = 'id';\nconst CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "wfa1-sqbk-sqbk-sqbk-sql001",
+      "name": "SQL backlog_scoring",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8050,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || (items.length === 1 && items[0].json._skip)) return [{ json: { query: 'SELECT 1 -- no hay cambios' } }];\nconst TABLE = 'backlog_scoring';\nconst CONFLICT = 'bia_code';\nconst CHUNK = 500;\nconst cols = Object.keys(items[0].json);\nconst nonPK = cols.filter(c => c !== CONFLICT);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst updSet = nonPK.map(c => '\"' + c + '\" = EXCLUDED.\"' + c + '\"').join(', ');\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst out = [];\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals + ' ON CONFLICT (' + CONFLICT + ') DO UPDATE SET ' + updSet } });\n}\nreturn out;"
+      }
     }
   ],
   "connections": {
@@ -738,7 +713,7 @@
       "main": [
         [
           {
-            "node": "SB ← fronteras",
+            "node": "SQL fronteras",
             "type": "main",
             "index": 0
           }
@@ -782,7 +757,7 @@
       "main": [
         [
           {
-            "node": "SB ← visits",
+            "node": "SQL visits",
             "type": "main",
             "index": 0
           }
@@ -826,7 +801,7 @@
       "main": [
         [
           {
-            "node": "SB ← opex_costs",
+            "node": "SQL opex_costs",
             "type": "main",
             "index": 0
           }
@@ -914,7 +889,7 @@
       "main": [
         [
           {
-            "node": "SB ← scopes",
+            "node": "SQL scopes",
             "type": "main",
             "index": 0
           }
@@ -1002,7 +977,7 @@
       "main": [
         [
           {
-            "node": "SB ← backlog_scoring",
+            "node": "SQL backlog_scoring",
             "type": "main",
             "index": 0
           }
@@ -1025,6 +1000,61 @@
         [
           {
             "node": "SB ← opex_cost_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL fronteras": {
+      "main": [
+        [
+          {
+            "node": "SB ← fronteras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL visits": {
+      "main": [
+        [
+          {
+            "node": "SB ← visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL opex_costs": {
+      "main": [
+        [
+          {
+            "node": "SB ← opex_costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL scopes": {
+      "main": [
+        [
+          {
+            "node": "SB ← scopes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL backlog_scoring": {
+      "main": [
+        [
+          {
+            "node": "SB ← backlog_scoring",
             "type": "main",
             "index": 0
           }
