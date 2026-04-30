@@ -1,0 +1,319 @@
+{
+  "info": {
+    "name": "Oráculo del OPEX API",
+    "description": "Colección de endpoints REST — BIA Energy · Microservicio OPEX",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "bia_code", "value": "BIA-001", "type": "string" },
+    { "key": "visit_id", "value": "uuid-visita-aqui", "type": "string" },
+    { "key": "cost_id", "value": "1001", "type": "string" },
+    { "key": "alert_id", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Verifica que el servicio esté activo"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));",
+                  "pm.test('Tiene timestamp', () => pm.expect(pm.response.json()).to.have.property('timestamp'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Fronteras",
+      "item": [
+        {
+          "name": "GET /api/v1/fronteras",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/fronteras?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "fronteras"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/fronteras/:bia_code",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/fronteras/{{bia_code}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 o 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/fronteras",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/fronteras",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bia_code\": \"BIA-TEST-001\",\n  \"frontier_title\": \"Frontera de prueba\",\n  \"current_phase\": \"Visita previa\",\n  \"grid_operator\": \"ENEL CUNDINAMARCA\",\n  \"city\": \"Bogotá\",\n  \"department\": \"Cundinamarca\",\n  \"market_type\": \"regulated\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('bia_code correcto', () => pm.expect(pm.response.json().bia_code).to.eql('BIA-TEST-001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /api/v1/fronteras/:bia_code",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/fronteras/{{bia_code}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_phase\": \"Activar - Instalar\",\n  \"city\": \"Medellín\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/fronteras/:bia_code",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/fronteras/{{bia_code}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 o 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Visits",
+      "item": [
+        {
+          "name": "GET /api/v1/visits",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "visits"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/visits?bia_code=BIA-001",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits?bia_code={{bia_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "visits"],
+              "query": [{ "key": "bia_code", "value": "{{bia_code}}" }]
+            },
+            "description": "Filtra visitas por frontera"
+          }
+        },
+        {
+          "name": "GET /api/v1/visits/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/visits/{{visit_id}}"
+          }
+        },
+        {
+          "name": "POST /api/v1/visits",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/visits",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"uuid-test-001\",\n  \"bia_code\": \"BIA-001\",\n  \"service_type_id\": \"INST\",\n  \"service_name\": \"Instalación\",\n  \"electrician_status_id\": \"CLOSURE_SUCCESSFUL\",\n  \"contractor_name\": \"GMAS\",\n  \"city\": \"Bogotá\",\n  \"is_bia\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/visits/:id",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/visits/{{visit_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"electrician_status_id\": \"CLOSURE_FAILED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/visits/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/visits/{{visit_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Costs",
+      "item": [
+        {
+          "name": "GET /api/v1/costs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/costs?limit=50&offset=0"
+          }
+        },
+        {
+          "name": "GET /api/v1/costs?visit_id=...",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/costs?visit_id={{visit_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "costs"],
+              "query": [{ "key": "visit_id", "value": "{{visit_id}}" }]
+            },
+            "description": "Filtra costos por visita"
+          }
+        },
+        {
+          "name": "GET /api/v1/costs/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/costs/{{cost_id}}"
+          }
+        },
+        {
+          "name": "POST /api/v1/costs",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/costs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 9999,\n  \"visit_id\": \"uuid-test-001\",\n  \"service_cost\": 450000,\n  \"material_cost\": 120000,\n  \"transport_cost\": 30000,\n  \"other_cost\": 0,\n  \"status\": \"pending\",\n  \"contractor_id\": \"GMAS\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/costs/:id",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/costs/{{cost_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/costs/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/costs/{{cost_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "GET /api/v1/alerts",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/alerts?limit=50&offset=0"
+          }
+        },
+        {
+          "name": "GET /api/v1/alerts/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/alerts/{{alert_id}}"
+          }
+        },
+        {
+          "name": "POST /api/v1/alerts",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/alerts",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bia_code\": \"BIA-001\",\n  \"alert_type\": \"costo_anomalo\",\n  \"estado\": \"open\",\n  \"valor_detectado\": 850000,\n  \"descripcion\": \"Costo de instalación supera el 30% del baseline\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/alerts/:id",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/alerts/{{alert_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"resolved\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
