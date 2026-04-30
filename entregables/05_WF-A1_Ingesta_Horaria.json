@@ -65,7 +65,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -140,7 +140,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -214,7 +214,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -288,7 +288,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -362,7 +362,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -422,7 +422,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "mb_CefazN2Ti+kUM3nORR409qgSaJluVDLruECCNn38X0Y="
+              "value": "={{ $vars.METABASE_API_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -493,7 +493,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
@@ -534,7 +534,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
@@ -575,7 +575,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
@@ -611,7 +611,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
@@ -652,7 +652,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
@@ -693,7 +693,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "92nLfZ0IlzU004no",
+          "id": "SUPABASE_CREDENTIAL_ID",
           "name": "Supabase Oráculo del Opex"
         }
       },
