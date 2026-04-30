@@ -196,7 +196,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ response_type: 'ephemeral', text: $('Parsear evento').first().json.label }) }}",
+        "jsonBody": "={{ JSON.stringify({ response_type: 'ephemeral', replace_original: false, text: $('Parsear evento').first().json.label }) }}",
         "options": {}
       },
       "id": "wfc-0008-0008-0008-000000000008",
