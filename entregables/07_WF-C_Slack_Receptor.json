@@ -12,7 +12,10 @@
       "name": "Webhook Eventos Slack",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 500],
+      "position": [
+        250,
+        500
+      ],
       "webhookId": "slack-events-opex-bia"
     },
     {
@@ -23,7 +26,10 @@
       "name": "Parsear evento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [510, 500]
+      "position": [
+        510,
+        500
+      ]
     },
     {
       "parameters": {
@@ -32,7 +38,12 @@
         "options": {
           "responseCode": 200,
           "responseHeaders": {
-            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
           }
         }
       },
@@ -40,18 +51,28 @@
       "name": "Ack a Slack",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [770, 500]
+      "position": [
+        770,
+        500
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "wfc-cond-0001",
               "leftValue": "={{ $('Parsear evento').first().json.is_valid }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equal" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
             }
           ],
           "combinator": "and"
@@ -62,38 +83,94 @@
       "name": "¿Evento válido?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1030, 500]
+      "position": [
+        1030,
+        500
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.WFB_WEBHOOK_URL }}",
+        "url": "https://REEMPLAZAR_CON_URL_WEBHOOK_WFB",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ message: $('Parsear evento').first().json.text, slack_channel_id: $('Parsear evento').first().json.channel_id, slack_thread_ts: $('Parsear evento').first().json.thread_ts, slack_user: $('Parsear evento').first().json.user_id, session_id: 'slack_' + $('Parsear evento').first().json.user_id }) }}",
-        "options": { "timeout": 5000, "response": { "response": { "neverError": true } } }
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "id": "wfc-0005-0005-0005-000000000005",
       "name": "Llamar Agente WF-B",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1290, 400],
-      "notes": "Fire-and-forget. WF-B responde directamente al canal/hilo via chat.postMessage."
+      "position": [
+        1290,
+        400
+      ],
+      "notes": "IMPORTANTE: reemplaza la URL con la URL real del webhook de WF-B (ej: https://tu-n8n.cloud/webhook/agente-opex)"
     }
   ],
   "connections": {
-    "Webhook Eventos Slack": { "main": [[{ "node": "Parsear evento", "type": "main", "index": 0 }]] },
-    "Parsear evento":        { "main": [[{ "node": "Ack a Slack",    "type": "main", "index": 0 }]] },
-    "Ack a Slack":           { "main": [[{ "node": "¿Evento válido?","type": "main", "index": 0 }]] },
-    "¿Evento válido?":       { "main": [
-      [{ "node": "Llamar Agente WF-B", "type": "main", "index": 0 }],
-      []
-    ]}
+    "Webhook Eventos Slack": {
+      "main": [
+        [
+          {
+            "node": "Parsear evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear evento": {
+      "main": [
+        [
+          {
+            "node": "Ack a Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ack a Slack": {
+      "main": [
+        [
+          {
+            "node": "¿Evento válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Evento válido?": {
+      "main": [
+        [
+          {
+            "node": "Llamar Agente WF-B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
   },
   "active": false,
   "settings": {
@@ -101,5 +178,7 @@
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "meta": { "instanceId": "" }
+  "meta": {
+    "instanceId": ""
+  }
 }
