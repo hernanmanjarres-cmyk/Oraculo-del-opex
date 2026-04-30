@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json || {};\n\n// n8n webhook v2: el payload de Slack llega en raw.body\n// Intentamos múltiples ubicaciones por robustez\nconst body = raw.body && typeof raw.body === 'object' ? raw.body : raw;\n\n// DEBUG: loguear estructura para diagnóstico\nconsole.log('--- Parsear evento DEBUG ---');\nconsole.log('outer_type:', body.type);\nconsole.log('has_event:', !!body.event);\nconsole.log('event_type:', body.event?.type);\nconsole.log('body_keys:', Object.keys(body).join(', '));\n\n// 1. Slack URL verification challenge\nif (body.type === 'url_verification') {\n  return [{ json: { is_valid: false, event_type: 'url_verification', challenge: body.challenge } }];\n}\n\n// 2. Solo procesamos event_callback\nif (body.type !== 'event_callback') {\n  return [{ json: { is_valid: false, event_type: body.type || 'unknown', debug: JSON.stringify(body).slice(0, 300) } }];\n}\n\nconst event = body.event || {};\n\n// 3. Ignorar mensajes del propio bot (evita loops)\nif (event.bot_id || event.subtype === 'bot_message' || event.subtype === 'message_changed') {\n  return [{ json: { is_valid: false, event_type: 'bot_skip' } }];\n}\n\nconst event_type = event.type || '';\nif (!['app_mention', 'message'].includes(event_type)) {\n  return [{ json: { is_valid: false, event_type: event_type || 'unknown', debug: JSON.stringify(event).slice(0, 300) } }];\n}\n\n// 4. Extraer campos\nconst channel_id = event.channel || '';\nconst user_id = event.user || '';\nconst thread_ts = event.thread_ts || null;\nconst msg_ts = event.ts || null;\n\n// 5. Limpiar texto: quitar @menciones (<@U123ABC>)\nlet text = (event.text || '').trim();\ntext = text.replace(/<@[A-Z0-9]+>/gi, '').trim();\n\nif (!text) {\n  return [{ json: { is_valid: false, event_type: 'empty_text' } }];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  event_type,\n  text,\n  channel_id,\n  thread_ts,\n  msg_ts,\n  user_id\n}}];"
+        "jsCode": "const raw = $input.first().json || {};\n\n// n8n webhook v2: el payload de Slack llega en raw.body\n// Intentamos múltiples ubicaciones por robustez\nconst body = raw.body && typeof raw.body === 'object' ? raw.body : raw;\n\n// DEBUG: loguear estructura para diagnóstico\nconsole.log('--- Parsear evento DEBUG ---');\nconsole.log('outer_type:', body.type);\nconsole.log('has_event:', !!body.event);\nconsole.log('event_type:', body.event?.type);\nconsole.log('body_keys:', Object.keys(body).join(', '));\n\n// 1. Slack URL verification challenge\nif (body.type === 'url_verification') {\n  return [{ json: { is_valid: false, event_type: 'url_verification', challenge: body.challenge } }];\n}\n\n// Feedback buttons (block_actions)\nif (body.type === 'block_actions') {\n  const action = (body.actions || [])[0] || {};\n  const action_id = action.action_id || '';\n  const value = action.value || '';\n  const parts = value.split('_');\n  const memory_id = parseInt(parts[parts.length - 1]) || null;\n  const feedback = action_id === 'feedback_good' ? 1 : -1;\n  const user_id = (body.user || {}).id || '';\n  const response_url = body.response_url || '';\n  const label = feedback === 1 ? '¡Gracias! El Oráculo tomará nota 📜✨' : '¡Anotado! El Oráculo buscará iluminarse 🔮';\n  return [{ json: {\n    is_valid: false,\n    event_type: 'block_action',\n    feedback, memory_id, user_id, response_url, label\n  }}];\n}\n\n// 2. Solo procesamos event_callback\nif (body.type !== 'event_callback') {\n  return [{ json: { is_valid: false, event_type: body.type || 'unknown', debug: JSON.stringify(body).slice(0, 300) } }];\n}\n\nconst event = body.event || {};\n\n// 3. Ignorar mensajes del propio bot (evita loops)\nif (event.bot_id || event.subtype === 'bot_message' || event.subtype === 'message_changed') {\n  return [{ json: { is_valid: false, event_type: 'bot_skip' } }];\n}\n\nconst event_type = event.type || '';\nif (!['app_mention', 'message'].includes(event_type)) {\n  return [{ json: { is_valid: false, event_type: event_type || 'unknown', debug: JSON.stringify(event).slice(0, 300) } }];\n}\n\n// 4. Extraer campos\nconst channel_id = event.channel || '';\nconst user_id = event.user || '';\nconst thread_ts = event.thread_ts || null;\nconst msg_ts = event.ts || null;\n\n// 5. Limpiar texto: quitar @menciones (<@U123ABC>)\nlet text = (event.text || '').trim();\ntext = text.replace(/<@[A-Z0-9]+>/gi, '').trim();\n\nif (!text) {\n  return [{ json: { is_valid: false, event_type: 'empty_text' } }];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  event_type,\n  text,\n  channel_id,\n  thread_ts,\n  msg_ts,\n  user_id\n}}];"
       },
       "id": "wfc-0002-0002-0002-000000000002",
       "name": "Parsear evento",
@@ -123,6 +123,88 @@
         400
       ],
       "notes": "IMPORTANTE: reemplaza la URL con la URL real del webhook de WF-B (ej: https://tu-n8n.cloud/webhook/agente-opex)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "wfc-cond-fb-001",
+              "leftValue": "={{ $('Parsear evento').first().json.event_type }}",
+              "rightValue": "block_action",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfc-0006-0006-0006-000000000006",
+      "name": "¿Es feedback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1290,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE agent_memory SET feedback = {{ $('Parsear evento').first().json.feedback }} WHERE id = {{ $('Parsear evento').first().json.memory_id }}",
+        "options": {}
+      },
+      "id": "wfc-0007-0007-0007-000000000007",
+      "name": "Actualizar feedback en BD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1550,
+        540
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Oráculo del Opex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Parsear evento').first().json.response_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ response_type: 'ephemeral', text: $('Parsear evento').first().json.label }) }}",
+        "options": {}
+      },
+      "id": "wfc-0008-0008-0008-000000000008",
+      "name": "Ack feedback Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1810,
+        540
+      ]
     }
   ],
   "connections": {
@@ -168,7 +250,36 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "¿Es feedback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es feedback?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar feedback en BD",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
+      ]
+    },
+    "Actualizar feedback en BD": {
+      "main": [
+        [
+          {
+            "node": "Ack feedback Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

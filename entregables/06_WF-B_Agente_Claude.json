@@ -216,7 +216,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const agentOutput = $('Agente OPEX (Claude)').first().json.output || 'Sin respuesta del agente.';\nconst channelId  = $('Normalizar input').first().json.slack_channel_id;\nconst threadTs   = $('Normalizar input').first().json.slack_thread_ts;\nconst slackUser  = $('Normalizar input').first().json.slack_user || '';\n\n// Convertir markdown → Slack mrkdwn\nlet text = agentOutput\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')   // **bold** → *bold*\n  .replace(/#{1,3}\\s+(.+)/g, '*$1*')     // ## Título → *Título*\n  .replace(/^---+$/gm, '')               // quitar líneas divisorias\n  .trim();\n\n// Límite de 2900 chars por bloque de texto en Slack\nif (text.length > 2900) text = text.slice(0, 2897) + '...';\n\nconst payload = {\n  channel: channelId,\n  text: `🔮 *Oráculo del OPEX*\\n\\n${text}`,\n  blocks: [\n    {\n      type: 'section',\n      text: { type: 'mrkdwn', text: `🔮 *Oráculo del OPEX*\\n\\n${text}` }\n    },\n    {\n      type: 'context',\n      elements: [{ type: 'mrkdwn', text: `Powered by Claude Sonnet${slackUser ? ' · <@' + slackUser + '>' : ''}` }]\n    }\n  ]\n};\n\nif (threadTs) payload.thread_ts = threadTs;\n\nreturn [{ json: { payload } }];"
+        "jsCode": "const agentOutput = $('Agente OPEX (Claude)').first().json.output || 'Sin respuesta del agente.';\nconst channelId  = $('Normalizar input').first().json.slack_channel_id;\nconst threadTs   = $('Normalizar input').first().json.slack_thread_ts;\nconst slackUser  = $('Normalizar input').first().json.slack_user || '';\n\n// memory_id para botones de feedback\nlet memory_id = null;\ntry { memory_id = $('Guardar en memoria').first().json.id; } catch(e) {}\n\n// Convertir markdown → Slack mrkdwn\nlet text = agentOutput\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  .replace(/#{1,3}\\s+(.+)/g, '*$1*')\n  .replace(/^---+$/gm, '')\n  .trim();\nif (text.length > 2900) text = text.slice(0, 2897) + '...';\n\nconst blocks = [\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text: `🔮 *Oráculo del OPEX*\\n\\n${text}` }\n  }\n];\n\n// Botones de feedback solo si viene de Slack y tenemos memory_id\nif (memory_id && channelId) {\n  blocks.push({\n    type: 'actions',\n    elements: [\n      {\n        type: 'button',\n        text: { type: 'plain_text', text: '👍 Útil' },\n        value: `good_${memory_id}`,\n        action_id: 'feedback_good'\n      },\n      {\n        type: 'button',\n        text: { type: 'plain_text', text: '👎 Mejorar' },\n        value: `bad_${memory_id}`,\n        action_id: 'feedback_bad'\n      }\n    ]\n  });\n}\n\nblocks.push({\n  type: 'context',\n  elements: [{ type: 'mrkdwn', text: `Powered by Claude Sonnet${slackUser ? ' · <@' + slackUser + '>' : ''}` }]\n});\n\nconst payload = {\n  channel: channelId,\n  text: `🔮 *Oráculo del OPEX*\\n\\n${text}`,\n  blocks\n};\nif (threadTs) payload.thread_ts = threadTs;\n\nreturn [{ json: { payload } }];"
       },
       "id": "wfb-0011-0011-0011-000000000011",
       "name": "Preparar respuesta Slack",
@@ -263,6 +263,63 @@
           "name": "Header Auth account 12"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE((SELECT json_agg(m ORDER BY m.created_at DESC) FROM (SELECT question, LEFT(answer, 400) AS answer, CASE WHEN feedback=1 THEN '👍' WHEN feedback=-1 THEN '👎' ELSE '' END AS rating FROM agent_memory WHERE user_id='{{ $('Normalizar input').first().json.slack_user || $('Normalizar input').first().json.session_id }}' ORDER BY created_at DESC LIMIT 5) m), '[]'::json) AS history, COALESCE((SELECT row_to_json(p) FROM agent_user_prefs p WHERE user_id='{{ $('Normalizar input').first().json.slack_user || $('Normalizar input').first().json.session_id }}' LIMIT 1), '{\"response_style\":\"balanced\",\"notes\":\"\"}'::json) AS prefs",
+        "options": {}
+      },
+      "id": "wfb-0013-0013-0013-000000000013",
+      "name": "Cargar contexto usuario",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        510,
+        280
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Oráculo del Opex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Normalizar input').first().json;\nconst message = input.message;\n\nlet history = [], prefs = { response_style: 'balanced', notes: '' };\n\ntry {\n  const ctx = $('Cargar contexto usuario').first().json;\n  if (ctx.history && Array.isArray(ctx.history)) history = ctx.history;\n  if (ctx.prefs && typeof ctx.prefs === 'object') prefs = { ...prefs, ...ctx.prefs };\n} catch(e) {}\n\nlet contextBlock = '';\n\nif (history.length > 0) {\n  const lines = history.map(h =>\n    `• \"${h.question.slice(0, 100)}\" ${h.rating || ''}\\n  → ${h.answer.slice(0, 250)}...`\n  ).join('\\n');\n  contextBlock += `[HISTORIAL RECIENTE]\\n${lines}\\n[/HISTORIAL]\\n\\n`;\n}\n\nconst style = prefs.response_style || 'balanced';\nconst notes = prefs.notes || '';\ncontextBlock += `[PREFERENCIAS] Estilo: ${style}.${notes ? ' ' + notes : ''} [/PREFERENCIAS]\\n\\n`;\n\nconst enrichedMessage = contextBlock + 'Pregunta actual: ' + message;\n\nreturn [{ json: { ...input, message: enrichedMessage } }];"
+      },
+      "id": "wfb-0014-0014-0014-000000000014",
+      "name": "Enriquecer mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        510,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO agent_memory (user_id, session_id, question, answer, channel_id, thread_ts) VALUES ('{{ ($('Normalizar input').first().json.slack_user || $('Normalizar input').first().json.session_id).replace(/'/g, \"''\") }}', '{{ $('Normalizar input').first().json.session_id.replace(/'/g, \"''\") }}', '{{ $('Normalizar input').first().json.message.slice(0,1000).replace(/'/g, \"''\") }}', '{{ $('Agente OPEX (Claude)').first().json.output.slice(0,2000).replace(/'/g, \"''\") }}', '{{ ($('Normalizar input').first().json.slack_channel_id || '').replace(/'/g, \"''\") }}', '{{ ($('Normalizar input').first().json.slack_thread_ts || '').replace(/'/g, \"''\") }}') RETURNING id",
+        "options": {}
+      },
+      "id": "wfb-0015-0015-0015-000000000015",
+      "name": "Guardar en memoria",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1030,
+        280
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Oráculo del Opex"
+        }
+      }
     }
   ],
   "connections": {
@@ -281,7 +338,7 @@
       "main": [
         [
           {
-            "node": "Agente OPEX (Claude)",
+            "node": "Cargar contexto usuario",
             "type": "main",
             "index": 0
           }
@@ -292,7 +349,7 @@
       "main": [
         [
           {
-            "node": "Enrutar respuesta",
+            "node": "Guardar en memoria",
             "type": "main",
             "index": 0
           }
@@ -377,6 +434,39 @@
         [
           {
             "node": "POST → chat.postMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar contexto usuario": {
+      "main": [
+        [
+          {
+            "node": "Enriquecer mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enriquecer mensaje": {
+      "main": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en memoria": {
+      "main": [
+        [
+          {
+            "node": "Enrutar respuesta",
             "type": "main",
             "index": 0
           }
