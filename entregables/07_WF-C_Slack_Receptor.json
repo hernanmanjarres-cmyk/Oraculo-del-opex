@@ -67,11 +67,11 @@
           "conditions": [
             {
               "id": "wfc-cond-0001",
-              "leftValue": "={{ $('Parsear evento').first().json.is_valid }}",
-              "rightValue": true,
+              "leftValue": "={{ $('Parsear evento').first().json.text }}",
+              "rightValue": "",
               "operator": {
-                "type": "boolean",
-                "operation": "equal"
+                "type": "string",
+                "operation": "notEmpty"
               }
             }
           ],
