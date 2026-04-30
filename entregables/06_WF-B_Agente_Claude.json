@@ -12,18 +12,24 @@
       "name": "Webhook entrada",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 500],
+      "position": [
+        250,
+        500
+      ],
       "webhookId": "agente-opex-bia"
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza el input: acepta varios shapes del webhook\nconst raw = $input.first().json || {};\n// El body puede llegar como raw.body (webhook v2 con json), raw.body.body (anidado), o el raw completo\nconst body = raw.body?.message || raw.body?.text || raw.body?.query || raw.body?.pregunta\n  ? raw.body\n  : (raw.body?.body || raw.body || raw);\n\nconst message = body.message || body.text || body.query || body.pregunta || body.input || '';\nconst session_id = body.session_id || body.user_id || raw.headers?.['x-session-id'] || 'default';\n\nif (!message || !String(message).trim()) {\n  throw new Error('Falta el campo message/text/query en el body. Recibido: ' + JSON.stringify(raw).slice(0, 500));\n}\nreturn [{ json: { message: String(message).trim(), session_id } }];"
+        "jsCode": "// Normaliza el input: acepta varios shapes del webhook (HTTP directo o llamada desde WF-C Slack)\nconst raw = $input.first().json || {};\nconst body = raw.body?.message || raw.body?.text || raw.body?.query || raw.body?.pregunta\n  ? raw.body\n  : (raw.body?.body || raw.body || raw);\n\nconst message = body.message || body.text || body.query || body.pregunta || body.input || '';\nconst session_id = body.session_id || body.user_id || raw.headers?.['x-session-id'] || 'default';\nconst slack_response_url = body.slack_response_url || null;\nconst slack_user = body.slack_user || null;\n\nif (!message || !String(message).trim()) {\n  throw new Error('Falta el campo message/text/query en el body. Recibido: ' + JSON.stringify(raw).slice(0, 500));\n}\nreturn [{ json: { message: String(message).trim(), session_id, slack_response_url, slack_user } }];"
       },
       "id": "wfb-0002-0002-0002-000000000002",
       "name": "Normalizar input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [510, 500]
+      "position": [
+        510,
+        500
+      ]
     },
     {
       "parameters": {
@@ -39,7 +45,10 @@
       "name": "Agente OPEX (Claude)",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
-      "position": [770, 500]
+      "position": [
+        770,
+        500
+      ]
     },
     {
       "parameters": {
@@ -58,9 +67,15 @@
       "name": "Claude Sonnet",
       "type": "@n8n/n8n-nodes-langchain.lmAnthropicChat",
       "typeVersion": 1.1,
-      "position": [770, 720],
+      "position": [
+        770,
+        720
+      ],
       "credentials": {
-        "anthropicApi": { "id": "ANTHROPIC_CREDENTIAL_ID", "name": "Anthropic BIA" }
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic BIA"
+        }
       }
     },
     {
@@ -73,7 +88,10 @@
       "name": "Memoria conversación",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [990, 720]
+      "position": [
+        990,
+        720
+      ]
     },
     {
       "parameters": {
@@ -82,14 +100,19 @@
         "workflowId": "T1_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": { "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'La query SQL a ejecutar en PostgreSQL', 'string') }}" }
+          "value": {
+            "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'La query SQL a ejecutar en PostgreSQL', 'string') }}"
+          }
         }
       },
       "id": "wfb-0006-0006-0006-000000000006",
       "name": "query_supabase",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
-      "position": [550, 720]
+      "position": [
+        550,
+        720
+      ]
     },
     {
       "parameters": {
@@ -105,7 +128,10 @@
       "name": "get_backlog_alerts",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
-      "position": [660, 720]
+      "position": [
+        660,
+        720
+      ]
     },
     {
       "parameters": {
@@ -126,7 +152,10 @@
       "name": "calcular_costo_estimado",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
-      "position": [770, 720]
+      "position": [
+        770,
+        720
+      ]
     },
     {
       "parameters": {
@@ -135,7 +164,12 @@
         "options": {
           "responseCode": 200,
           "responseHeaders": {
-            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
           }
         }
       },
@@ -143,18 +177,204 @@
       "name": "Respuesta HTTP",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1290, 500]
+      "position": [
+        1290,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "wfb-cond-slack-001",
+              "leftValue": "={{ $('Normalizar input').first().json.slack_response_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfb-0010-0010-0010-000000000010",
+      "name": "Enrutar respuesta",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1030,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $('Agente OPEX (Claude)').first().json.output || 'Sin respuesta del agente.';\nconst slackUser = $('Normalizar input').first().json.slack_user || 'usuario';\nconst slackResponseUrl = $('Normalizar input').first().json.slack_response_url;\n\n// Slack mrkdwn: límite de 3000 chars por bloque\nconst text = agentOutput.length > 2900 ? agentOutput.slice(0, 2897) + '...' : agentOutput;\n\nreturn [{ json: {\n  url: slackResponseUrl,\n  payload: {\n    response_type: 'in_channel',\n    replace_original: false,\n    blocks: [\n      {\n        type: 'section',\n        text: { type: 'mrkdwn', text: `🔮 *Oráculo del OPEX*\\n\\n${text}` }\n      },\n      {\n        type: 'context',\n        elements: [{ type: 'mrkdwn', text: `Pregunta de @${slackUser} · _Powered by Claude Sonnet_` }]\n      }\n    ]\n  }\n}}];"
+      },
+      "id": "wfb-0011-0011-0011-000000000011",
+      "name": "Preparar respuesta Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1290,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "wfb-0012-0012-0012-000000000012",
+      "name": "POST → Slack response_url",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        380
+      ],
+      "notes": "Envía la respuesta del agente al response_url de Slack (válido por 30 min)."
     }
   ],
   "connections": {
-    "Webhook entrada":        { "main": [[{ "node": "Normalizar input",       "type": "main", "index": 0 }]] },
-    "Normalizar input":       { "main": [[{ "node": "Agente OPEX (Claude)",   "type": "main", "index": 0 }]] },
-    "Agente OPEX (Claude)":   { "main": [[{ "node": "Respuesta HTTP",         "type": "main", "index": 0 }]] },
-    "Claude Sonnet":          { "ai_languageModel": [[{ "node": "Agente OPEX (Claude)", "type": "ai_languageModel", "index": 0 }]] },
-    "Memoria conversación":   { "ai_memory":        [[{ "node": "Agente OPEX (Claude)", "type": "ai_memory",        "index": 0 }]] },
-    "query_supabase":         { "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 0 }]] },
-    "get_backlog_alerts":     { "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 1 }]] },
-    "calcular_costo_estimado":{ "ai_tool":          [[{ "node": "Agente OPEX (Claude)", "type": "ai_tool",          "index": 2 }]] }
+    "Webhook entrada": {
+      "main": [
+        [
+          {
+            "node": "Normalizar input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar input": {
+      "main": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente OPEX (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Enrutar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria conversación": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_backlog_alerts": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "ai_tool",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "calcular_costo_estimado": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OPEX (Claude)",
+            "type": "ai_tool",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Enrutar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Preparar respuesta Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar respuesta Slack": {
+      "main": [
+        [
+          {
+            "node": "POST → Slack response_url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
   "settings": {
@@ -163,5 +383,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": ""
   },
-  "meta": { "instanceId": "" }
+  "meta": {
+    "instanceId": ""
+  }
 }

@@ -1,0 +1,105 @@
+{
+  "name": "WF-C | Slack Receptor — /opex Slash Command",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-slash-opex",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wfc-0001-0001-0001-000000000001",
+      "name": "Webhook Slack",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "slack-slash-opex-bia"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Slack envía el slash command como form-encoded\nconst raw = $input.first().json || {};\nconst body = raw.body || raw;\n\nconst text = (body.text || '').trim();\nconst channel_name = (body.channel_name || '').toLowerCase().trim();\nconst response_url = body.response_url || '';\nconst user_name = body.user_name || body.user_id || 'usuario';\nconst user_id = body.user_id || '';\n\nconst CANAL_PERMITIDO = 'oraculo_del_opex';\nconst is_valid_channel = channel_name === CANAL_PERMITIDO;\n\nif (!is_valid_channel) {\n  return [{ json: {\n    is_valid: false,\n    ack_text: `❌ El comando /opex solo está disponible en el canal #${CANAL_PERMITIDO}.`,\n    response_url, text, user_name, user_id, channel_name\n  }}];\n}\n\nif (!text) {\n  return [{ json: {\n    is_valid: false,\n    ack_text: '❓ Debes escribir una pregunta. Ejemplo: `/opex ¿Cuál es el CAC promedio esta semana?`',\n    response_url, text, user_name, user_id, channel_name\n  }}];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  ack_text: `⏳ *Oráculo del OPEX* consultando para @${user_name}...`,\n  response_url, text, user_name, user_id, channel_name\n}}];"
+      },
+      "id": "wfc-0002-0002-0002-000000000002",
+      "name": "Parsear payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [510, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response_type: 'in_channel', text: $json.ack_text }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+          }
+        }
+      },
+      "id": "wfc-0003-0003-0003-000000000003",
+      "name": "Ack a Slack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [770, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "wfc-cond-0001",
+              "leftValue": "={{ $('Parsear payload').first().json.is_valid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equal" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfc-0004-0004-0004-000000000004",
+      "name": "¿Canal válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1030, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.WFB_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $('Parsear payload').first().json.text, slack_response_url: $('Parsear payload').first().json.response_url, slack_user: $('Parsear payload').first().json.user_name, session_id: 'slack_' + $('Parsear payload').first().json.user_id }) }}",
+        "options": { "timeout": 5000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "wfc-0005-0005-0005-000000000005",
+      "name": "Llamar Agente WF-B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1290, 400],
+      "notes": "Fire-and-forget: timeout 5s, neverError. WF-B responde a Slack directamente via response_url."
+    }
+  ],
+  "connections": {
+    "Webhook Slack":    { "main": [[{ "node": "Parsear payload",  "type": "main", "index": 0 }]] },
+    "Parsear payload":  { "main": [[{ "node": "Ack a Slack",      "type": "main", "index": 0 }]] },
+    "Ack a Slack":      { "main": [[{ "node": "¿Canal válido?",   "type": "main", "index": 0 }]] },
+    "¿Canal válido?":   { "main": [
+      [{ "node": "Llamar Agente WF-B", "type": "main", "index": 0 }],
+      []
+    ]}
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": { "instanceId": "" }
+}
