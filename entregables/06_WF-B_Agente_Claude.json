@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza el input: acepta varios shapes del webhook (HTTP directo o llamada desde WF-C Slack)\nconst raw = $input.first().json || {};\nconst body = raw.body?.message || raw.body?.text || raw.body?.query || raw.body?.pregunta\n  ? raw.body\n  : (raw.body?.body || raw.body || raw);\n\nconst message = body.message || body.text || body.query || body.pregunta || body.input || '';\nconst session_id = body.session_id || body.user_id || raw.headers?.['x-session-id'] || 'default';\nconst slack_response_url = body.slack_response_url || null;\nconst slack_user = body.slack_user || null;\n\nif (!message || !String(message).trim()) {\n  throw new Error('Falta el campo message/text/query en el body. Recibido: ' + JSON.stringify(raw).slice(0, 500));\n}\nreturn [{ json: { message: String(message).trim(), session_id, slack_response_url, slack_user } }];"
+        "jsCode": "// Normaliza el input: HTTP directo o llamada desde WF-C (Slack Events)\nconst raw = $input.first().json || {};\nconst body = raw.body?.message || raw.body?.text || raw.body?.query || raw.body?.pregunta\n  ? raw.body\n  : (raw.body?.body || raw.body || raw);\n\nconst message = body.message || body.text || body.query || body.pregunta || body.input || '';\nconst session_id = body.session_id || body.user_id || raw.headers?.['x-session-id'] || 'default';\n\n// Campos Slack (solo presentes si viene de WF-C)\nconst slack_channel_id = body.slack_channel_id || null;\nconst slack_thread_ts  = body.slack_thread_ts  || null;\nconst slack_user       = body.slack_user       || null;\n\nif (!message || !String(message).trim()) {\n  throw new Error('Falta el campo message en el body. Recibido: ' + JSON.stringify(raw).slice(0, 500));\n}\nreturn [{ json: { message: String(message).trim(), session_id, slack_channel_id, slack_thread_ts, slack_user } }];"
       },
       "id": "wfb-0002-0002-0002-000000000002",
       "name": "Normalizar input",
@@ -193,7 +193,7 @@
           "conditions": [
             {
               "id": "wfb-cond-slack-001",
-              "leftValue": "={{ $('Normalizar input').first().json.slack_response_url }}",
+              "leftValue": "={{ $('Normalizar input').first().json.slack_channel_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -216,7 +216,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const agentOutput = $('Agente OPEX (Claude)').first().json.output || 'Sin respuesta del agente.';\nconst slackUser = $('Normalizar input').first().json.slack_user || 'usuario';\nconst slackResponseUrl = $('Normalizar input').first().json.slack_response_url;\n\n// Slack mrkdwn: límite de 3000 chars por bloque\nconst text = agentOutput.length > 2900 ? agentOutput.slice(0, 2897) + '...' : agentOutput;\n\nreturn [{ json: {\n  url: slackResponseUrl,\n  payload: {\n    response_type: 'in_channel',\n    replace_original: false,\n    blocks: [\n      {\n        type: 'section',\n        text: { type: 'mrkdwn', text: `🔮 *Oráculo del OPEX*\\n\\n${text}` }\n      },\n      {\n        type: 'context',\n        elements: [{ type: 'mrkdwn', text: `Pregunta de @${slackUser} · _Powered by Claude Sonnet_` }]\n      }\n    ]\n  }\n}}];"
+        "jsCode": "const agentOutput = $('Agente OPEX (Claude)').first().json.output || 'Sin respuesta del agente.';\nconst channelId  = $('Normalizar input').first().json.slack_channel_id;\nconst threadTs   = $('Normalizar input').first().json.slack_thread_ts;\nconst slackUser  = $('Normalizar input').first().json.slack_user || '';\n\n// Slack mrkdwn: límite 3000 chars por bloque de texto\nconst text = agentOutput.length > 2900 ? agentOutput.slice(0, 2897) + '...' : agentOutput;\n\nconst payload = {\n  channel: channelId,\n  text: `🔮 *Oráculo del OPEX*\\n\\n${text}`,\n  blocks: [\n    {\n      type: 'section',\n      text: { type: 'mrkdwn', text: `🔮 *Oráculo del OPEX*\\n\\n${text}` }\n    },\n    {\n      type: 'context',\n      elements: [{ type: 'mrkdwn', text: `Powered by Claude Sonnet${slackUser ? ' · <@' + slackUser + '>' : ''}` }]\n    }\n  ]\n};\n\n// Si vino de un hilo, responder en el mismo hilo\nif (threadTs) payload.thread_ts = threadTs;\n\nreturn [{ json: { payload } }];"
       },
       "id": "wfb-0011-0011-0011-000000000011",
       "name": "Preparar respuesta Slack",
@@ -230,7 +230,9 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.url }}",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -247,14 +249,20 @@
         "options": {}
       },
       "id": "wfb-0012-0012-0012-000000000012",
-      "name": "POST → Slack response_url",
+      "name": "POST → chat.postMessage",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1550,
         380
       ],
-      "notes": "Envía la respuesta del agente al response_url de Slack (válido por 30 min)."
+      "notes": "Envía la respuesta al canal/hilo de Slack via chat.postMessage. Responde en el mismo hilo si thread_ts presente.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GciOWwHMTLVJJuAu",
+          "name": "Header Auth account 12"
+        }
+      }
     }
   ],
   "connections": {
@@ -368,7 +376,7 @@
       "main": [
         [
           {
-            "node": "POST → Slack response_url",
+            "node": "POST → chat.postMessage",
             "type": "main",
             "index": 0
           }

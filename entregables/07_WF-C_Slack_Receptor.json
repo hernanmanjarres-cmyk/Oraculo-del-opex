@@ -1,26 +1,26 @@
 {
-  "name": "WF-C | Slack Receptor — /opex Slash Command",
+  "name": "WF-C | Slack Receptor — @Oráculo del OPEX",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "slack-slash-opex",
+        "path": "slack-events-opex",
         "responseMode": "responseNode",
         "options": {}
       },
       "id": "wfc-0001-0001-0001-000000000001",
-      "name": "Webhook Slack",
+      "name": "Webhook Eventos Slack",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [250, 500],
-      "webhookId": "slack-slash-opex-bia"
+      "webhookId": "slack-events-opex-bia"
     },
     {
       "parameters": {
-        "jsCode": "// Slack envía el slash command como form-encoded\nconst raw = $input.first().json || {};\nconst body = raw.body || raw;\n\nconst text = (body.text || '').trim();\nconst channel_name = (body.channel_name || '').toLowerCase().trim();\nconst response_url = body.response_url || '';\nconst user_name = body.user_name || body.user_id || 'usuario';\nconst user_id = body.user_id || '';\n\nconst CANAL_PERMITIDO = 'oraculo_del_opex';\nconst is_valid_channel = channel_name === CANAL_PERMITIDO;\n\nif (!is_valid_channel) {\n  return [{ json: {\n    is_valid: false,\n    ack_text: `❌ El comando /opex solo está disponible en el canal #${CANAL_PERMITIDO}.`,\n    response_url, text, user_name, user_id, channel_name\n  }}];\n}\n\nif (!text) {\n  return [{ json: {\n    is_valid: false,\n    ack_text: '❓ Debes escribir una pregunta. Ejemplo: `/opex ¿Cuál es el CAC promedio esta semana?`',\n    response_url, text, user_name, user_id, channel_name\n  }}];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  ack_text: `⏳ *Oráculo del OPEX* consultando para @${user_name}...`,\n  response_url, text, user_name, user_id, channel_name\n}}];"
+        "jsCode": "const raw = $input.first().json || {};\nconst body = raw.body || raw;\n\n// 1. Slack URL verification challenge (configuración inicial)\nif (body.type === 'url_verification') {\n  return [{ json: { is_valid: false, event_type: 'url_verification', challenge: body.challenge } }];\n}\n\nconst event = body.event || {};\n\n// 2. Ignorar mensajes del propio bot (evita loops)\nif (event.bot_id || event.subtype === 'bot_message' || event.subtype === 'message_changed') {\n  return [{ json: { is_valid: false, event_type: 'bot_skip' } }];\n}\n\nconst event_type = event.type || '';\nif (!['app_mention', 'message'].includes(event_type)) {\n  return [{ json: { is_valid: false, event_type: event_type || 'unknown' } }];\n}\n\n// 3. Extraer campos del evento\nconst channel_id = event.channel || '';\nconst user_id = event.user || '';\nconst thread_ts = event.thread_ts || null;  // si viene de un hilo, responde ahí\nconst msg_ts = event.ts || null;\n\n// 4. Limpiar texto: quitar @menciones (<@U123ABC>)\nlet text = (event.text || '').trim();\ntext = text.replace(/<@[A-Z0-9]+>/gi, '').trim();\n\nif (!text) {\n  return [{ json: { is_valid: false, event_type: 'empty_text' } }];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  event_type,\n  text,\n  channel_id,\n  thread_ts,\n  msg_ts,\n  user_id\n}}];"
       },
       "id": "wfc-0002-0002-0002-000000000002",
-      "name": "Parsear payload",
+      "name": "Parsear evento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [510, 500]
@@ -28,7 +28,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ response_type: 'in_channel', text: $json.ack_text }) }}",
+        "responseBody": "={{ $json.event_type === 'url_verification' ? JSON.stringify({ challenge: $json.challenge }) : '{}' }}",
         "options": {
           "responseCode": 200,
           "responseHeaders": {
@@ -49,7 +49,7 @@
           "conditions": [
             {
               "id": "wfc-cond-0001",
-              "leftValue": "={{ $('Parsear payload').first().json.is_valid }}",
+              "leftValue": "={{ $('Parsear evento').first().json.is_valid }}",
               "rightValue": true,
               "operator": { "type": "boolean", "operation": "equal" }
             }
@@ -59,7 +59,7 @@
         "options": {}
       },
       "id": "wfc-0004-0004-0004-000000000004",
-      "name": "¿Canal válido?",
+      "name": "¿Evento válido?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [1030, 500]
@@ -75,7 +75,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ message: $('Parsear payload').first().json.text, slack_response_url: $('Parsear payload').first().json.response_url, slack_user: $('Parsear payload').first().json.user_name, session_id: 'slack_' + $('Parsear payload').first().json.user_id }) }}",
+        "jsonBody": "={{ JSON.stringify({ message: $('Parsear evento').first().json.text, slack_channel_id: $('Parsear evento').first().json.channel_id, slack_thread_ts: $('Parsear evento').first().json.thread_ts, slack_user: $('Parsear evento').first().json.user_id, session_id: 'slack_' + $('Parsear evento').first().json.user_id }) }}",
         "options": { "timeout": 5000, "response": { "response": { "neverError": true } } }
       },
       "id": "wfc-0005-0005-0005-000000000005",
@@ -83,14 +83,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1290, 400],
-      "notes": "Fire-and-forget: timeout 5s, neverError. WF-B responde a Slack directamente via response_url."
+      "notes": "Fire-and-forget. WF-B responde directamente al canal/hilo via chat.postMessage."
     }
   ],
   "connections": {
-    "Webhook Slack":    { "main": [[{ "node": "Parsear payload",  "type": "main", "index": 0 }]] },
-    "Parsear payload":  { "main": [[{ "node": "Ack a Slack",      "type": "main", "index": 0 }]] },
-    "Ack a Slack":      { "main": [[{ "node": "¿Canal válido?",   "type": "main", "index": 0 }]] },
-    "¿Canal válido?":   { "main": [
+    "Webhook Eventos Slack": { "main": [[{ "node": "Parsear evento", "type": "main", "index": 0 }]] },
+    "Parsear evento":        { "main": [[{ "node": "Ack a Slack",    "type": "main", "index": 0 }]] },
+    "Ack a Slack":           { "main": [[{ "node": "¿Evento válido?","type": "main", "index": 0 }]] },
+    "¿Evento válido?":       { "main": [
       [{ "node": "Llamar Agente WF-B", "type": "main", "index": 0 }],
       []
     ]}
