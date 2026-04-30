@@ -24,11 +24,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "TRUNCATE TABLE opex_cost_items RESTART IDENTITY",
+        "query": "SELECT 1 -- incremental: sin truncate",
         "options": {}
       },
       "id": "wfa1-0002-0002-0002-000000000002",
-      "name": "Truncate opex_cost_items",
+      "name": "Skip (incremental)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const baseQuery = `SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general WHERE id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 20;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+        "jsCode": "const baseQuery = `SELECT id, internal_bia_code AS bia_code, contract_id, title AS work_order_title, service_type_id, service_name, visit_type_id, electrician_status_id, estado AS status_label, status_app, contratista AS contractor_name, electrician_id, electricistas AS electricians, operador_de_red AS grid_operator, city_name AS city, department, address, company_id, company_name, measurement_type_id, act_pdf_url, fecha_visita AS visit_date, observation, reason, created_at, updated_at, deleted_at FROM operations.visitas_general WHERE id IS NOT NULL AND updated_at > NOW() - INTERVAL '2 hours' ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 3;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
       },
       "id": "wfa1-ivisit-ivisit-ivisit-init",
       "name": "Init visits",
@@ -193,7 +193,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const baseQuery = `SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true AND id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 20;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+        "jsCode": "const baseQuery = `SELECT id, visit_id, wo_id, visit_title, service_cost, material_cost, transport_cost, other_cost, status, enabled, contractor_id, service_tariff_id, electrician_status_id, act_pdf_url, is_bia, comments, details, user_id, visit_start, created_at, updated_at FROM operations.opex_costs_general WHERE enabled = true AND id IS NOT NULL AND updated_at > NOW() - INTERVAL '2 hours' ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 3;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
       },
       "id": "wfa1-iopex_-iopex_-iopex_-init",
       "name": "Init opex_costs",
@@ -267,7 +267,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const baseQuery = `SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true AND oc.id IS NOT NULL ORDER BY oc.id, (item->>'item_number')::integer`;\nconst PAGE = 2000;\nconst MAX_PAGES = 40;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+        "jsCode": "const baseQuery = `SELECT oc.id AS opex_cost_id, oc.visit_id, (item->>'item_number')::integer AS item_number, item->>'activity_name' AS activity_name, (item->>'quantity')::numeric AS quantity, (item->>'amount')::numeric AS amount_cop FROM operations.opex_costs_general oc, jsonb_array_elements(oc.selected_tariff_items::jsonb) AS item WHERE oc.selected_tariff_items IS NOT NULL AND oc.selected_tariff_items != 'null' AND oc.selected_tariff_items != '[]' AND oc.enabled = true AND oc.id IS NOT NULL AND oc.updated_at > NOW() - INTERVAL '2 hours' ORDER BY oc.id, (item->>'item_number')::integer`;\nconst PAGE = 2000;\nconst MAX_PAGES = 5;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
       },
       "id": "wfa1-iopex_-iopex_-iopex_-init",
       "name": "Init opex_cost_items",
@@ -341,7 +341,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const baseQuery = `SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general WHERE id IS NOT NULL ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 10;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
+        "jsCode": "const baseQuery = `SELECT id, codigo_interno_bia AS bia_code, contract_id, tipo_de_alcance AS scope_type, fase_actual AS current_phase, tipo_de_medida_encontrado AS measurement_type_found, tipo_de_medida_a_instalar AS measurement_type_to_install, nivel_de_tension AS voltage_level, factor_de_medida_encontrado AS measurement_factor_found, viable_para_instalar AS viable_to_install, calculo_de_pb AS payback_calculation, valor_de_pb_calculado AS payback_value, enlace_memoria_de_calculo AS payback_calc_link, serie_del_medidor AS meter_serial, requiere_descargos_del_or AS requires_or_disconnection, el_descargo_afecta_a_otros_usuarios AS disconnection_affects_users, es_frontera_comercial AS is_commercial_border, ubicacion_de_la_antena AS antenna_location, requiere_antena_de_alta_ganancia AS requires_high_gain_antenna, nombre AS contact_name, telefono AS contact_phone, correo AS contact_email, creado_el AS created_at FROM operations.alcances_general WHERE id IS NOT NULL AND creado_el > NOW() - INTERVAL '2 hours' ORDER BY id`;\nconst PAGE = 2000;\nconst MAX_PAGES = 2;\nconst items = [];\nfor (let p = 0; p < MAX_PAGES; p++) {\n  const offset = p * PAGE;\n  const q = baseQuery + ` LIMIT ${PAGE} OFFSET ${offset}`;\n  items.push({\n    json: {\n      page: p,\n      offset,\n      body: {\n        database: 2344,\n        type: 'native',\n        native: { query: q }\n      }\n    }\n  });\n}\nreturn items;"
       },
       "id": "wfa1-iscope-iscope-iscope-init",
       "name": "Init scopes",
@@ -583,25 +583,23 @@
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list"
-        },
-        "table": {
-          "__rl": true,
-          "value": "opex_cost_items",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "schema": []
-        },
-        "options": {
-          "queryBatching": "transaction"
-        }
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { query: 'SELECT 1' } }];\nconst TABLE = 'opex_cost_items';\nconst CHUNK = 500;\nconst Q = \"'\";\nconst esc = v => v == null ? 'NULL' : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(v) : Q + String(v).replace(/'/g, Q+Q) + Q;\nconst opexIds = [...new Set(items.map(i => i.json.opex_cost_id).filter(v => v != null))];\nif (!opexIds.length) return [{ json: { query: 'SELECT 1' } }];\nconst cols = Object.keys(items[0].json);\nconst colList = cols.map(c => '\"' + c + '\"').join(', ');\nconst out = [];\nout.push({ json: { query: 'DELETE FROM ' + TABLE + ' WHERE opex_cost_id IN (' + opexIds.map(esc).join(', ') + ')' } });\nfor (let i = 0; i < items.length; i += CHUNK) {\n  const vals = items.slice(i, i+CHUNK).map(it => '(' + cols.map(c => esc(it.json[c])).join(',') + ')').join(',');\n  out.push({ json: { query: 'INSERT INTO ' + TABLE + ' (' + colList + ') VALUES ' + vals } });\n}\nreturn out;"
+      },
+      "id": "wfa1-sqoci-sqoci-sqoci-sql001",
+      "name": "SQL opex_cost_items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5170,
+        700
+      ],
+      "notes": "Construye DELETE de los opex_cost_ids afectados + INSERT chunks. Reemplaza el TRUNCATE global."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "id": "wfa1-pgopex_-pgopex_-pgopex_-pg",
       "name": "SB ← opex_cost_items",
@@ -707,18 +705,7 @@
       "main": [
         [
           {
-            "node": "Truncate opex_cost_items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Truncate opex_cost_items": {
-      "main": [
-        [
-          {
-            "node": "Init fronteras",
+            "node": "Skip (incremental)",
             "type": "main",
             "index": 0
           }
@@ -883,7 +870,7 @@
       "main": [
         [
           {
-            "node": "SB ← opex_cost_items",
+            "node": "SQL opex_cost_items",
             "type": "main",
             "index": 0
           }
@@ -1016,6 +1003,28 @@
         [
           {
             "node": "SB ← backlog_scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip (incremental)": {
+      "main": [
+        [
+          {
+            "node": "Init fronteras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL opex_cost_items": {
+      "main": [
+        [
+          {
+            "node": "SB ← opex_cost_items",
             "type": "main",
             "index": 0
           }
