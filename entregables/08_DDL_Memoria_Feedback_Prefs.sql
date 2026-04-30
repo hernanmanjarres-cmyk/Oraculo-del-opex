@@ -24,3 +24,6 @@ CREATE TABLE IF NOT EXISTS agent_user_prefs (
   notes          TEXT DEFAULT '',
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Nota de feedback para 👎 (qué debería mejorar el Oráculo)
+ALTER TABLE agent_memory ADD COLUMN IF NOT EXISTS feedback_note TEXT;

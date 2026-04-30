@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json || {};\n\n// n8n webhook v2: el payload de Slack llega en raw.body\nlet body = raw.body && typeof raw.body === 'object' ? raw.body : raw;\n\n// Slack Interactivity (block_actions, view_submission, etc.) llega como\n// application/x-www-form-urlencoded con un campo \\\"payload\\\" que contiene\n// el JSON real stringified. Lo rehidratamos antes de seguir.\nif (body.payload && typeof body.payload === 'string') {\n  try {\n    body = JSON.parse(body.payload);\n  } catch (e) {\n    console.log('payload parse error:', e.message);\n  }\n}\n\n// DEBUG: loguear estructura para diagnóstico\nconsole.log('--- Parsear evento DEBUG ---');\nconsole.log('outer_type:', body.type);\nconsole.log('has_event:', !!body.event);\nconsole.log('event_type:', body.event?.type);\nconsole.log('body_keys:', Object.keys(body).join(', '));\n\n// 1. Slack URL verification challenge\nif (body.type === 'url_verification') {\n  return [{ json: { is_valid: false, event_type: 'url_verification', challenge: body.challenge } }];\n}\n\n// Feedback buttons (block_actions)\nif (body.type === 'block_actions') {\n  const action = (body.actions || [])[0] || {};\n  const action_id = action.action_id || '';\n  const value = action.value || '';\n  const parts = value.split('_');\n  const memory_id = parseInt(parts[parts.length - 1]) || null;\n  const feedback = action_id === 'feedback_good' ? 1 : -1;\n  const user_id = (body.user || {}).id || '';\n  const response_url = body.response_url || '';\n  const label = feedback === 1 ? '¡Gracias! El Oráculo tomará nota 📜✨' : '¡Anotado! El Oráculo buscará iluminarse 🔮';\n  return [{ json: {\n    is_valid: false,\n    event_type: 'block_action',\n    feedback, memory_id, user_id, response_url, label\n  }}];\n}\n\n// 2. Solo procesamos event_callback\nif (body.type !== 'event_callback') {\n  return [{ json: { is_valid: false, event_type: body.type || 'unknown', debug: JSON.stringify(body).slice(0, 300) } }];\n}\n\nconst event = body.event || {};\n\n// 3. Ignorar mensajes del propio bot (evita loops)\nif (event.bot_id || event.subtype === 'bot_message' || event.subtype === 'message_changed') {\n  return [{ json: { is_valid: false, event_type: 'bot_skip' } }];\n}\n\nconst event_type = event.type || '';\nif (!['app_mention', 'message'].includes(event_type)) {\n  return [{ json: { is_valid: false, event_type: event_type || 'unknown', debug: JSON.stringify(event).slice(0, 300) } }];\n}\n\n// 4. Extraer campos\nconst channel_id = event.channel || '';\nconst user_id = event.user || '';\nconst thread_ts = event.thread_ts || null;\nconst msg_ts = event.ts || null;\n\n// 5. Limpiar texto: quitar @menciones (<@U123ABC>)\nlet text = (event.text || '').trim();\ntext = text.replace(/<@[A-Z0-9]+>/gi, '').trim();\n\nif (!text) {\n  return [{ json: { is_valid: false, event_type: 'empty_text' } }];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  event_type,\n  text,\n  channel_id,\n  thread_ts,\n  msg_ts,\n  user_id\n}}];"
+        "jsCode": "const raw = $input.first().json || {};\n\n// n8n webhook v2: el payload de Slack llega en raw.body\nlet body = raw.body && typeof raw.body === 'object' ? raw.body : raw;\n\n// Slack Interactivity (block_actions, view_submission, etc.) llega como\n// application/x-www-form-urlencoded con un campo \"payload\" stringified.\nif (body.payload && typeof body.payload === 'string') {\n  try {\n    body = JSON.parse(body.payload);\n  } catch (e) {\n    console.log('payload parse error:', e.message);\n  }\n}\n\nconsole.log('--- Parsear evento DEBUG ---');\nconsole.log('outer_type:', body.type);\nconsole.log('event_type:', body.event?.type);\nconsole.log('channel_type:', body.event?.channel_type);\n\n// 1. Slack URL verification challenge\nif (body.type === 'url_verification') {\n  return [{ json: { is_valid: false, event_type: 'url_verification', challenge: body.challenge } }];\n}\n\n// 2. Botones de feedback (block_actions): 👍 o 👎\nif (body.type === 'block_actions') {\n  const action = (body.actions || [])[0] || {};\n  const action_id = action.action_id || '';\n  const value = action.value || '';\n  const parts = value.split('_');\n  const memory_id = parseInt(parts[parts.length - 1]) || null;\n  const trigger_id = body.trigger_id || '';\n  const user_id = (body.user || {}).id || '';\n  const response_url = body.response_url || '';\n\n  if (action_id === 'feedback_good') {\n    return [{ json: {\n      is_valid: false,\n      event_type: 'feedback_good',\n      memory_id, user_id, response_url,\n      label: '¡Gracias! El Oráculo tomará nota 📜✨'\n    }}];\n  }\n  if (action_id === 'feedback_bad') {\n    return [{ json: {\n      is_valid: false,\n      event_type: 'feedback_bad',\n      memory_id, user_id, trigger_id\n    }}];\n  }\n  return [{ json: { is_valid: false, event_type: 'unknown_action', debug: action_id } }];\n}\n\n// 3. Submit del modal de 👎\nif (body.type === 'view_submission') {\n  const view = body.view || {};\n  const memory_id = parseInt(view.private_metadata) || null;\n  const note = view.state?.values?.feedback_block?.feedback_text?.value || '';\n  const user_id = (body.user || {}).id || '';\n  return [{ json: {\n    is_valid: false,\n    event_type: 'view_submission_feedback',\n    memory_id, note, user_id\n  }}];\n}\n\n// 4. Solo procesamos event_callback de aquí en adelante\nif (body.type !== 'event_callback') {\n  return [{ json: { is_valid: false, event_type: body.type || 'unknown', debug: JSON.stringify(body).slice(0, 300) } }];\n}\n\nconst event = body.event || {};\n\n// 5. Ignorar mensajes del propio bot (evita loops)\nif (event.bot_id || event.subtype === 'bot_message' || event.subtype === 'message_changed') {\n  return [{ json: { is_valid: false, event_type: 'bot_skip' } }];\n}\n\nconst event_type_raw = event.type || '';\nif (!['app_mention', 'message'].includes(event_type_raw)) {\n  return [{ json: { is_valid: false, event_type: event_type_raw || 'unknown' } }];\n}\n\n// 6. Filtro de seguridad: en canales solo respondemos a app_mention.\n// Para 'message' exigimos que sea DM (channel_type === 'im').\n// Esto evita que el bot conteste a TODOS los mensajes si por error se suscribe message.channels.\nif (event_type_raw === 'message' && event.channel_type !== 'im') {\n  return [{ json: { is_valid: false, event_type: 'channel_message_no_mention', debug: event.channel_type } }];\n}\n\n// 7. Extraer campos\nconst channel_id = event.channel || '';\nconst user_id = event.user || '';\nconst thread_ts = event.thread_ts || null;\nconst msg_ts = event.ts || null;\n\n// 8. Limpiar texto: quitar @menciones (<@U123ABC>)\nlet text = (event.text || '').trim();\ntext = text.replace(/<@[A-Z0-9]+>/gi, '').trim();\n\nif (!text) {\n  return [{ json: { is_valid: false, event_type: 'empty_text' } }];\n}\n\nreturn [{ json: {\n  is_valid: true,\n  event_type: 'agent_question',\n  source_type: event_type_raw,\n  text,\n  channel_id,\n  thread_ts,\n  msg_ts,\n  user_id\n}}];"
       },
       "id": "wfc-0002-0002-0002-000000000002",
       "name": "Parsear evento",
@@ -66,12 +66,13 @@
           },
           "conditions": [
             {
-              "id": "wfc-cond-0001",
-              "leftValue": "={{ $('Parsear evento').first().json.text }}",
-              "rightValue": "",
+              "id": "wfc-cond-q-0001",
+              "leftValue": "={{ $('Parsear evento').first().json.event_type }}",
+              "rightValue": "agent_question",
               "operator": {
                 "type": "string",
-                "operation": "notEmpty"
+                "operation": "equals",
+                "name": "filter.operator.equals"
               }
             }
           ],
@@ -80,7 +81,7 @@
         "options": {}
       },
       "id": "wfc-0004-0004-0004-000000000004",
-      "name": "¿Evento válido?",
+      "name": "¿Es pregunta al agente?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
@@ -104,7 +105,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ message: $('Parsear evento').first().json.text, slack_channel_id: $('Parsear evento').first().json.channel_id, slack_thread_ts: $('Parsear evento').first().json.thread_ts, slack_user: $('Parsear evento').first().json.user_id, session_id: 'slack_' + $('Parsear evento').first().json.user_id }) }}",
+        "jsonBody": "={{ JSON.stringify({ message: $('Parsear evento').first().json.text, slack_channel_id: $('Parsear evento').first().json.channel_id, slack_thread_ts: $('Parsear evento').first().json.thread_ts, slack_msg_ts: $('Parsear evento').first().json.msg_ts, slack_user: $('Parsear evento').first().json.user_id, session_id: 'slack_' + $('Parsear evento').first().json.user_id }) }}",
         "options": {
           "timeout": 5000,
           "response": {
@@ -120,7 +121,7 @@
       "typeVersion": 4.2,
       "position": [
         1290,
-        400
+        300
       ],
       "notes": "IMPORTANTE: reemplaza la URL con la URL real del webhook de WF-B (ej: https://tu-n8n.cloud/webhook/agente-opex)"
     },
@@ -134,12 +135,13 @@
           },
           "conditions": [
             {
-              "id": "wfc-cond-fb-001",
+              "id": "wfc-cond-good-0001",
               "leftValue": "={{ $('Parsear evento').first().json.event_type }}",
-              "rightValue": "block_action",
+              "rightValue": "feedback_good",
               "operator": {
                 "type": "string",
-                "operation": "equals"
+                "operation": "equals",
+                "name": "filter.operator.equals"
               }
             }
           ],
@@ -148,27 +150,27 @@
         "options": {}
       },
       "id": "wfc-0006-0006-0006-000000000006",
-      "name": "¿Es feedback?",
+      "name": "¿Es 👍?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         1290,
-        620
+        540
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE agent_memory SET feedback = {{ $('Parsear evento').first().json.feedback }} WHERE id = {{ $('Parsear evento').first().json.memory_id }}",
+        "query": "=UPDATE agent_memory SET feedback = 1 WHERE id = {{ $('Parsear evento').first().json.memory_id }}",
         "options": {}
       },
       "id": "wfc-0007-0007-0007-000000000007",
-      "name": "Actualizar feedback en BD",
+      "name": "UPDATE feedback +1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
         1550,
-        540
+        420
       ],
       "continueOnFail": true,
       "credentials": {
@@ -203,8 +205,132 @@
       "typeVersion": 4.2,
       "position": [
         1810,
-        540
+        420
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "wfc-cond-bad-0001",
+              "leftValue": "={{ $('Parsear evento').first().json.event_type }}",
+              "rightValue": "feedback_bad",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfc-0009-0009-0009-000000000009",
+      "name": "¿Es 👎?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1290,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/views.open",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ trigger_id: $('Parsear evento').first().json.trigger_id, view: { type: 'modal', callback_id: 'feedback_modal', private_metadata: String($('Parsear evento').first().json.memory_id || ''), title: { type: 'plain_text', text: 'Mejorar el Oráculo' }, submit: { type: 'plain_text', text: 'Enviar' }, close: { type: 'plain_text', text: 'Cancelar' }, blocks: [ { type: 'section', text: { type: 'mrkdwn', text: '🔮 *El Oráculo escucha.* Contame qué debería mejorar para iluminarse mejor:' } }, { type: 'input', block_id: 'feedback_block', label: { type: 'plain_text', text: '¿Qué debería mejorar?' }, element: { type: 'plain_text_input', action_id: 'feedback_text', multiline: true, min_length: 5, max_length: 1000, placeholder: { type: 'plain_text', text: 'Ej: la respuesta no incluyó el corte de mes correcto...' } } } ] } }) }}",
+        "options": {}
+      },
+      "id": "wfc-0010-0010-0010-000000000010",
+      "name": "Abrir modal feedback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        780
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GciOWwHMTLVJJuAu",
+          "name": "Header Auth account 12"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "wfc-cond-submit-0001",
+              "leftValue": "={{ $('Parsear evento').first().json.event_type }}",
+              "rightValue": "view_submission_feedback",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfc-0011-0011-0011-000000000011",
+      "name": "¿Es submit modal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1290,
+        1020
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE agent_memory SET feedback = -1, feedback_note = '{{ ($('Parsear evento').first().json.note || '').replace(/'/g, \"''\") }}' WHERE id = {{ $('Parsear evento').first().json.memory_id }}",
+        "options": {}
+      },
+      "id": "wfc-0012-0012-0012-000000000012",
+      "name": "UPDATE feedback con nota",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1550,
+        1020
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Oráculo del Opex"
+        }
+      }
     }
   ],
   "connections": {
@@ -234,14 +360,14 @@
       "main": [
         [
           {
-            "node": "¿Evento válido?",
+            "node": "¿Es pregunta al agente?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "¿Evento válido?": {
+    "¿Es pregunta al agente?": {
       "main": [
         [
           {
@@ -252,26 +378,32 @@
         ],
         [
           {
-            "node": "¿Es feedback?",
+            "node": "¿Es 👍?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "¿Es feedback?": {
+    "¿Es 👍?": {
       "main": [
         [
           {
-            "node": "Actualizar feedback en BD",
+            "node": "UPDATE feedback +1",
             "type": "main",
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "¿Es 👎?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Actualizar feedback en BD": {
+    "UPDATE feedback +1": {
       "main": [
         [
           {
@@ -280,6 +412,36 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "¿Es 👎?": {
+      "main": [
+        [
+          {
+            "node": "Abrir modal feedback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Es submit modal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es submit modal?": {
+      "main": [
+        [
+          {
+            "node": "UPDATE feedback con nota",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
