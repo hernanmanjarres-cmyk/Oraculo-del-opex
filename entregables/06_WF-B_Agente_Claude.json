@@ -160,12 +160,16 @@
     {
       "parameters": {
         "name": "query_metabase_card",
-        "description": "Consulta una card guardada en Metabase. Usa este tool cuando necesites datos de: CAC agregado por frontera (card_id: 66727), costos OPEX detalle por visita (card_id: 66793), backlog de instalaciones con banda de prioridad (card_id: 65209), visitas generales (card_id: 55773), fronteras/contratos master (card_id: 55705). Para cards con parámetros (66727 y 66793) puedes pasar filters. Para el resto, omite parameters.",
+        "description": "Consulta una card guardada en Metabase. Cards disponibles: 66727 = CAC agregado por frontera (admite filtros tipo_de_mercado/tipo_de_medida/tipo_de_energia/codigo_bia). 66793 = costos OPEX detalle por visita (admite filtros codigo_bia/tipo_de_medida/tipo_de_mercado). 65209 = backlog de instalaciones con banda de prioridad (sin filtros). 55773 = visitas generales master (sin filtros). 55705 = fronteras/contratos master (sin filtros). Para cards sin filtros, deja los campos de filtro vacíos.",
         "workflowId": "WF-B-T4_PLACEHOLDER",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "input": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input', 'JSON string con card_id y parameters. Ejemplo: {\"card_id\": 66727, \"parameters\": []}. Para cards con filtros (66727, 66793) incluye el array parameters con los UUIDs correspondientes.', 'string') }}"
+            "card_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('card_id', 'ID numérico de la card a ejecutar (66727, 66793, 65209, 55773 o 55705)', 'string') }}",
+            "tipo_de_mercado": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('tipo_de_mercado', 'Filtro opcional para 66727/66793. Valores: Costa, Interior, Centro. Vacío si no aplica.', 'string') }}",
+            "tipo_de_medida": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('tipo_de_medida', 'Filtro opcional. Valores: Directa, Semidirecta, Indirecta. Vacío si no aplica.', 'string') }}",
+            "tipo_de_energia": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('tipo_de_energia', 'Filtro opcional para 66727. Valores: Regulada, No Regulada. Vacío si no aplica.', 'string') }}",
+            "codigo_bia": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('codigo_bia', 'Filtro opcional. Código BIA específico (ej: CO0700006491). Vacío si no aplica.', 'string') }}"
           }
         }
       },
@@ -181,12 +185,12 @@
     {
       "parameters": {
         "name": "query_metabase_sql",
-        "description": "Ejecuta SQL nativo contra la capa gold de Metabase (DB prod-bia-gold, ID 2344). Usa este tool para consultas ad-hoc que no están cubiertas por las cards existentes. Tablas disponibles: operations.visitas_general, operations.opex_costs_general, operations.hubspot_general, operations.alcances_general, operations.wms_general, operations.wms_requerimientos, acquisition.growth_cost, acquisition.acquisition_funnel. Solo SELECT o WITH.",
+        "description": "Ejecuta SQL nativo contra la capa gold de Metabase (DB 2344). Solo SELECT o WITH. Tablas: operations.visitas_general, operations.opex_costs_general, operations.hubspot_general, operations.alcances_general, operations.wms_general, operations.wms_requerimientos, acquisition.growth_cost, acquisition.acquisition_funnel. Ejemplo: SELECT COUNT(*) FROM operations.visitas_general WHERE service_type_id='INST' AND electrician_status_id='CLOSURE_SUCCESSFUL' AND fecha_visita >= '2026-04-01';",
         "workflowId": "WF-B-T5_PLACEHOLDER",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'Query SQL SELECT o WITH contra prod-bia-gold (DB 2344). Usar prefijos de schema: operations.visitas_general, operations.opex_costs_general, etc.', 'string') }}"
+            "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'Query SQL completa (SELECT o WITH) contra schemas operations o acquisition. Ejemplo: SELECT COUNT(*) FROM operations.visitas_general WHERE fecha_visita >= \\'2026-04-01\\'', 'string') }}"
           }
         }
       },

@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\n// Buscar SQL en múltiples lugares: agente lo manda en 'sql', chat lo manda en 'chatInput'\nlet sql = raw?.sql || raw?.query || raw?.body?.sql || raw?.chatInput || '';\nsql = String(sql).trim();\n// Si el chat input empieza con 'sql' como prefijo (ej: 'sql\\nSELECT...'), quitarlo\nif (/^sql\\s*\\n/i.test(sql)) {\n  sql = sql.replace(/^sql\\s*\\n/i, '').trim();\n} else if (/^sql\\s+/i.test(sql) && !/^(SELECT|WITH)/i.test(sql)) {\n  sql = sql.replace(/^sql\\s+/i, '').trim();\n}\nif (!sql) {\n  throw new Error('sql vacío. RAW: ' + JSON.stringify(raw) + ' | KEYS: ' + Object.keys(raw || {}).join(','));\n}\nconst norm = sql.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) {\n  throw new Error('Solo SELECT o WITH. Recibido: ' + norm.split(/\\s+/)[0] + ' | SQL parcial: ' + sql.substring(0, 100));\n}\nreturn [{ json: { sql } }];"
+        "jsCode": "const raw = $input.first().json || {};\nlet sql = raw.sql || raw.chatInput || '';\nsql = String(sql).trim();\nif (/^sql\\s*\\n/i.test(sql)) sql = sql.replace(/^sql\\s*\\n/i, '').trim();\nif (!sql) {\n  throw new Error('sql vacío. Envía una query SELECT o WITH. Ejemplo: SELECT COUNT(*) FROM operations.visitas_general LIMIT 1');\n}\nconst norm = sql.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) {\n  throw new Error('Solo SELECT o WITH. Recibido: ' + norm.split(/\\s+/)[0]);\n}\nreturn [{ json: { sql } }];"
       },
       "id": "wfbt5-0002-0002-0002-000000000002",
       "name": "Validar SQL",

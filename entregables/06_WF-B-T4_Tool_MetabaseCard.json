@@ -7,7 +7,19 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "input"
+              "name": "card_id"
+            },
+            {
+              "name": "tipo_de_mercado"
+            },
+            {
+              "name": "tipo_de_medida"
+            },
+            {
+              "name": "tipo_de_energia"
+            },
+            {
+              "name": "codigo_bia"
             }
           ]
         }
@@ -23,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nlet parsed = {};\nif (raw?.input) {\n  try { parsed = typeof raw.input === 'string' ? JSON.parse(raw.input) : raw.input; } catch(e) { parsed = raw; }\n} else { parsed = raw || {}; }\nconst card_id = parsed.card_id ?? parsed.cardId ?? raw?.card_id;\nconst parameters = parsed.parameters ?? raw?.parameters ?? [];\nif (!card_id) {\n  throw new Error('card_id no encontrado. RAW: ' + JSON.stringify(raw) + ' | PARSED: ' + JSON.stringify(parsed) + ' | KEYS: ' + Object.keys(raw || {}).join(','));\n}\nconst validCards = [55707, 55705, 63163, 55773, 65209, 66727, 66793];\nif (!validCards.includes(Number(card_id))) {\n  throw new Error('card_id ' + card_id + ' no autorizado. Válidos: ' + validCards.join(', '));\n}\nreturn [{ json: { card_id: Number(card_id), parameters: Array.isArray(parameters) ? parameters : [] } }];"
+        "jsCode": "const raw = $input.first().json || {};\nconst card_id = Number(raw.card_id);\nif (!card_id || isNaN(card_id)) {\n  throw new Error('card_id requerido. Envía un número entre 55705, 55707, 55773, 63163, 65209, 66727 o 66793. Recibido: ' + JSON.stringify(raw));\n}\nconst validCards = [55707, 55705, 63163, 55773, 65209, 66727, 66793];\nif (!validCards.includes(card_id)) {\n  throw new Error('card_id ' + card_id + ' no autorizado. Válidos: ' + validCards.join(', '));\n}\n// UUIDs por card y slug\nconst PARAMS_MAP = {\n  66727: {\n    tipo_de_mercado: { id: 'fc0f2b30-20b6-4ab4-80c3-5f567a0d42ef', slug: 'tipo_de_mercado' },\n    codigo_bia:      { id: 'e8cf66e8-028b-45ae-91e5-f2e52107266a', slug: 'codigo_bia' },\n    tipo_de_medida:  { id: 'd1e69e96-72da-42d7-b296-8e110aedb448', slug: 'tipo_de_medida' },\n    tipo_de_energia: { id: '11a33908-bb0e-4d1a-beb3-9dddb95c563e', slug: 'tipo_de_energia' }\n  },\n  66793: {\n    codigo_bia:      { id: '1c43f3c9-7ce8-4341-9501-776bfce319f9', slug: 'codigo_bia' },\n    tipo_de_medida:  { id: '6b92922c-9a4e-4ce3-aeca-8fc9c94cd977', slug: 'tipo_de_medida' },\n    tipo_de_mercado: { id: '0c146346-59d0-4b91-9902-d2b3b55f0bdb', slug: 'tipo_de_mercado' }\n  }\n};\n// Construir array de parameters solo con los filtros provistos\nconst parameters = [];\nconst cardParams = PARAMS_MAP[card_id] || {};\nfor (const key of Object.keys(cardParams)) {\n  const val = raw[key];\n  if (val && String(val).trim()) {\n    parameters.push({\n      id: cardParams[key].id,\n      type: 'string/=',\n      value: String(val).trim(),\n      target: ['variable', ['template-tag', cardParams[key].slug]]\n    });\n  }\n}\nreturn [{ json: { card_id, parameters } }];"
       },
       "id": "wfbt4-0002-0002-0002-000000000002",
       "name": "Validar Card ID",
