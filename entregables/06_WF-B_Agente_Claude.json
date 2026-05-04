@@ -165,8 +165,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "card_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('card_id', 'ID numérico de la card de Metabase a ejecutar', 'number') }}",
-            "parameters": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters', 'Array JSON de parámetros para cards filtradas (66727 y 66793). Para otras cards pasar []', 'json') }}"
+            "input": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input', 'JSON string con card_id y parameters. Ejemplo: {\"card_id\": 66727, \"parameters\": []}. Para cards con filtros (66727, 66793) incluye el array parameters con los UUIDs correspondientes.', 'string') }}"
           }
         }
       },

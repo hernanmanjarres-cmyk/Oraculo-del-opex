@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json || {};\nconst card_id = input.card_id || input.cardId || input.body?.card_id;\nconst parameters = input.parameters || input.body?.parameters || [];\nif (!card_id) throw new Error('Parámetro card_id requerido. Inputs: ' + JSON.stringify(input));\nconst validCards = [55707, 55705, 63163, 55773, 65209, 66727, 66793];\nif (!validCards.includes(Number(card_id))) throw new Error('card_id ' + card_id + ' no está en la lista de cards autorizadas: ' + validCards.join(', '));\nreturn [{ json: { card_id: Number(card_id), parameters: Array.isArray(parameters) ? parameters : [] } }];"
+        "jsCode": "const raw = $input.first().json || {};\n// El agente pasa todo como string JSON en el campo 'input'\nlet parsed = {};\nconst inputStr = raw.input || raw.card_id ? JSON.stringify(raw) : '{}';\ntry { parsed = typeof raw.input === 'string' ? JSON.parse(raw.input) : raw; } catch(e) { parsed = raw; }\nconst card_id = parsed.card_id ?? raw.card_id ?? parsed.cardId;\nconst parameters = parsed.parameters ?? raw.parameters ?? [];\nif (!card_id) throw new Error('card_id no encontrado. Input recibido: ' + JSON.stringify(raw));\nconst validCards = [55707, 55705, 63163, 55773, 65209, 66727, 66793];\nif (!validCards.includes(Number(card_id))) throw new Error('card_id ' + card_id + ' no autorizado. Válidos: ' + validCards.join(', '));\nreturn [{ json: { card_id: Number(card_id), parameters: Array.isArray(parameters) ? parameters : [] } }];"
       },
       "id": "wfbt4-0002-0002-0002-000000000002",
       "name": "Validar Card ID",
