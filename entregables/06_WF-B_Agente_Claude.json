@@ -162,35 +162,43 @@
         "name": "query_metabase_card",
         "description": "Consulta una card guardada en Metabase. Usa este tool cuando necesites datos de: CAC agregado por frontera (card_id: 66727), costos OPEX detalle por visita (card_id: 66793), backlog de instalaciones con banda de prioridad (card_id: 65209), visitas generales (card_id: 55773), fronteras/contratos master (card_id: 55705). Para cards con parámetros (66727 y 66793) puedes pasar filters. Para el resto, omite parameters.",
         "workflowId": "WF-B-T4_PLACEHOLDER",
-        "fields": {
-          "values": [
-            { "name": "card_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('card_id', 'ID numérico de la card de Metabase a ejecutar', 'number') }}" },
-            { "name": "parameters", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters', 'Array JSON de parámetros para cards filtradas (66727 y 66793). Para otras cards pasar []', 'json') }}" }
-          ]
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "card_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('card_id', 'ID numérico de la card de Metabase a ejecutar', 'number') }}",
+            "parameters": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters', 'Array JSON de parámetros para cards filtradas (66727 y 66793). Para otras cards pasar []', 'json') }}"
+          }
         }
       },
       "id": "wfbagent-tool-metabase-card",
       "name": "query_metabase_card",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
-      "position": [900, 760]
+      "position": [
+        900,
+        760
+      ]
     },
     {
       "parameters": {
         "name": "query_metabase_sql",
         "description": "Ejecuta SQL nativo contra la capa gold de Metabase (DB prod-bia-gold, ID 2344). Usa este tool para consultas ad-hoc que no están cubiertas por las cards existentes. Tablas disponibles: operations.visitas_general, operations.opex_costs_general, operations.hubspot_general, operations.alcances_general, operations.wms_general, operations.wms_requerimientos, acquisition.growth_cost, acquisition.acquisition_funnel. Solo SELECT o WITH.",
         "workflowId": "WF-B-T5_PLACEHOLDER",
-        "fields": {
-          "values": [
-            { "name": "sql", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'Query SQL SELECT o WITH contra prod-bia-gold (DB 2344). Usar prefijos de schema: operations.visitas_general, operations.opex_costs_general, etc.', 'string') }}" }
-          ]
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sql": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sql', 'Query SQL SELECT o WITH contra prod-bia-gold (DB 2344). Usar prefijos de schema: operations.visitas_general, operations.opex_costs_general, etc.', 'string') }}"
+          }
         }
       },
       "id": "wfbagent-tool-metabase-sql",
       "name": "query_metabase_sql",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
-      "position": [1100, 760]
+      "position": [
+        1100,
+        760
+      ]
     },
     {
       "parameters": {

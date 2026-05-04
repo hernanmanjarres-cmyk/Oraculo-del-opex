@@ -2,12 +2,17 @@
   "name": "WF-B-T5 | Tool: query_metabase_sql",
   "nodes": [
     {
-      "parameters": { "inputSource": "passthrough" },
+      "parameters": {
+        "inputSource": "passthrough"
+      },
       "id": "wfbt5-0001-0001-0001-000000000001",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [250, 500]
+      "position": [
+        250,
+        500
+      ]
     },
     {
       "parameters": {
@@ -17,7 +22,10 @@
       "name": "Validar SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [510, 500]
+      "position": [
+        510,
+        500
+      ]
     },
     {
       "parameters": {
@@ -25,24 +33,28 @@
         "url": "https://bia.metabaseapp.com/api/dataset",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
-        },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": "={{ JSON.stringify({ database: 2344, type: 'native', native: { query: $json.sql } }) }}"
-        },
-        "options": { "timeout": 60000 }
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ database: 2344, type: 'native', native: { query: $json.sql } }) }}",
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "wfbt5-0003-0003-0003-000000000003",
       "name": "Ejecutar SQL Gold Layer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [770, 500],
+      "position": [
+        770,
+        500
+      ],
       "continueOnFail": true,
       "credentials": {
-        "httpHeaderAuth": { "id": "METABASE_CREDENTIAL_ID", "name": "Metabase API Key" }
+        "httpHeaderAuth": {
+          "id": "METABASE_CREDENTIAL_ID",
+          "name": "Metabase API Key"
+        }
       }
     },
     {
@@ -53,15 +65,53 @@
       "name": "Formatear resultado",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1030, 500]
+      "position": [
+        1030,
+        500
+      ]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [[{ "node": "Validar SQL", "type": "main", "index": 0 }]] },
-    "Validar SQL": { "main": [[{ "node": "Ejecutar SQL Gold Layer", "type": "main", "index": 0 }]] },
-    "Ejecutar SQL Gold Layer": { "main": [[{ "node": "Formatear resultado", "type": "main", "index": 0 }]] }
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar SQL": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar SQL Gold Layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar SQL Gold Layer": {
+      "main": [
+        [
+          {
+            "node": "Formatear resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
-  "meta": { "instanceId": "" }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "instanceId": ""
+  }
 }
