@@ -1,0 +1,63 @@
+{
+  "name": "WF-B-T4 | Tool: query_metabase_card",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "wfbt4-0001-0001-0001-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\nconst card_id = input.card_id || input.cardId || input.body?.card_id;\nconst parameters = input.parameters || input.body?.parameters || [];\nif (!card_id) throw new Error('Parámetro card_id requerido. Inputs: ' + JSON.stringify(input));\nconst validCards = [55707, 55705, 63163, 55773, 65209, 66727, 66793];\nif (!validCards.includes(Number(card_id))) throw new Error('card_id ' + card_id + ' no está en la lista de cards autorizadas: ' + validCards.join(', '));\nreturn [{ json: { card_id: Number(card_id), parameters: Array.isArray(parameters) ? parameters : [] } }];"
+      },
+      "id": "wfbt4-0002-0002-0002-000000000002",
+      "name": "Validar Card ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [510, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://bia.metabaseapp.com/api/card/{{ $json.card_id }}/query/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": "={{ JSON.stringify({ parameters: $json.parameters }) }}"
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "wfbt4-0003-0003-0003-000000000003",
+      "name": "Ejecutar Card Metabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [770, 500],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": { "id": "METABASE_CREDENTIAL_ID", "name": "Metabase API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nif (resp.error) return [{ json: { result: 'ERROR', error: resp.error, rows: [], count: 0 } }];\nconst cols = (resp.data?.cols || []).map(c => c.name);\nconst rows_raw = resp.data?.rows || [];\nconst rows = rows_raw.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));\nreturn [{ json: { result: 'OK', rows, count: rows.length } }];"
+      },
+      "id": "wfbt4-0004-0004-0004-000000000004",
+      "name": "Formatear resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1030, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Validar Card ID", "type": "main", "index": 0 }]] },
+    "Validar Card ID": { "main": [[{ "node": "Ejecutar Card Metabase", "type": "main", "index": 0 }]] },
+    "Ejecutar Card Metabase": { "main": [[{ "node": "Formatear resultado", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
+  "meta": { "instanceId": "" }
+}
