@@ -31,8 +31,19 @@
       "parameters": {
         "method": "POST",
         "url": "https://bia.metabaseapp.com/api/dataset",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.METABASE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
@@ -49,13 +60,7 @@
         770,
         500
       ],
-      "continueOnFail": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "METABASE_CREDENTIAL_ID",
-          "name": "Metabase API Key"
-        }
-      }
+      "continueOnFail": true
     },
     {
       "parameters": {

@@ -96,7 +96,7 @@
     {
       "parameters": {
         "name": "query_supabase",
-        "description": "Ejecuta una query SQL en la base de datos OPEX de Supabase (PostgreSQL). Úsala para consultar fronteras, visits, opex_costs, contratistas, tarifas y cualquier dato operativo. IMPORTANTE: usa solo SELECT o WITH. No uses INSERT/UPDATE/DELETE. Limita con LIMIT si esperas muchos resultados.",
+        "description": "Ejecuta SQL en Supabase. ÚSALO ÚNICAMENTE para tablas de lógica del agente: backlog_scoring (semáforos, bandas), v_backlog_alerts (vista de alertas), tariff_catalog (tarifas de contratistas — solo lectura, referencia interna), contractors, operation_types (catálogo). ❌ NO lo uses para visits, opex_costs, fronteras, alcances, wms — esos viven en Metabase. Para datos operacionales usa query_metabase_card o query_metabase_sql. Solo SELECT o WITH.",
         "workflowId": "T1_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
