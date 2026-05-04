@@ -36,7 +36,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "={{ $vars.METABASE_API_KEY }}"
+              "value": "PEGA_AQUI_TU_METABASE_API_KEY"
             },
             {
               "name": "Content-Type",
