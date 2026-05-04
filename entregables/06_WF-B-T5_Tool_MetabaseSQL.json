@@ -3,7 +3,14 @@
   "nodes": [
     {
       "parameters": {
-        "inputSource": "passthrough"
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "sql"
+            }
+          ]
+        }
       },
       "id": "wfbt5-0001-0001-0001-000000000001",
       "name": "Execute Workflow Trigger",
@@ -16,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json || {};\nconst sql = input.sql || input.query || input.body?.sql || input.body?.query || '';\nif (!sql || !String(sql).trim()) throw new Error('Parámetro sql requerido. Inputs: ' + JSON.stringify(input));\nconst sqlStr = String(sql).trim();\nconst norm = sqlStr.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) throw new Error('Solo se permiten queries SELECT o WITH. Se recibió: ' + norm.split(/\\s+/)[0]);\nreturn [{ json: { sql: sqlStr } }];"
+        "jsCode": "const raw = $input.first().json;\nconst sql = raw?.sql || raw?.query || raw?.body?.sql || raw?.body?.query;\nif (!sql || !String(sql).trim()) {\n  // DEBUG: mostrar todo lo que llega para diagnosticar\n  throw new Error('sql vacío. RAW INPUT: ' + JSON.stringify(raw) + ' | KEYS: ' + Object.keys(raw || {}).join(','));\n}\nconst sqlStr = String(sql).trim();\nconst norm = sqlStr.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) {\n  throw new Error('Solo SELECT o WITH. Recibido: ' + norm.split(/\\\\s+/)[0]);\n}\nreturn [{ json: { sql: sqlStr } }];"
       },
       "id": "wfbt5-0002-0002-0002-000000000002",
       "name": "Validar SQL",
