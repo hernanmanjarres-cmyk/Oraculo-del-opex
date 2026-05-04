@@ -14,7 +14,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT bs.bia_code, bs.frontier_name, bs.recommendation_band, bs.delta_traffic_light, bs.opex_delta, bs.cac_per_kwh, bs.net_aging_days, bs.scheduled_date, bs.estimated_opex_cost, bs.sales_opex_cost, f.kam_assigned, f.grid_operator, f.measurement_type, f.city, f.department FROM backlog_scoring bs JOIN fronteras f ON f.bia_code = bs.bia_code WHERE bs.recommendation_band ILIKE '%DESESTIMAR%' OR bs.delta_traffic_light ILIKE '%DÉFICIT ALTO%' OR bs.net_aging_days > 30 ORDER BY bs.net_aging_days DESC NULLS LAST LIMIT 50",
+        "query": "SELECT bs.bia_code, bs.frontier_name, bs.recommendation_band, bs.delta_traffic_light, bs.opex_delta, bs.cac_per_kwh, bs.net_aging_days, bs.scheduled_date, bs.estimated_opex_cost, bs.sales_opex_cost FROM backlog_scoring bs WHERE bs.recommendation_band ILIKE '%DESESTIMAR%' OR bs.delta_traffic_light ILIKE '%DÉFICIT ALTO%' OR bs.net_aging_days > 30 ORDER BY bs.net_aging_days DESC NULLS LAST LIMIT 50",
         "options": {}
       },
       "id": "wfbt2-0002-0002-0002-000000000002",

@@ -117,7 +117,7 @@
     {
       "parameters": {
         "name": "get_backlog_alerts",
-        "description": "Obtiene las fronteras del backlog activo que tienen alertas: recomendación DESESTIMAR, semáforo DÉFICIT ALTO, o aging > 30 días. Devuelve bia_code, frontier_name, recommendation_band, delta_traffic_light, opex_delta, cac_per_kwh, net_aging_days, kam_assigned, grid_operator, measurement_type. No requiere parámetros.",
+        "description": "Obtiene las fronteras del backlog activo que tienen alertas: recomendación DESESTIMAR, semáforo DÉFICIT ALTO, o aging > 30 días. Devuelve bia_code, frontier_name, recommendation_band, delta_traffic_light, opex_delta, cac_per_kwh, net_aging_days, scheduled_date, estimated_opex_cost, sales_opex_cost. Si necesitas kam_assigned, grid_operator, measurement_type, ciudad o departamento, después llama a query_metabase_sql con un SELECT a operations.hubspot_general filtrado por codigo_bia. No requiere parámetros.",
         "workflowId": "T2_WORKFLOW_ID",
         "workflowInputs": {
           "mappingMode": "defineBelow",
