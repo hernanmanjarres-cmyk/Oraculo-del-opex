@@ -3,14 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "inputSource": "workflowInputs",
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "sql"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "id": "wfbt5-0001-0001-0001-000000000001",
       "name": "Execute Workflow Trigger",

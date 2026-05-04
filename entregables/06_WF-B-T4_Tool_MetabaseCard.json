@@ -3,26 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "inputSource": "workflowInputs",
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "card_id"
-            },
-            {
-              "name": "tipo_de_mercado"
-            },
-            {
-              "name": "tipo_de_medida"
-            },
-            {
-              "name": "tipo_de_energia"
-            },
-            {
-              "name": "codigo_bia"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "id": "wfbt4-0001-0001-0001-000000000001",
       "name": "Execute Workflow Trigger",
