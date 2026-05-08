@@ -1,0 +1,573 @@
+{
+  "name": "WF-D | Retención → Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "wfd-0001-0001-0001-0001-000000000001",
+      "name": "Trigger Diario 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construye el body para POST /api/dataset de Metabase\n// Solo OTs de retención 2026: exitosas o fallidas, con costo > 0, contratista != BIA\nconst lines = [\n  'SELECT',\n  '  CASE v.service_type_id',\n  \"    WHEN 'ALRT' THEN 'Emergencia'\",\n  \"    WHEN 'NOTE' THEN 'Normalización de telemedida'\",\n  \"    WHEN 'PQRS' THEN 'PQRS'\",\n  \"    WHEN 'DESX' THEN 'Desconexión'\",\n  \"    WHEN 'INFR' THEN 'Inspección de frontera'\",\n  \"    WHEN 'NOAL' THEN 'Normalización Emergencia'\",\n  \"    WHEN 'RDEP' THEN 'Recuperación de equipos'\",\n  \"    WHEN 'VERF' THEN 'Verificación de consumo'\",\n  \"    WHEN 'VICO' THEN 'Visita Conjunta'\",\n  '    ELSE v.service_type_id',\n  '  END                                                    AS tipo_de_servicio,',\n  '  MAX(v.title)                                           AS codigo_ot,',\n  '  MAX(v.contract_name)                                   AS nombre_de_frontera,',\n  '  ROUND(',\n  '    COALESCE(SUM(oc.service_cost),   0) +',\n  '    COALESCE(SUM(oc.material_cost),  0) +',\n  '    COALESCE(SUM(oc.transport_cost), 0) +',\n  '    COALESCE(SUM(oc.other_cost),     0), 0',\n  '  )                                                      AS costo_total,',\n  '  MAX(v.address)                                         AS direccion,',\n  '  MAX(h.ciudad)                                          AS ciudad,',\n  '  MAX(v.contratista)                                     AS contratista,',\n  '  CASE MAX(v.electrician_status_id)',\n  \"    WHEN 'CLOSURE_SUCCESSFUL' THEN 'Cierre Exitoso'\",\n  \"    WHEN 'CLOSURE_FAILED'     THEN 'Cierre Fallido'\",\n  '    ELSE MAX(v.electrician_status_id)',\n  '  END                                                    AS fase_actual,',\n  '  CASE EXTRACT(MONTH FROM MAX(v.fecha_visita))::int',\n  \"    WHEN 1  THEN 'enero'\",\n  \"    WHEN 2  THEN 'febrero'\",\n  \"    WHEN 3  THEN 'marzo'\",\n  \"    WHEN 4  THEN 'abril'\",\n  \"    WHEN 5  THEN 'mayo'\",\n  \"    WHEN 6  THEN 'junio'\",\n  \"    WHEN 7  THEN 'julio'\",\n  \"    WHEN 8  THEN 'agosto'\",\n  \"    WHEN 9  THEN 'septiembre'\",\n  \"    WHEN 10 THEN 'octubre'\",\n  \"    WHEN 11 THEN 'noviembre'\",\n  \"    WHEN 12 THEN 'diciembre'\",\n  \"  END || ' ' || EXTRACT(DAY FROM MAX(v.fecha_visita))::int || ', ' || EXTRACT(YEAR FROM MAX(v.fecha_visita))::int AS fecha_programada,\",\n  \"  EXTRACT(YEAR FROM MAX(v.fecha_visita))::int || '-' || EXTRACT(MONTH FROM MAX(v.fecha_visita))::int AS periodo,\",\n  '  MAX(v.internal_bia_code)                               AS codigo_bia,',\n  '  MAX(v.contract_id::text)                               AS contract_id,',\n  '  MAX(v.wo_generate_by)                                  AS generada_por,',\n  '  MAX(v.reason)                                          AS razon_de_cierre,',\n  '  MAX(v.observation)                                     AS observacion_de_cierre',\n  'FROM operations.visitas_general v',\n  'LEFT JOIN operations.opex_costs_general oc',\n  '  ON oc.visit_id::text = v.id::text AND oc.is_bia = false',\n  'LEFT JOIN operations.hubspot_general h',\n  '  ON h.codigo_bia = v.internal_bia_code',\n  \"WHERE v.service_type_id IN ('ALRT','NOTE','PQRS','DESX','INFR','NOAL','RDEP','VERF','VICO')\",\n  \"  AND v.electrician_status_id IN ('CLOSURE_SUCCESSFUL','CLOSURE_FAILED')\",\n  \"  AND v.fecha_visita >= '2026-01-01'\",\n  'GROUP BY v.id, v.service_type_id',\n  'HAVING',\n  '  COALESCE(SUM(oc.service_cost),   0) +',\n  '  COALESCE(SUM(oc.material_cost),  0) +',\n  '  COALESCE(SUM(oc.transport_cost), 0) +',\n  '  COALESCE(SUM(oc.other_cost),     0) > 0',\n  'ORDER BY MAX(v.fecha_visita) DESC'\n];\n\nreturn [{ json: { database: 2344, type: 'native', native: { query: lines.join('\\n') } } }];"
+      },
+      "id": "wfd-0002-0002-0002-0002-000000000002",
+      "name": "Build SQL Metabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        490,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bia.metabaseapp.com/api/dataset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "PEGA_AQUI_TU_METABASE_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "wfd-0003-0003-0003-0003-000000000003",
+      "name": "HTTP Metabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        750,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Convierte respuesta Metabase {cols, rows} → array de objetos\nconst body = $input.first().json;\n\n// Detectar errores comunes de Metabase antes de parsear\nif (body.errors)      throw new Error('Metabase auth error: ' + JSON.stringify(body.errors));\nif (body.message)     throw new Error('Metabase error: ' + body.message);\nif (body.error)       throw new Error('Metabase error: ' + body.error);\nif (body.status && body.status !== 'completed') {\n  throw new Error('Metabase status: ' + body.status + ' | ' + JSON.stringify(body).slice(0, 300));\n}\n\nconst data = body.data || {};\nconst cols = (data.cols || []).map(c => c.name);\nconst rows = data.rows || [];\n\nif (!cols.length) {\n  throw new Error('Metabase sin columnas. Respuesta completa: ' + JSON.stringify(body).slice(0, 1000));\n}\n\nconst metabase_rows = rows.map(row => {\n  const obj = {};\n  cols.forEach((col, i) => { obj[col] = row[i] ?? null; });\n  return obj;\n});\n\nreturn [{ json: { metabase_rows, total: metabase_rows.length } }];"
+      },
+      "id": "wfd-0004-0004-0004-0004-000000000004",
+      "name": "Parse Metabase Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1010,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getRows",
+        "documentId": {
+          "__rl": true,
+          "value": "1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "1235750217",
+          "mode": "list",
+          "cachedResultName": "COGS V2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0/edit#gid=1235750217"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "wfd-0005-0005-0005-0005-000000000005",
+      "name": "GSheets Leer Filas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1270,
+        500
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets BIA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Extrae los codigo_ot que ya existen en el Sheet (columna B)\nconst items = $input.all();\nconst sheet_codes = items\n  .map(i => i.json.codigo_ot)\n  .filter(v => v != null && v !== '');\nreturn [{ json: { sheet_codes } }];"
+      },
+      "id": "wfd-0006-0006-0006-0006-000000000006",
+      "name": "Agregar Codigos Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1530,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT codigo_ot FROM \"Oraculo_Opex\".retencion_sheet_log",
+        "options": {}
+      },
+      "id": "wfd-0007-0007-0007-0007-000000000007",
+      "name": "Postgres Query Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1790,
+        500
+      ],
+      "continueOnFail": true,
+      "settings": {
+        "alwaysOutputData": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Calcula qué OTs del Metabase faltan en el Sheet\n// items_to_add: en Metabase pero NO en Sheet (nuevas + repuestas si alguien borró)\n// items_to_log: en Metabase pero NO en el log Supabase (verdaderamente nuevas)\nconst metabaseRows = $('Parse Metabase Response').first().json.metabase_rows || [];\nconst sheetCodes   = new Set(($('Agregar Codigos Sheet').first().json.sheet_codes || []).map(String));\nconst logItems     = $input.all();\nconst logCodes     = new Set(logItems.map(i => i.json.codigo_ot).filter(Boolean).map(String));\n\nconst items_to_add = metabaseRows.filter(r => !sheetCodes.has(String(r.codigo_ot)));\nconst items_to_log = items_to_add.filter(r => !logCodes.has(String(r.codigo_ot)));\n\nreturn [{ json: {\n  has_items:    items_to_add.length > 0,\n  items_to_add,\n  items_to_log,\n  count:        items_to_add.length,\n  new_count:    items_to_log.length\n} }];"
+      },
+      "id": "wfd-0008-0008-0008-0008-000000000008",
+      "name": "Calcular Diff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2050,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-items-001",
+              "leftValue": "={{ $json.has_items }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfd-0009-0009-0009-0009-000000000009",
+      "name": "IF Hay Items",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2310,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Convierte items_to_add en items individuales de n8n\n// Renombra campos para coincidir con los encabezados del Sheet\nconst { items_to_add } = $input.first().json;\nif (!items_to_add || !items_to_add.length) return [];\n\nreturn items_to_add.map(r => ({ json: {\n  'tipo_de_servicio':      r.tipo_de_servicio,\n  'codigo_ot':             r.codigo_ot,\n  'nombre_de_frontera':    r.nombre_de_frontera,\n  'costo_total ($)':       r.costo_total,\n  'direccion':             r.direccion,\n  'ciudad':                r.ciudad,\n  'contratista':           r.contratista,\n  'fase_actual':           r.fase_actual,\n  'fecha_programada':      r.fecha_programada,\n  'Periodo':               r.periodo,\n  'codigo_bia':            r.codigo_bia,\n  'contract_id':           r.contract_id,\n  'Generada por':          r.generada_por,\n  'Razon de cierre':       r.razon_de_cierre,\n  'Observacion de cierre': r.observacion_de_cierre\n} }));"
+      },
+      "id": "wfd-0010-0010-0010-0010-000000000010",
+      "name": "Split Items para Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2570,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "1235750217",
+          "mode": "list",
+          "cachedResultName": "COGS V2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0/edit#gid=1235750217"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "codigo_ot"
+          ],
+          "schema": [
+            {
+              "id": "tipo_de_servicio",
+              "displayName": "tipo_de_servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "codigo_ot",
+              "displayName": "codigo_ot",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_de_frontera",
+              "displayName": "nombre_de_frontera",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "costo_total ($)",
+              "displayName": "costo_total ($)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direccion",
+              "displayName": "direccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ciudad",
+              "displayName": "ciudad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contratista",
+              "displayName": "contratista",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fase_actual",
+              "displayName": "fase_actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_programada",
+              "displayName": "fecha_programada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Periodo",
+              "displayName": "Periodo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "codigo_bia",
+              "displayName": "codigo_bia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contract_id",
+              "displayName": "contract_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Generada por",
+              "displayName": "Generada por",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Razon de cierre",
+              "displayName": "Razon de cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Observacion de cierre",
+              "displayName": "Observacion de cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wfd-0011-0011-0011-0011-000000000011",
+      "name": "GSheets Agregar Filas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        2830,
+        360
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets BIA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Construye INSERT para retencion_sheet_log\n// ON CONFLICT DO NOTHING: maneja tanto nuevas como repuestas sin error\nconst items = $input.all();\nif (!items.length) return [{ json: { sql: 'SELECT 1 -- nada que registrar', skipped: true } }];\n\nconst esc = s => String(s ?? '').replace(/'/g, \"''\");\nconst vals = items.map(i => {\n  const r = i.json;\n  return `('${esc(r['codigo_ot'])}', '${esc(r['Periodo'])}', '${esc(r['tipo_de_servicio'])}')`;\n}).join(',\\n');\n\nconst sql = 'INSERT INTO \"Oraculo_Opex\".retencion_sheet_log (codigo_ot, periodo, tipo_de_servicio)\\nVALUES\\n' + vals + '\\nON CONFLICT (codigo_ot) DO NOTHING';\n\nreturn [{ json: { sql, count: items.length } }];"
+      },
+      "id": "wfd-0012-0012-0012-0012-000000000012",
+      "name": "Build INSERT SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3090,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "wfd-0013-0013-0013-0013-000000000013",
+      "name": "Postgres INSERT Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3350,
+        360
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Trigger Diario 6am": {
+      "main": [
+        [
+          {
+            "node": "Build SQL Metabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SQL Metabase": {
+      "main": [
+        [
+          {
+            "node": "HTTP Metabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Metabase": {
+      "main": [
+        [
+          {
+            "node": "Parse Metabase Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Metabase Response": {
+      "main": [
+        [
+          {
+            "node": "GSheets Leer Filas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSheets Leer Filas": {
+      "main": [
+        [
+          {
+            "node": "Agregar Codigos Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar Codigos Sheet": {
+      "main": [
+        [
+          {
+            "node": "Postgres Query Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Query Log": {
+      "main": [
+        [
+          {
+            "node": "Calcular Diff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Diff": {
+      "main": [
+        [
+          {
+            "node": "IF Hay Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay Items": {
+      "main": [
+        [
+          {
+            "node": "Split Items para Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Split Items para Sheet": {
+      "main": [
+        [
+          {
+            "node": "GSheets Agregar Filas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSheets Agregar Filas": {
+      "main": [
+        [
+          {
+            "node": "Build INSERT SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build INSERT SQL": {
+      "main": [
+        [
+          {
+            "node": "Postgres INSERT Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
