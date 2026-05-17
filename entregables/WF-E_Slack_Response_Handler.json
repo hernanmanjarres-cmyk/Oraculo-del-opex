@@ -1,0 +1,452 @@
+{
+  "name": "WF-E | Slack Response Handler (COGS)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-cogs-response",
+        "responseMode": "responseNode",
+        "options": { "rawBody": false }
+      },
+      "id": "wfe-0001",
+      "name": "Webhook Slack",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "slack-cogs-response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Router: detecta el tipo de payload de Slack ──\n// Slack envía 3 tipos:\n//   1. url_verification: challenge inicial (JSON body)\n//   2. block_actions: click en un botón (payload= form-urlencoded con campo 'payload')\n//   3. view_submission: submit de modal (payload= form-urlencoded con campo 'payload')\n//   4. event_callback: mensaje en canal (Events API, JSON body) — ignorado en esta versión\n\nconst raw = $input.first().json;\nlet body = null;\n\n// Caso 1: body directo como JSON\nif (raw.type) body = raw;\n// Caso 2: body anidado en raw.body como objeto\nelse if (raw.body && typeof raw.body === 'object' && (raw.body.type || raw.body.payload)) body = raw.body;\n// Caso 3: body anidado en raw.body como string\nelse if (raw.body && typeof raw.body === 'string') {\n  try { body = JSON.parse(raw.body); } catch(e) {}\n}\n// Fallback\nif (!body) body = raw;\n\n// ── url_verification (challenge) ──\nif (body.type === 'url_verification') {\n  return [{ json: { route: 'challenge', challenge: body.challenge || '' } }];\n}\n\n// ── block_actions / view_submission llegan como form-urlencoded con campo 'payload' ──\nlet payload = null;\nif (body.payload) {\n  try {\n    payload = typeof body.payload === 'string' ? JSON.parse(body.payload) : body.payload;\n  } catch(e) {}\n}\n\nif (payload) {\n  // ── Click en botón ──\n  if (payload.type === 'block_actions') {\n    const action  = (payload.actions && payload.actions[0]) || {};\n    const codigo  = action.value || '';\n    const userId  = (payload.user && payload.user.id) || '';\n    const userName= (payload.user && (payload.user.name || payload.user.username)) || '';\n    const triggerId = payload.trigger_id || '';\n    const channel = (payload.channel && payload.channel.id) || (payload.container && payload.container.channel_id) || '';\n    const msgTs   = (payload.message && payload.message.ts) || (payload.container && payload.container.message_ts) || '';\n\n    return [{ json: {\n      route: action.action_id, // 'confirm_ot' | 'open_form'\n      codigo_ot: codigo,\n      user_id: userId,\n      user_name: userName,\n      trigger_id: triggerId,\n      channel: channel,\n      message_ts: msgTs\n    } }];\n  }\n\n  // ── Submit del modal ──\n  if (payload.type === 'view_submission') {\n    const view    = payload.view || {};\n    const meta    = JSON.parse(view.private_metadata || '{}');\n    const userId  = (payload.user && payload.user.id) || '';\n    const userName= (payload.user && (payload.user.name || payload.user.username)) || '';\n    const values  = (view.state && view.state.values) || {};\n\n    // Helper para leer valor de un block\n    const getVal = (block, action) => {\n      const v = values[block] && values[block][action];\n      if (!v) return null;\n      if (v.type === 'static_select')      return v.selected_option ? v.selected_option.value : null;\n      if (v.type === 'plain_text_input')   return v.value || null;\n      if (v.type === 'number_input')       return v.value ? Number(v.value) : null;\n      if (v.type === 'url_text_input')     return v.value || null;\n      return v.value || null;\n    };\n\n    return [{ json: {\n      route: 'form_submit',\n      codigo_ot:     meta.codigo_ot,\n      channel:       meta.channel,\n      message_ts:    meta.message_ts,\n      user_id:       userId,\n      user_name:     userName,\n      imputable_a:   getVal('imputable_a',   'val'),\n      motivo_cierre: getVal('motivo_cierre', 'val'),\n      cotizacion:    getVal('cotizacion',    'val'),\n      comentarios:   getVal('comentarios',   'val'),\n      link_customer: getVal('link_customer', 'val'),\n      monto_cobro:   getVal('monto_cobro',   'val'),\n      pipefy_id:     getVal('pipefy_id',     'val')\n    } }];\n  }\n}\n\nreturn [{ json: { route: 'ignore' } }];\n"
+      },
+      "id": "wfe-router",
+      "name": "Router Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "challenge",
+                    "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "challenge"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "confirm_ot",
+                    "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirm_ot"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "id": "r3",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "open_form",
+                    "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "open_form"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "id": "r4",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "form_submit",
+                    "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "form_submit"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wfe-switch",
+      "name": "Switch Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [750, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ challenge: $json.challenge }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+          }
+        }
+      },
+      "id": "wfe-respond-challenge",
+      "name": "Respond Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": { "responseCode": 200 }
+      },
+      "id": "wfe-respond-ok-confirm",
+      "name": "Respond 200 (Confirm)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 380]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": { "responseCode": 200 }
+      },
+      "id": "wfe-respond-ok-form",
+      "name": "Respond 200 (Open Form)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 560]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": { "responseCode": 200 }
+      },
+      "id": "wfe-respond-ok-submit",
+      "name": "Respond 200 (Submit)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 740]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT codigo_ot, tipo_de_servicio, codigo_bia, nombre_de_frontera, costo_total,\n       contratista, fase_actual, fecha_programada, periodo, generada_por,\n       razon_de_cierre, observacion_de_cierre,\n       cotizacion, imputable_a, motivo_cierre, comentarios,\n       link_customer, monto_cobro, pipefy_id,\n       clasificacion_estado, slack_channel, slack_ts\nFROM \"Oraculo_Opex\".ot_clasificacion\nWHERE codigo_ot = '{{ $json.codigo_ot }}'\nLIMIT 1",
+        "options": {}
+      },
+      "id": "wfe-pg-lookup-confirm",
+      "name": "PG Lookup (Confirm)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 380],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT codigo_ot, tipo_de_servicio, codigo_bia, nombre_de_frontera, costo_total,\n       contratista, fase_actual, fecha_programada, periodo, generada_por,\n       razon_de_cierre, observacion_de_cierre,\n       cotizacion, imputable_a, motivo_cierre, comentarios,\n       link_customer, monto_cobro, pipefy_id,\n       clasificacion_estado, slack_channel, slack_ts\nFROM \"Oraculo_Opex\".ot_clasificacion\nWHERE codigo_ot = '{{ $('Router Payload').first().json.codigo_ot }}'\nLIMIT 1",
+        "options": {}
+      },
+      "id": "wfe-pg-lookup-form",
+      "name": "PG Lookup (Form)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 560],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Procesa el click en \"Confirmar propuesta\" ──\nconst ev = $('Router Payload').first().json;\nconst ot = $input.first().json;\n\nif (!ot || !ot.codigo_ot) {\n  return [{ json: { skip: true, reason: 'OT no encontrada: ' + ev.codigo_ot } }];\n}\n\nconst esc = s => String(s ?? '').replace(/'/g, \"''\");\nconst now = new Date().toISOString();\n\n// Lógica de cierre:\n// Si cotización != 'Sí' → caso completamente cerrado al confirmar\n// Si cotización == 'Sí' → falta cobro + pipefy\nconst requiereCobro = (ot.cotizacion === 'Sí' || ot.cotizacion === 'Si');\nconst tienesCobro   = ot.monto_cobro != null && Number(ot.monto_cobro) > 0;\nconst tienesPipefy  = !!ot.pipefy_id;\nconst casoCerrado   = !requiereCobro || (tienesCobro && tienesPipefy);\n\nconst sql_update = `UPDATE \"Oraculo_Opex\".ot_clasificacion SET\n  clasificacion_estado = 'confirmada',\n  confirmed_at = '${now}',\n  confirmed_by = '${esc(ev.user_id)}',\n  caso_cerrado = ${casoCerrado}\nWHERE codigo_ot = '${esc(ot.codigo_ot)}'`;\n\nreturn [{ json: {\n  skip: false,\n  ot,\n  ev,\n  sql_update,\n  caso_cerrado: casoCerrado,\n  requiere_cobro: requiereCobro,\n  action: 'confirm'\n} }];\n"
+      },
+      "id": "wfe-process-confirm",
+      "name": "Process Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 380]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql_update }}",
+        "options": {}
+      },
+      "id": "wfe-pg-update-confirm",
+      "name": "PG UPDATE (Confirm)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1750, 380],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Construye payload de views.open con el modal del formulario ──\nconst ev = $('Router Payload').first().json;\nconst ot = $input.first().json;\n\nif (!ot || !ot.codigo_ot) {\n  return [{ json: { skip: true, reason: 'OT no encontrada: ' + ev.codigo_ot } }];\n}\n\n// Opciones de los dropdowns\nconst opts = (arr) => arr.map(v => ({ text: { type: 'plain_text', text: v }, value: v }));\nconst imputableOpts = opts([\n  'En revisión',\n  'Externa imputable al OR',\n  'Interna imputable a BIA',\n  'Interna imputable al Cliente',\n  'No imputable',\n  'Se asume por servicio',\n  'Factores externos'\n]);\nconst motivoOpts = opts([\n  'Atención a PQR',\n  'Atención emergencia',\n  'Cliente no gestionó permisos',\n  'En revisión',\n  'No se tenían los insumos',\n  'Normalización de Telemedida Exitosa',\n  'Revisión de la medida',\n  'Verificación de consumo',\n  'Generada por ops',\n  'Retiro de equipos',\n  'correo persona equivocada',\n  'Equipo averiado',\n  'Factores externos',\n  'Desx/Recx remota'\n]);\nconst cotizacionOpts = opts(['Sí', 'No', 'En revisión', 'N/A']);\n\n// Encuentra la opción seleccionada (initial_option)\nconst initial = (list, val) => list.find(o => o.value === val) || null;\n\nconst blocks = [\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text:\n      '*OT:* `' + ot.codigo_ot + '` · *Servicio:* ' + (ot.tipo_de_servicio || '—') +\n      ' · *Fase:* ' + (ot.fase_actual || '—')\n    }\n  },\n  { type: 'divider' },\n  {\n    type: 'input',\n    block_id: 'imputable_a',\n    label: { type: 'plain_text', text: 'Imputable a' },\n    element: Object.assign({\n      type: 'static_select',\n      action_id: 'val',\n      options: imputableOpts\n    }, initial(imputableOpts, ot.imputable_a) ? { initial_option: initial(imputableOpts, ot.imputable_a) } : {})\n  },\n  {\n    type: 'input',\n    block_id: 'motivo_cierre',\n    label: { type: 'plain_text', text: 'Motivo de cierre' },\n    element: Object.assign({\n      type: 'static_select',\n      action_id: 'val',\n      options: motivoOpts\n    }, initial(motivoOpts, ot.motivo_cierre) ? { initial_option: initial(motivoOpts, ot.motivo_cierre) } : {})\n  },\n  {\n    type: 'input',\n    block_id: 'cotizacion',\n    label: { type: 'plain_text', text: '¿Hay cotización asumida por el cliente?' },\n    element: Object.assign({\n      type: 'static_select',\n      action_id: 'val',\n      options: cotizacionOpts\n    }, initial(cotizacionOpts, ot.cotizacion) ? { initial_option: initial(cotizacionOpts, ot.cotizacion) } : {})\n  },\n  {\n    type: 'input',\n    block_id: 'comentarios',\n    label: { type: 'plain_text', text: 'Comentarios' },\n    element: {\n      type: 'plain_text_input',\n      action_id: 'val',\n      multiline: true,\n      max_length: 500,\n      initial_value: (ot.comentarios || '').substring(0, 500)\n    }\n  },\n  { type: 'divider' },\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text: '*Opcional — solo si aplica:*' }\n  },\n  {\n    type: 'input',\n    block_id: 'link_customer',\n    optional: true,\n    label: { type: 'plain_text', text: 'Link de Kustomer' },\n    element: Object.assign({\n      type: 'plain_text_input',\n      action_id: 'val',\n      placeholder: { type: 'plain_text', text: 'https://...' }\n    }, ot.link_customer ? { initial_value: ot.link_customer } : {})\n  },\n  {\n    type: 'input',\n    block_id: 'monto_cobro',\n    optional: true,\n    label: { type: 'plain_text', text: 'Monto de cobro (COP, solo número)' },\n    element: Object.assign({\n      type: 'plain_text_input',\n      action_id: 'val',\n      placeholder: { type: 'plain_text', text: '500000' }\n    }, ot.monto_cobro ? { initial_value: String(ot.monto_cobro) } : {})\n  },\n  {\n    type: 'input',\n    block_id: 'pipefy_id',\n    optional: true,\n    label: { type: 'plain_text', text: 'Pipefy ID' },\n    element: Object.assign({\n      type: 'plain_text_input',\n      action_id: 'val',\n      placeholder: { type: 'plain_text', text: '12345' }\n    }, ot.pipefy_id ? { initial_value: ot.pipefy_id } : {})\n  }\n];\n\nconst modal = {\n  trigger_id: ev.trigger_id,\n  view: {\n    type: 'modal',\n    callback_id: 'cogs_form_submit',\n    private_metadata: JSON.stringify({\n      codigo_ot: ot.codigo_ot,\n      channel: ev.channel,\n      message_ts: ev.message_ts\n    }),\n    title:  { type: 'plain_text', text: 'OT ' + ot.codigo_ot.substring(0, 18) },\n    submit: { type: 'plain_text', text: 'Guardar' },\n    close:  { type: 'plain_text', text: 'Cancelar' },\n    blocks: blocks\n  }\n};\n\nreturn [{ json: { skip: false, modal_body: modal } }];\n"
+      },
+      "id": "wfe-build-modal",
+      "name": "Build Modal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 560]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/views.open",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer PEGA_SLACK_BOT_TOKEN" },
+            { "name": "Content-Type", "value": "application/json; charset=utf-8" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.modal_body) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "wfe-open-modal",
+      "name": "HTTP views.open",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1750, 560],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Procesa el submit del formulario ──\nconst ev    = $('Router Payload').first().json;\nconst esc   = s => String(s ?? '').replace(/'/g, \"''\");\nconst now   = new Date().toISOString();\nconst code  = ev.codigo_ot;\n\nconst imputable     = ev.imputable_a;\nconst motivo        = ev.motivo_cierre;\nconst cotizacion    = ev.cotizacion;\nconst comentarios   = ev.comentarios;\nconst link_customer = ev.link_customer;\nconst monto_cobro   = ev.monto_cobro ? Number(String(ev.monto_cobro).replace(/[^0-9]/g, '')) : null;\nconst pipefy_id     = ev.pipefy_id;\n\n// Lógica de cierre\nconst requiereCobro = (cotizacion === 'Sí' || cotizacion === 'Si');\nconst tienesCobro   = monto_cobro != null && monto_cobro > 0;\nconst tienesPipefy  = !!pipefy_id;\nconst casoCerrado   = !requiereCobro || (tienesCobro && tienesPipefy);\n\nconst sets = [\n  \"clasificacion_estado = 'corregida'\",\n  \"confirmed_at = '\" + now + \"'\",\n  \"confirmed_by = '\" + esc(ev.user_id) + \"'\",\n  \"imputable_a = '\" + esc(imputable) + \"'\",\n  \"motivo_cierre = '\" + esc(motivo) + \"'\",\n  \"cotizacion = '\" + esc(cotizacion) + \"'\",\n  \"comentarios = '\" + esc(comentarios) + \"'\",\n  \"caso_cerrado = \" + casoCerrado\n];\nif (link_customer)  sets.push(\"link_customer = '\" + esc(link_customer) + \"'\");\nif (monto_cobro)    sets.push(\"monto_cobro = \" + monto_cobro);\nif (pipefy_id)      sets.push(\"pipefy_id = '\" + esc(pipefy_id) + \"'\");\n\nconst sql_update = \"UPDATE \\\"Oraculo_Opex\\\".ot_clasificacion SET \" + sets.join(', ') +\n  \" WHERE codigo_ot = '\" + esc(code) + \"'\";\n\n// GSheets update payload\nconst gsheets_update = {\n  'codigo_ot': code,\n  '¿Hay cotización asumida por el cliente?': cotizacion,\n  'Imputable a': imputable,\n  'Motivo de cierre': motivo,\n  'Comentarios': comentarios\n};\nif (link_customer) gsheets_update['Link de kustomer'] = link_customer;\nif (monto_cobro)   gsheets_update['Valor Ticket Pipefy'] = monto_cobro;\nif (pipefy_id)     gsheets_update['Pipefy Finanzas'] = pipefy_id;\n\nreturn [{ json: {\n  sql_update,\n  gsheets_update,\n  codigo_ot: code,\n  channel: ev.channel,\n  message_ts: ev.message_ts,\n  caso_cerrado: casoCerrado,\n  requiere_cobro: requiereCobro,\n  user_id: ev.user_id,\n  action: 'form_submit'\n} }];\n"
+      },
+      "id": "wfe-process-form",
+      "name": "Process Form Submit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 740]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql_update }}",
+        "options": {}
+      },
+      "id": "wfe-pg-update-form",
+      "name": "PG UPDATE (Form)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1500, 740],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "1235750217",
+          "mode": "list",
+          "cachedResultName": "COGS V2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1VQHopinrZNBLaCxmhfAvrqmjmrmGZyApcJ9gqELrqO0/edit#gid=1235750217"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "codigo_ot": "={{ $('Process Form Submit').first().json.gsheets_update.codigo_ot }}",
+            "¿Hay cotización asumida por el cliente?": "={{ $('Process Form Submit').first().json.gsheets_update['¿Hay cotización asumida por el cliente?'] || '' }}",
+            "Imputable a": "={{ $('Process Form Submit').first().json.gsheets_update['Imputable a'] || '' }}",
+            "Motivo de cierre": "={{ $('Process Form Submit').first().json.gsheets_update['Motivo de cierre'] || '' }}",
+            "Comentarios": "={{ $('Process Form Submit').first().json.gsheets_update['Comentarios'] || '' }}"
+          },
+          "matchingColumns": ["codigo_ot"],
+          "schema": [
+            { "id": "codigo_ot", "displayName": "codigo_ot", "required": true, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wfe-gsheets-form",
+      "name": "GSheets Update (Form)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1750, 740],
+      "continueOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "GOOGLE_SHEETS_CREDENTIAL_ID", "name": "Google Sheets BIA" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Reconstruye el mensaje original con check ☑️ o ✅ ──\n// Lee el estado actual de la OT después del UPDATE y arma el header nuevo\n\nconst src = $('Process Confirm').first?.()?.json || $('Process Form Submit').first?.()?.json || $input.first().json;\nconst ot  = src.ot || {};\nconst code = src.codigo_ot || (ot && ot.codigo_ot) || '';\nconst channel = src.channel || src.ev?.channel || '';\nconst message_ts = src.message_ts || src.ev?.message_ts || '';\nconst userId = src.user_id || src.ev?.user_id || '';\nconst casoCerrado = src.caso_cerrado;\nconst requiereCobro = src.requiere_cobro;\nconst action = src.action;\n\n// Header dinámico según estado\nlet header;\nif (casoCerrado) {\n  header = '✅ ' + code + ' — Cerrada';\n} else if (requiereCobro) {\n  header = '☑️ ' + code + ' — Clasificada · Falta cobro';\n} else {\n  header = '☑️ ' + code + ' — Clasificada';\n}\n\n// Texto del check al final\nconst userMention = userId ? '<@' + userId + '>' : 'usuario';\nconst verbo = action === 'confirm' ? 'Confirmada' : 'Diligenciada';\n\nreturn [{ json: {\n  channel,\n  message_ts,\n  new_header: header,\n  user_mention: userMention,\n  verbo,\n  caso_cerrado: casoCerrado\n} }];\n"
+      },
+      "id": "wfe-build-update",
+      "name": "Build chat.update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 560]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM \"Oraculo_Opex\".ot_clasificacion WHERE codigo_ot = '{{ $json.codigo_ot || $('Router Payload').first().json.codigo_ot }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "wfe-pg-refetch",
+      "name": "PG Refetch OT",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 380],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "SUPABASE_CREDENTIAL_ID", "name": "Supabase OPEX" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Construye el body de chat.update con el mensaje actualizado completo ──\nconst ot   = $input.first().json;\nconst meta = $('Build chat.update').first().json;\nconst code = ot.codigo_ot;\n\nconst fmtCOP = (n) => {\n  if (n == null || isNaN(n)) return '—';\n  return '$' + Number(n).toLocaleString('es-CO', {maximumFractionDigits:0});\n};\n\nconst obs   = (ot.observacion_de_cierre || 'Sin observación').substring(0, 2800);\nconst razon = ot.razon_de_cierre || '—';\n\n// Status row según estado\nlet statusLine;\nif (meta.caso_cerrado) {\n  statusLine = '*Estado:* ✅ Caso cerrado · ' + meta.verbo + ' por ' + meta.user_mention;\n} else {\n  statusLine = '*Estado:* ☑️ ' + meta.verbo + ' por ' + meta.user_mention + (ot.cotizacion === 'Sí' || ot.cotizacion === 'Si' ? ' · ⏳ Falta cobro / Pipefy' : '');\n}\n\nconst blocks = [\n  {\n    type: 'header',\n    text: { type: 'plain_text', text: meta.new_header, emoji: true }\n  },\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text: statusLine }\n  },\n  {\n    type: 'section',\n    fields: [\n      { type: 'mrkdwn', text: '*Servicio:* ' + (ot.tipo_de_servicio || '—') },\n      { type: 'mrkdwn', text: '*Fase:* ' + (ot.fase_actual || '—') },\n      { type: 'mrkdwn', text: '*Frontera:* ' + (ot.codigo_bia || '—') },\n      { type: 'mrkdwn', text: '*Contratista:* ' + (ot.contratista || '—') },\n      { type: 'mrkdwn', text: '*Costo:* ' + fmtCOP(ot.costo_total) },\n      { type: 'mrkdwn', text: '*Cobro:* ' + (ot.monto_cobro ? fmtCOP(ot.monto_cobro) : '—') }\n    ]\n  },\n  { type: 'divider' },\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text:\n      '*Clasificación final:*\\n' +\n      '• *Imputable a:* `' + (ot.imputable_a || '—') + '`\\n' +\n      '• *Motivo:* `' + (ot.motivo_cierre || '—') + '`\\n' +\n      '• *Cotización:* `' + (ot.cotizacion || '—') + '`\\n' +\n      '• *Pipefy:* `' + (ot.pipefy_id || '—') + '`\\n\\n' +\n      '*Comentarios:* ' + (ot.comentarios || '—')\n    }\n  },\n  {\n    type: 'section',\n    text: { type: 'mrkdwn', text: '*Observación original:*\\n> ' + obs.replace(/\\n/g, '\\n> ') }\n  }\n];\n\n// Si no está cerrado y requiere cobro → mostrar botón para diligenciar otra vez\nif (!meta.caso_cerrado) {\n  blocks.push({ type: 'divider' });\n  blocks.push({\n    type: 'actions',\n    block_id: 'ot_actions',\n    elements: [{\n      type: 'button',\n      text: { type: 'plain_text', text: '✏️ Actualizar / Agregar cobro' },\n      action_id: 'open_form',\n      value: code\n    }]\n  });\n}\n\nconst body = {\n  channel: meta.channel,\n  ts: meta.message_ts,\n  text: code + (meta.caso_cerrado ? ' — Cerrada' : ' — Clasificada'),\n  blocks: blocks\n};\n\nreturn [{ json: { update_body: body } }];\n"
+      },
+      "id": "wfe-build-update-body",
+      "name": "Build Update Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer PEGA_SLACK_BOT_TOKEN" },
+            { "name": "Content-Type", "value": "application/json; charset=utf-8" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.update_body) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "wfe-chat-update",
+      "name": "HTTP chat.update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 500],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Webhook Slack": {
+      "main": [[{ "node": "Router Payload", "type": "main", "index": 0 }]]
+    },
+    "Router Payload": {
+      "main": [[{ "node": "Switch Route", "type": "main", "index": 0 }]]
+    },
+    "Switch Route": {
+      "main": [
+        [{ "node": "Respond Challenge", "type": "main", "index": 0 }],
+        [
+          { "node": "Respond 200 (Confirm)", "type": "main", "index": 0 },
+          { "node": "PG Lookup (Confirm)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Respond 200 (Open Form)", "type": "main", "index": 0 },
+          { "node": "PG Lookup (Form)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Respond 200 (Submit)", "type": "main", "index": 0 },
+          { "node": "Process Form Submit", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "PG Lookup (Confirm)": {
+      "main": [[{ "node": "Process Confirm", "type": "main", "index": 0 }]]
+    },
+    "Process Confirm": {
+      "main": [[{ "node": "PG UPDATE (Confirm)", "type": "main", "index": 0 }]]
+    },
+    "PG UPDATE (Confirm)": {
+      "main": [[
+        { "node": "PG Refetch OT", "type": "main", "index": 0 },
+        { "node": "Build chat.update", "type": "main", "index": 0 }
+      ]]
+    },
+    "PG Lookup (Form)": {
+      "main": [[{ "node": "Build Modal", "type": "main", "index": 0 }]]
+    },
+    "Build Modal": {
+      "main": [[{ "node": "HTTP views.open", "type": "main", "index": 0 }]]
+    },
+    "Process Form Submit": {
+      "main": [[{ "node": "PG UPDATE (Form)", "type": "main", "index": 0 }]]
+    },
+    "PG UPDATE (Form)": {
+      "main": [[
+        { "node": "GSheets Update (Form)", "type": "main", "index": 0 },
+        { "node": "Build chat.update", "type": "main", "index": 0 }
+      ]]
+    },
+    "GSheets Update (Form)": {
+      "main": [[{ "node": "PG Refetch OT", "type": "main", "index": 0 }]]
+    },
+    "Build chat.update": {
+      "main": [[{ "node": "Build Update Body", "type": "main", "index": 0 }]]
+    },
+    "PG Refetch OT": {
+      "main": [[{ "node": "Build Update Body", "type": "main", "index": 0 }]]
+    },
+    "Build Update Body": {
+      "main": [[{ "node": "HTTP chat.update", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true
+  },
+  "meta": { "instanceId": "" },
+  "pinData": {}
+}

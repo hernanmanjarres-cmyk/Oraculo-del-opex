@@ -1,0 +1,367 @@
+{
+  "name": "WF-G | Resumen Diario OPEX (Lun-Vie 7am)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "wfg-0001",
+      "name": "Trigger Lun-Vie 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        500
+      ],
+      "notes": "Dispara de lun a vie a las 7:00 AM Bogotá. Cron: 0 7 * * 1-5"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Construye el payload para el webhook del Oráculo (WF-B).\n// IMPORTANTE: NO se incluye slack_channel_id → el Oráculo NO postea a Slack ni manda 'Telares'.\n// Solo procesa la pregunta y devuelve el texto vía HTTP response.\n\nconst prompt = `Genera el Resumen diario de OPEX del mes en curso, separado en 4 secciones delimitadas EXACTAMENTE así (no uses los delimitadores en otro lugar del texto):\n\n[RESUMEN_EJECUTIVO]\nMENCIÓN <@U0703VCP42U> AL INICIO. Un solo párrafo breve, máximo 4 líneas. Indicar: cuánto llevamos ejecutado, cuánto tenemos proyectado para el resto del mes, el TOTAL PROYECTADO del mes vs la meta efectiva, y si hay riesgo de pasarnos (sí/no, en cuánto). Sin tablas, sin desgloses, sin estados de OT, sin alertas. Solo cifras macro.\n[/RESUMEN_EJECUTIVO]\n\n[COMO_VAMOS]\nDetalle del ejecutado a la fecha:\n- Gasto por Operador de Red (cada OR con regulado/no regulado, solo valores monetarios, sin conteos).\n- Resumen de actividades del mes: Exitosas / Fallidas / Canceladas con costo de cada bloque.\n- % de efectividad = exitosas / (exitosas + fallidas).\n[/COMO_VAMOS]\n\n[PROYECTADO]\nForecast de lo que falta del mes. Por CADA OT futura de visitas_general, mostrar una línea con el desglose de los 4 rubros:\n\nCódigo BIA | Cliente | OR | Ciclo | Tipo de medida | Contratista | Servicio: $X | Materiales: $X | Adicionales: $X | Transporte: $X | TOTAL OT: $X\n\nAl final agregar:\n- Subtotal forecast OT: $X\n- Descargos (según OR aplicable): $X\n- Acompañamientos INST/NORM: $X\n- TOTAL PROYECTADO: $X\n[/PROYECTADO]\n\n[DETALLES]\nDisclaimer breve con cuántas OT exitosas aún no tienen costo cargado y se está usando el forecast mientras se actualiza. Si no hay nada, escribir 'Sin detalles adicionales'.\n[/DETALLES]\n\nReglas:\nMetas: Mayo $25MM con remanente $4MM de abril → meta efectiva $21MM. Junio $40MM.\nGasto ejecutado: todos los costos cargados sin importar estado de OT. NO mencionar estados.\nContratistas vs BIA: costos BIA no entran al ejecutado. Decir 'contratistas', nunca 'no-BIA'.\nOT exitosas sin costo: usar forecast hasta que actualicen costo real, contabilizarlas para disclaimer.\n\nForecast OT — SQL canónico (úsalo TAL CUAL, ajusta solo los filtros por OT):\n\\`\\`\\`sql\nWITH historico AS (\n  SELECT\n    PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY oc.service_cost)               AS p80_servicio,\n    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY NULLIF(oc.material_cost,0))    AS p50_materiales,\n    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY NULLIF(oc.other_cost,0))       AS p50_adicionales,\n    AVG(oc.transport_cost)                                                     AS promedio_transporte\n  FROM operations.visitas_general v\n  JOIN operations.opex_costs_general oc ON oc.visit_id::text = v.id::text\n  JOIN operations.hubspot_general h ON h.codigo_bia = v.internal_bia_code\n  WHERE v.service_type_id = :service_type_de_la_OT\n    AND v.electrician_status_id = 'CLOSURE_SUCCESSFUL'\n    AND h.operador_de_red = :OR_de_la_OT\n    AND (h.tipo_de_medida = :tipo_medida_de_la_OT OR :service_type_de_la_OT NOT IN ('INST','NORM'))\n    AND oc.service_cost > 0\n    AND (oc.is_bia = false OR oc.is_bia IS NULL)\n    AND v.fecha_visita >= '2025-01-01'\n)\nSELECT * FROM historico;\n\\`\\`\\`\n\nFórmula del forecast por OT:\n- Servicio = P80 del histórico del OR (en INST/NORM discriminar por tipo de medida; en otros ciclos sin discriminar).\n- Materiales = P50 del histórico (solo INST y NORM con costo de materiales). Aplica también a OT BIA de INST/NORM.\n- Adicionales = P50 del histórico (solo INST y NORM con costo). Aplica también a OT BIA de INST/NORM.\n- Transporte = (km_ida + km_vuelta desde la ciudad principal más cercana) × $2.000.\n\nINCLUIR todas las OT BIA en el forecast con esta regla:\n- OT BIA con service_type_id IN ('INST','NORM'): Servicio = $0, Materiales = P50 OR INST/NORM, Adicionales = P50 OR INST/NORM, Transporte = (km × $2000).\n- OT BIA con otro service_type_id (VIPE, LEGA, REQA, SUCA, VEXT, etc.): Servicio = $0, Materiales = $0, Adicionales = $0, Transporte = (km × $2000).\n\nCiclo activación: VIPE, INST, NORM, LEGA, REQA, SUCA, VEXT.\nFormato: Texto plano conciso, valores en COP con separador de miles. Si falta un dato, 'Sin dato'.\n\nDoble check antes de entregar:\n- Todas las actividades futuras de visitas_general están en el desglose.\n- TOTAL PROYECTADO en el resumen ejecutivo ya incluye descargos y acompañamientos.\n- Meta usada es la efectiva (descontando remanentes si aplica).\n- % efectividad bien calculado.\n- Disclaimer refleja OT exitosas sin costo cargado.\n\nDevuelve SOLO los 4 bloques delimitados. NADA fuera de los delimitadores.`;\n\nreturn [{ json: {\n  message: prompt,\n  session_id: 'resumen-diario-opex'\n  // ⚠️ NO incluimos slack_channel_id a propósito: el Oráculo procesa y devuelve texto sin postear.\n} }];\n"
+      },
+      "id": "wfg-0002",
+      "name": "Construir payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        510,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://aibia.app.n8n.cloud/webhook/agente-opex",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 240000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "wfg-0003",
+      "name": "Disparar Oráculo OPEX",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        770,
+        500
+      ],
+      "notes": "Llama al WF-B sin slack_channel_id → el Oráculo no postea a Slack ni envía 'Telares', solo devuelve el texto del resumen vía HTTP."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Parsea el output del Oráculo en 4 secciones delimitadas.\nconst raw = $input.first().json || {};\nconst text = raw.response || raw.output || raw.text || '';\n\nconst sectionRe = (tag) => new RegExp('\\\\[' + tag + '\\\\]([\\\\s\\\\S]*?)\\\\[\\\\/' + tag + '\\\\]', 'i');\nconst extract = (tag) => {\n  const m = text.match(sectionRe(tag));\n  return m ? m[1].trim() : '';\n};\n\nconst resumen   = extract('RESUMEN_EJECUTIVO');\nconst comoVamos = extract('COMO_VAMOS');\nconst proyectado= extract('PROYECTADO');\nconst detalles  = extract('DETALLES');\n\n// Fallback: si no se encontró el formato esperado, mandar el texto completo como resumen\nconst fallback = !resumen && !comoVamos && !proyectado;\n\nreturn [{ json: {\n  resumen:    resumen    || (fallback ? text : 'Sin resumen ejecutivo.'),\n  como_vamos: comoVamos  || '',\n  proyectado: proyectado || '',\n  detalles:   detalles   || '',\n  fallback\n} }];\n"
+      },
+      "id": "wfg-0004",
+      "name": "Parse Sections",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1030,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: 'PEGA_AQUI_EL_CHANNEL_ID', text: $json.resumen, link_names: true }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "wfg-0005",
+      "name": "POST Resumen Ejecutivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1290,
+        500
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
+        }
+      },
+      "notes": "Postea el resumen ejecutivo como mensaje principal. La respuesta trae el 'ts' que usamos para enviar los detalles como hilo."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $('POST Resumen Ejecutivo').first().json.channel, thread_ts: $('POST Resumen Ejecutivo').first().json.ts, text: '*📊 Cómo vamos*\\n\\n' + $('Parse Sections').first().json.como_vamos }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "wfg-0006",
+      "name": "POST Hilo: Cómo vamos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        380
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $('POST Resumen Ejecutivo').first().json.channel, thread_ts: $('POST Resumen Ejecutivo').first().json.ts, text: '*🔮 Proyectado del mes*\\n\\n' + $('Parse Sections').first().json.proyectado }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "wfg-0007",
+      "name": "POST Hilo: Proyectado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        500
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "wfg-cond-detalles",
+              "leftValue": "={{ $('Parse Sections').first().json.detalles }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wfg-0008",
+      "name": "IF Hay Detalles",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1550,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $('POST Resumen Ejecutivo').first().json.channel, thread_ts: $('POST Resumen Ejecutivo').first().json.ts, text: '*📝 Detalles*\\n\\n' + $('Parse Sections').first().json.detalles }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "wfg-0009",
+      "name": "POST Hilo: Detalles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1810,
+        640
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Trigger Lun-Vie 7am": {
+      "main": [
+        [
+          {
+            "node": "Construir payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir payload": {
+      "main": [
+        [
+          {
+            "node": "Disparar Oráculo OPEX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disparar Oráculo OPEX": {
+      "main": [
+        [
+          {
+            "node": "Parse Sections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sections": {
+      "main": [
+        [
+          {
+            "node": "POST Resumen Ejecutivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Resumen Ejecutivo": {
+      "main": [
+        [
+          {
+            "node": "POST Hilo: Cómo vamos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "POST Hilo: Proyectado",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF Hay Detalles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay Detalles": {
+      "main": [
+        [
+          {
+            "node": "POST Hilo: Detalles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "timezone": "America/Bogota"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}

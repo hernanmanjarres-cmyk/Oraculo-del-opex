@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json || {};\n\nfunction tryParse(v) {\n  if (typeof v !== 'string') return v;\n  try { return JSON.parse(v); } catch (e) { return null; }\n}\n\n// Buscar SQL en TODOS los lugares posibles\nlet sql = raw.sql \n       || raw.query \n       || raw.input\n       || raw.chatInput\n       || raw.body?.sql \n       || raw.body?.query;\n\n// Si lo que llegó es JSON string, parsear y buscar adentro\nif (typeof sql === 'string' && (sql.trim().startsWith('{') || sql.trim().startsWith('['))) {\n  const parsed = tryParse(sql);\n  if (parsed && typeof parsed === 'object') {\n    sql = parsed.sql || parsed.query || sql;\n  }\n}\n\nsql = String(sql || '').trim();\n\n// Limpiar prefijo 'sql\\n' del chat\nif (/^sql\\s*\\n/i.test(sql)) sql = sql.replace(/^sql\\s*\\n/i, '').trim();\n\nif (!sql) {\n  throw new Error('sql vacío. Envía SELECT o WITH. Recibido: ' + JSON.stringify(raw).substring(0, 300));\n}\n\nconst norm = sql.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) {\n  throw new Error('Solo SELECT o WITH. Recibido inicio: ' + norm.split(/\\s+/)[0]);\n}\n\nreturn [{ json: { sql } }];"
+        "jsCode": "const raw = $input.first().json || {};\n\nfunction tryParse(v) {\n  if (typeof v !== 'string') return v;\n  try { return JSON.parse(v); } catch (e) { return null; }\n}\n\n// Buscar SQL en TODOS los lugares posibles\nlet sql = raw.sql \n       || raw.query \n       || raw.input\n       || raw.chatInput\n       || raw.body?.sql \n       || raw.body?.query;\n\n// Si lo que llegó es JSON string, parsear y buscar adentro\nif (typeof sql === 'string' && (sql.trim().startsWith('{') || sql.trim().startsWith('['))) {\n  const parsed = tryParse(sql);\n  if (parsed && typeof parsed === 'object') {\n    sql = parsed.sql || parsed.query || sql;\n  }\n}\n\nsql = String(sql || '').trim();\n\n// Limpiar prefijo 'sql\\n' del chat\nif (/^sql\\s*\\n/i.test(sql)) sql = sql.replace(/^sql\\s*\\n/i, '').trim();\n\nif (!sql) {\n  throw new Error('sql vacío. Envía SELECT o WITH. Recibido: ' + JSON.stringify(raw).substring(0, 300));\n}\n\nconst norm = sql.toUpperCase();\nif (!norm.startsWith('SELECT') && !norm.startsWith('WITH')) {\n  throw new Error('Solo SELECT o WITH. Recibido inicio: ' + norm.split(/\\s+/)[0]);\n}\n\n// ── Decidir database ──\n// DB 21 = prod-bia (raw HubSpot ETL, schemas: hubspot, hubspot_etl, dbo, cgm, hvt, google_drive, etc.)\n// DB 2344 = prod-bia-gold (capa gold con schemas: operations, acquisition)\n// Default: si la query menciona hubspot_etl/hubspot./dbo./cgm./hvt. → DB 21. Si menciona operations./acquisition. → DB 2344.\nlet database = Number(raw.database) || Number(raw.db) || Number(raw.body?.database) || 0;\nif (!database) {\n  const sqlLower = sql.toLowerCase();\n  if (/\\bhubspot_etl\\.|\\bhubspot\\.|\\bdbo\\.|\\bcgm\\.|\\bhvt\\.|\\bgoogle_drive\\./.test(sqlLower)) {\n    database = 21;\n  } else {\n    database = 2344; // default: gold layer\n  }\n}\n\nreturn [{ json: { sql, database } }];"
       },
       "id": "wfbt5-0002-0002-0002-000000000002",
       "name": "Validar SQL",
@@ -47,7 +47,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ database: 2344, type: 'native', native: { query: $json.sql } }) }}",
+        "jsonBody": "={{ JSON.stringify({ database: $json.database, type: 'native', native: { query: $json.sql } }) }}",
         "options": {
           "timeout": 60000
         }

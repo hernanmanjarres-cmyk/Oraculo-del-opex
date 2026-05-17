@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Construye el body para POST /api/dataset de Metabase\n// Solo OTs de retención 2026: exitosas o fallidas, con costo > 0, contratista != BIA\nconst lines = [\n  'SELECT',\n  '  CASE v.service_type_id',\n  \"    WHEN 'ALRT' THEN 'Emergencia'\",\n  \"    WHEN 'NOTE' THEN 'Normalización de telemedida'\",\n  \"    WHEN 'PQRS' THEN 'PQRS'\",\n  \"    WHEN 'DESX' THEN 'Desconexión'\",\n  \"    WHEN 'INFR' THEN 'Inspección de frontera'\",\n  \"    WHEN 'NOAL' THEN 'Normalización Emergencia'\",\n  \"    WHEN 'RDEP' THEN 'Recuperación de equipos'\",\n  \"    WHEN 'VERF' THEN 'Verificación de consumo'\",\n  \"    WHEN 'VICO' THEN 'Visita Conjunta'\",\n  '    ELSE v.service_type_id',\n  '  END                                                    AS tipo_de_servicio,',\n  '  MAX(v.title)                                           AS codigo_ot,',\n  '  MAX(v.contract_name)                                   AS nombre_de_frontera,',\n  '  ROUND(',\n  '    COALESCE(SUM(oc.service_cost),   0) +',\n  '    COALESCE(SUM(oc.material_cost),  0) +',\n  '    COALESCE(SUM(oc.transport_cost), 0) +',\n  '    COALESCE(SUM(oc.other_cost),     0), 0',\n  '  )                                                      AS costo_total,',\n  '  MAX(v.address)                                         AS direccion,',\n  '  MAX(h.ciudad)                                          AS ciudad,',\n  '  MAX(v.contratista)                                     AS contratista,',\n  '  CASE MAX(v.electrician_status_id)',\n  \"    WHEN 'CLOSURE_SUCCESSFUL' THEN 'Cierre Exitoso'\",\n  \"    WHEN 'CLOSURE_FAILED'     THEN 'Cierre Fallido'\",\n  '    ELSE MAX(v.electrician_status_id)',\n  '  END                                                    AS fase_actual,',\n  '  CASE EXTRACT(MONTH FROM MAX(v.fecha_visita))::int',\n  \"    WHEN 1  THEN 'enero'\",\n  \"    WHEN 2  THEN 'febrero'\",\n  \"    WHEN 3  THEN 'marzo'\",\n  \"    WHEN 4  THEN 'abril'\",\n  \"    WHEN 5  THEN 'mayo'\",\n  \"    WHEN 6  THEN 'junio'\",\n  \"    WHEN 7  THEN 'julio'\",\n  \"    WHEN 8  THEN 'agosto'\",\n  \"    WHEN 9  THEN 'septiembre'\",\n  \"    WHEN 10 THEN 'octubre'\",\n  \"    WHEN 11 THEN 'noviembre'\",\n  \"    WHEN 12 THEN 'diciembre'\",\n  \"  END || ' ' || EXTRACT(DAY FROM MAX(v.fecha_visita))::int || ', ' || EXTRACT(YEAR FROM MAX(v.fecha_visita))::int AS fecha_programada,\",\n  \"  EXTRACT(YEAR FROM MAX(v.fecha_visita))::int || '-' || EXTRACT(MONTH FROM MAX(v.fecha_visita))::int AS periodo,\",\n  '  MAX(v.internal_bia_code)                               AS codigo_bia,',\n  '  MAX(v.contract_id::text)                               AS contract_id,',\n  '  MAX(v.wo_generate_by)                                  AS generada_por,',\n  '  MAX(v.reason)                                          AS razon_de_cierre,',\n  '  MAX(v.observation)                                     AS observacion_de_cierre',\n  'FROM operations.visitas_general v',\n  'LEFT JOIN operations.opex_costs_general oc',\n  '  ON oc.visit_id::text = v.id::text AND oc.is_bia = false',\n  'LEFT JOIN operations.hubspot_general h',\n  '  ON h.codigo_bia = v.internal_bia_code',\n  \"WHERE v.service_type_id IN ('ALRT','NOTE','PQRS','DESX','INFR','NOAL','RDEP','VERF','VICO')\",\n  \"  AND v.electrician_status_id IN ('CLOSURE_SUCCESSFUL','CLOSURE_FAILED')\",\n  \"  AND v.fecha_visita >= '2026-01-01'\",\n  'GROUP BY v.id, v.service_type_id',\n  'HAVING',\n  '  COALESCE(SUM(oc.service_cost),   0) +',\n  '  COALESCE(SUM(oc.material_cost),  0) +',\n  '  COALESCE(SUM(oc.transport_cost), 0) +',\n  '  COALESCE(SUM(oc.other_cost),     0) > 0',\n  'ORDER BY MAX(v.fecha_visita) DESC'\n];\n\nreturn [{ json: { database: 2344, type: 'native', native: { query: lines.join('\\n') } } }];"
+        "jsCode": "// Construye el body para POST /api/dataset de Metabase\n// Solo OTs de retención 2026: exitosas o fallidas, con costo > 0, contratista != BIA\nconst lines = [\n  'SELECT',\n  '  CASE v.service_type_id',\n  \"    WHEN 'ALRT' THEN 'Emergencia'\",\n  \"    WHEN 'NOTE' THEN 'Normalización de telemedida'\",\n  \"    WHEN 'PQRS' THEN 'PQRS'\",\n  \"    WHEN 'DESX' THEN 'Desconexión'\",\n  \"    WHEN 'INFR' THEN 'Inspección de frontera'\",\n  \"    WHEN 'NOAL' THEN 'Normalización Emergencia'\",\n  \"    WHEN 'RDEP' THEN 'Recuperación de equipos'\",\n  \"    WHEN 'VERF' THEN 'Verificación de consumo'\",\n  \"    WHEN 'VICO' THEN 'Visita Conjunta'\",\n  '    ELSE v.service_type_id',\n  '  END                                                    AS tipo_de_servicio,',\n  '  MAX(v.title)                                           AS codigo_ot,',\n  '  MAX(v.contract_name)                                   AS nombre_de_frontera,',\n  '  ROUND(',\n  '    COALESCE(SUM(oc.service_cost),   0) +',\n  '    COALESCE(SUM(oc.material_cost),  0) +',\n  '    COALESCE(SUM(oc.transport_cost), 0) +',\n  '    COALESCE(SUM(oc.other_cost),     0), 0',\n  '  )                                                      AS costo_total,',\n  '  MAX(v.address)                                         AS direccion,',\n  '  MAX(h.ciudad)                                          AS ciudad,',\n  '  MAX(v.contratista)                                     AS contratista,',\n  '  CASE MAX(v.electrician_status_id)',\n  \"    WHEN 'CLOSURE_SUCCESSFUL' THEN 'Cierre Exitoso'\",\n  \"    WHEN 'CLOSURE_FAILED'     THEN 'Cierre Fallido'\",\n  '    ELSE MAX(v.electrician_status_id)',\n  '  END                                                    AS fase_actual,',\n  '  CASE EXTRACT(MONTH FROM MAX(v.fecha_visita))::int',\n  \"    WHEN 1  THEN 'enero'\",\n  \"    WHEN 2  THEN 'febrero'\",\n  \"    WHEN 3  THEN 'marzo'\",\n  \"    WHEN 4  THEN 'abril'\",\n  \"    WHEN 5  THEN 'mayo'\",\n  \"    WHEN 6  THEN 'junio'\",\n  \"    WHEN 7  THEN 'julio'\",\n  \"    WHEN 8  THEN 'agosto'\",\n  \"    WHEN 9  THEN 'septiembre'\",\n  \"    WHEN 10 THEN 'octubre'\",\n  \"    WHEN 11 THEN 'noviembre'\",\n  \"    WHEN 12 THEN 'diciembre'\",\n  \"  END || ' ' || EXTRACT(DAY FROM MAX(v.fecha_visita))::int || ', ' || EXTRACT(YEAR FROM MAX(v.fecha_visita))::int AS fecha_programada,\",\n  \"  EXTRACT(YEAR FROM MAX(v.fecha_visita))::int || '-' || EXTRACT(MONTH FROM MAX(v.fecha_visita))::int AS periodo,\",\n  '  MAX(v.internal_bia_code)                               AS codigo_bia,',\n  '  MAX(v.contract_id::text)                               AS contract_id,',\n  '  MAX(v.wo_generate_by)                                  AS generada_por,',\n  '  MAX(v.reason)                                          AS razon_de_cierre,',\n  '  MAX(v.observation)                                     AS observacion_de_cierre,',\n  '  MAX(v.act_pdf_url)                                     AS link_de_act',\n  'FROM operations.visitas_general v',\n  'LEFT JOIN operations.opex_costs_general oc',\n  '  ON oc.visit_id::text = v.id::text AND oc.is_bia = false',\n  'LEFT JOIN operations.hubspot_general h',\n  '  ON h.codigo_bia = v.internal_bia_code',\n  \"WHERE v.service_type_id IN ('ALRT','NOTE','PQRS','DESX','INFR','NOAL','RDEP','VERF','VICO')\",\n  \"  AND v.electrician_status_id IN ('CLOSURE_SUCCESSFUL','CLOSURE_FAILED')\",\n  \"  AND v.fecha_visita >= '2026-01-01'\",\n  'GROUP BY v.id, v.service_type_id',\n  'HAVING',\n  '  COALESCE(SUM(oc.service_cost),   0) +',\n  '  COALESCE(SUM(oc.material_cost),  0) +',\n  '  COALESCE(SUM(oc.transport_cost), 0) +',\n  '  COALESCE(SUM(oc.other_cost),     0) > 0',\n  'ORDER BY MAX(v.fecha_visita) DESC'\n];\n\nreturn [{ json: { database: 2344, type: 'native', native: { query: lines.join('\\n') } } }];"
       },
       "id": "wfd-0002-0002-0002-0002-000000000002",
       "name": "Build SQL Metabase",
@@ -201,20 +201,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Convierte items_to_add en items individuales de n8n\n// Renombra campos para coincidir con los encabezados del Sheet\nconst { items_to_add } = $input.first().json;\nif (!items_to_add || !items_to_add.length) return [];\n\nreturn items_to_add.map(r => ({ json: {\n  'tipo_de_servicio':      r.tipo_de_servicio,\n  'codigo_ot':             r.codigo_ot,\n  'nombre_de_frontera':    r.nombre_de_frontera,\n  'costo_total ($)':       r.costo_total,\n  'direccion':             r.direccion,\n  'ciudad':                r.ciudad,\n  'contratista':           r.contratista,\n  'fase_actual':           r.fase_actual,\n  'fecha_programada':      r.fecha_programada,\n  'Periodo':               r.periodo,\n  'codigo_bia':            r.codigo_bia,\n  'contract_id':           r.contract_id,\n  'Generada por':          r.generada_por,\n  'Razon de cierre':       r.razon_de_cierre,\n  'Observacion de cierre': r.observacion_de_cierre\n} }));"
-      },
-      "id": "wfd-0010-0010-0010-0010-000000000010",
-      "name": "Split Items para Sheet",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2570,
-        360
-      ]
-    },
-    {
-      "parameters": {
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
@@ -369,6 +355,51 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link de Act",
+              "displayName": "Link de Act",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "¿Hay cotización asumida por el cliente?",
+              "displayName": "¿Hay cotización asumida por el cliente?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Imputable a",
+              "displayName": "Imputable a",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Motivo de cierre",
+              "displayName": "Motivo de cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Comentarios",
+              "displayName": "Comentarios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
             }
           ]
         },
@@ -379,8 +410,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        2830,
-        360
+        3870,
+        300
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -399,8 +430,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3090,
-        360
+        4130,
+        300
       ]
     },
     {
@@ -414,8 +445,187 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
+        4390,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Convierte items_to_add en items individuales para que SplitInBatches los agrupe de a 8\nconst items_to_add = $input.first().json.items_to_add || [];\nif (!items_to_add.length) return [];\n\nreturn items_to_add.map(r => ({ json: {\n  'tipo_de_servicio':      r.tipo_de_servicio,\n  'codigo_ot':             r.codigo_ot,\n  'nombre_de_frontera':    r.nombre_de_frontera,\n  'costo_total ($)':       r.costo_total,\n  'direccion':             r.direccion,\n  'ciudad':                r.ciudad,\n  'contratista':           r.contratista,\n  'fase_actual':           r.fase_actual,\n  'fecha_programada':      r.fecha_programada,\n  'Periodo':               r.periodo,\n  'codigo_bia':            r.codigo_bia,\n  'contract_id':           r.contract_id,\n  'Generada por':          r.generada_por,\n  'Razon de cierre':       r.razon_de_cierre,\n  'Observacion de cierre': r.observacion_de_cierre,\n  'Link de Act':           r.link_de_act || ''\n} }));\n"
+      },
+      "id": "wfd-0014-0014-0014-0014-000000000014",
+      "name": "Prepare Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2570,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 8,
+        "options": {}
+      },
+      "id": "wfd-0020-0020-0020-0020-000000000020",
+      "name": "Loop de 8 en 8",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2830,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Toma el lote actual de 8 OTs y arma el body para Anthropic\nconst batchItems = $input.all();\nconst systemPrompt = `Eres el clasificador de OTs de retención de BIA Energy. Recibes un array JSON de OTs y devuelves un array JSON del mismo tamaño y orden. NO agregues texto fuera del JSON, NO uses bloques \\`\\`\\`json.\n\nCada objeto de salida:\n{\"codigo_ot\":\"<copia>\",\"cotizacion\":\"Sí\"|\"No\"|\"En revisión\"|\"N/A\",\"imputable_a\":\"<una de 7>\",\"motivo_cierre\":\"<una de 14>\",\"comentarios\":\"<máx 220 chars, ver formato obligatorio>\"}\n\n════════════════════════════════════════════\nFORMATO OBLIGATORIO DE comentarios (siempre 3 partes):\n1. HECHO: qué dice la observación o qué ocurrió (cita palabras clave si existen)\n2. RAZÓN: por qué se asignó esa tipificación\n3. CONCLUSIÓN: procede cobro / no procede / CX define / en revisión\nEjemplo correcto: \"Obs menciona 'no se pudo ingresar al predio'. Fallida por acceso negado sin gestión de permisos previa. Procede cobro de visita fallida al cliente.\"\nEjemplo incorrecto: \"Fallida por permisos. Procede cobro.\" ← demasiado vago, NO usar.\n════════════════════════════════════════════\n\nVALORES VÁLIDOS imputable_a:\nEn revisión | Externa imputable al OR | Interna imputable a BIA | Interna imputable al Cliente | No imputable | Se asume por servicio | Factores externos\n\nVALORES VÁLIDOS motivo_cierre:\nAtención a PQR | Atención emergencia | Cliente no gestionó permisos | En revisión | No se tenían los insumos | Normalización de Telemedida Exitosa | Revisión de la medida | Verificación de consumo | Generada por ops | Retiro de equipos | correo persona equivocada | Equipo averiado | Factores externos | Desx/Recx remota\n\n════════════════════════════════════════════\nREGLAS (aplica la primera que coincida):\n\n── TRANSVERSALES (máxima prioridad) ────────\n\n• Fallida + obs menciona que se requería OR / operador de red (\"requiere OR\", \"OR no asistió\", \"falta OR\", \"sin OR\", \"OR no llegó\", \"acompañamiento OR\"):\n  IMPORTANTE: esto NO es falla del OR, es error de coordinación de CX que no gestionó el acompañamiento antes de la visita.\n  imputable_a=Interna imputable a BIA\n  motivo_cierre=En revisión\n  comentarios: explica que la obs menciona la necesidad del OR, que CX tenía la obligación de coordinar esa presencia previamente, y que al no hacerlo la fallida es responsabilidad interna BIA/CX. Concluye: \"Error de coordinación CX. En revisión para definir cobro.\"\n\n• obs contiene \"remoto\" o \"remota\" en servicio DESCONEXIÓN:\n  cotizacion=N/A, imputable_a=No imputable, motivo_cierre=Desx/Recx remota\n  comentarios: cita la palabra \"remota/remoto\" de la obs, explica que al ser remota no requiere visita física y no genera costo al cliente.\n\n• fase contiene \"Cancelada\" o \"cancelado\":\n  cotizacion=N/A, imputable_a=No imputable, motivo_cierre=En revisión\n  comentarios: indica que la OT fue cancelada antes de ejecutarse y que el costo, si aplica, debe traerse del sheet de costos manual.\n\n• obs menciona lluvia / bloqueo / orden público / factores externos sin culpa del cliente:\n  imputable_a=Factores externos, motivo_cierre=Factores externos\n  comentarios: describe el factor externo mencionado en la obs y explica que impide la ejecución sin responsabilidad de BIA ni del cliente.\n\n• obs vacía, o dice solo \"ok\" / \"sin novedad\" / \"visita realizada\" en una FALLIDA:\n  imputable_a=En revisión, motivo_cierre=En revisión\n  comentarios: alerta que la observación no aporta información suficiente para tipificar. CX debe revisar el acta o contactar al contratista.\n\n• generada_por indica \"Operaciones\" u \"ops\" y NO es Retiro de equipos:\n  imputable_a=Se asume por servicio, motivo_cierre=Generada por ops\n  comentarios: indica que la OT fue generada internamente por operaciones, no por solicitud del cliente, por lo que no procede cobro externo.\n\n• obs menciona \"persona equivocada\" / \"correo equivocado\" / \"no era el contacto\":\n  imputable_a=Interna imputable a BIA, motivo_cierre=correo persona equivocada\n  comentarios: explica que CX gestionó los permisos con una persona incorrecta, lo que es un error interno BIA. No procede cobro al cliente.\n\n── POR TIPO DE SERVICIO ─────────────────────\n\n▸ DESCONEXIÓN\n  Exitosa o Fallida (sin \"remoto/remota\"):\n    cotizacion=N/A, imputable_a=Interna imputable al Cliente, motivo_cierre=En revisión\n    comentarios: describe si fue exitosa o fallida, menciona si la obs explica la razón. Indica que desconexiones presenciales generan cobro al cliente. \"Procede cobro. CX define tarifa.\"\n  Otra fase:\n    cotizacion=N/A, imputable_a=No imputable, motivo_cierre=En revisión\n    comentarios: indica la fase real y que no aplica cobro en esa condición.\n\n▸ EMERGENCIA\n  cotizacion=En revisión, imputable_a=En revisión, motivo_cierre=Atención emergencia\n  comentarios: ANALIZA la observación en detalle:\n    - Si menciona \"daño externo\", \"red exterior\", \"acometida\", \"poste\", \"OR\": \"Obs indica posible daño en red exterior. Si el daño es del OR o es externo a la medida, BIA debe informar al cliente que procede cotización. CX define imputabilidad.\"\n    - Si menciona \"medidor\", \"TC\", \"TP\", \"transformador\", \"equipo de medida\": \"Obs indica falla en equipo de medida. Evaluar si el daño es por responsabilidad BIA (mal estado o instalación) o desgaste natural. CX define cobro.\"\n    - Si menciona \"tablero\", \"instalación interna\", \"cableado del cliente\", \"daño interno\": \"Obs indica daño interno del cliente no relacionado con la medida. Si el cliente aprobó la normalización, procede cobro. CX debe verificar cotización.\"\n    - Si la obs es ambigua: \"Observación no permite determinar origen de la falla. CX debe revisar acta técnica y definir imputabilidad y cobro.\"\n\n▸ INSPECCIÓN DE FRONTERA\n  Exitosa:\n    cotizacion=N/A, imputable_a=Se asume por servicio, motivo_cierre=Revisión de la medida\n    comentarios: explica que la inspección fue exitosa, que es un requerimiento interno para levantar información de frontera, y que BIA asume el costo. No procede cobro al cliente.\n  Fallida + obs menciona acceso negado / permisos / cliente no abrió / no permitió ingreso:\n    cotizacion=N/A, imputable_a=Interna imputable al Cliente, motivo_cierre=Cliente no gestionó permisos\n    comentarios: cita el motivo de acceso negado de la obs. Explica que se gestionó ingreso pero el cliente no lo facilitó. Procede cobro de visita fallida.\n  Fallida sin mención de permisos:\n    cotizacion=N/A, imputable_a=Se asume por servicio, motivo_cierre=En revisión\n    comentarios: indica que la fallida no se debió a permisos del cliente según la obs. BIA asume. No procede cobro. CX revisar causa real.\n\n▸ NORMALIZACIÓN DE TELEMEDIDA\n  Exitosa:\n    cotizacion=N/A, imputable_a=Se asume por servicio, motivo_cierre=Normalización de Telemedida Exitosa\n    comentarios: confirma que la telemedida fue normalizada exitosamente. Describe brevemente qué se hizo si la obs lo indica. No procede cobro al cliente.\n  Fallida + obs menciona \"equipo averiado\", \"medidor dañado\", \"TC dañado\", \"TP dañado\":\n    cotizacion=N/A, imputable_a=Interna imputable a BIA, motivo_cierre=Equipo averiado\n    comentarios: indica el equipo específico mencionado en la obs, explica que el avería impide la normalización y es responsabilidad de BIA reponer o reparar. No procede cobro al cliente.\n  Fallida + obs menciona permisos / acceso negado:\n    cotizacion=N/A, imputable_a=Interna imputable al Cliente, motivo_cierre=Cliente no gestionó permisos\n    comentarios: cita el motivo de acceso de la obs. Indica que se gestionó el ingreso pero el cliente no facilitó. CX define si procede cobro de fallida.\n  Fallida + obs menciona \"no había insumos\", \"faltó material\", \"sin repuesto\":\n    cotizacion=N/A, imputable_a=Interna imputable a BIA, motivo_cierre=No se tenían los insumos\n    comentarios: menciona el insumo faltante si la obs lo nombra. Indica que la fallida fue por falta de material del contratista, responsabilidad interna BIA. No procede cobro.\n  Fallida sin causa clara:\n    cotizacion=N/A, imputable_a=En revisión, motivo_cierre=En revisión\n    comentarios: describe lo que dice la obs y alerta que no es suficiente para determinar causa. CX debe validar con el contratista.\n\n▸ NORMALIZACIÓN EMERGENCIA\n  cotizacion=En revisión, imputable_a=En revisión, motivo_cierre=Atención emergencia\n  comentarios: analiza obs igual que EMERGENCIA. Agrega: si la obs menciona \"cotización\", \"cliente aprobó\", \"monto\", cítalo explícitamente. Concluye: \"CX debe confirmar si el cliente aprobó cotización y definir monto a facturar.\"\n\n▸ PQRS\n  Fallida + obs menciona permisos / acceso negado:\n    cotizacion=En revisión, imputable_a=Interna imputable al Cliente, motivo_cierre=Cliente no gestionó permisos\n    comentarios: cita el motivo de acceso de la obs. Explica que el cliente no permitió el ingreso para atender su propia PQR. Procede cobro de visita fallida.\n  Exitosa o Fallida sin permisos:\n    cotizacion=En revisión, imputable_a=En revisión, motivo_cierre=Atención a PQR\n    comentarios: describe qué dice la obs sobre la atención a la PQR. Indica que CX debe revisar si el resultado justifica cobro o si se resolvió como servicio de retención.\n\n▸ RETIRO / RECUPERACIÓN DE EQUIPOS\n  cotizacion=N/A, imputable_a=Se asume por servicio, motivo_cierre=Retiro de equipos\n  comentarios: confirma que es una OT de retiro/recuperación de equipos, que BIA asume el costo operativo. No procede cobro al cliente.\n\n▸ VERIFICACIÓN DE CONSUMO\n  cotizacion=N/A, imputable_a=Se asume por servicio, motivo_cierre=Verificación de consumo\n  comentarios: explica que esta OT hace parte del ciclo CGM para validar desviaciones de consumo, que es un proceso interno BIA. No procede cobro al cliente independientemente del resultado.\n\n▸ VISITA CONJUNTA\n  cotizacion=N/A, imputable_a=En revisión, motivo_cierre=En revisión\n  comentarios: indica quién generó la visita si la obs o generada_por lo permite determinar. Si el OR solicitó acompañamiento BIA debe cobrar al OR. Si BIA solicitó, debe pagar al OR. Si hay irregularidad encontrada, BIA asume. CX confirma según solicitante.\n\n════════════════════════════════════════════\nSALIDA: SOLO el array JSON puro, sin nada más.`;\n\nconst otsMin = batchItems.map(i => ({\n  codigo_ot:             i.json['codigo_ot'],\n  tipo_de_servicio:      i.json['tipo_de_servicio'],\n  fase_actual:           i.json['fase_actual'],\n  observacion_de_cierre: i.json['Observacion de cierre'] || '',\n  razon_de_cierre:       i.json['Razon de cierre']       || '',\n  generada_por:          i.json['Generada por']           || ''\n}));\n\nreturn [{ json: {\n  batch_ots: batchItems.map(i => i.json),\n  anthropic_body: {\n    model:      'claude-haiku-4-5',\n    max_tokens: 4000,\n    system:     systemPrompt,\n    messages:   [{ role: 'user', content: 'Clasifica:\\n\\n' + JSON.stringify(otsMin) }]\n  }\n} }];\n"
+      },
+      "id": "wfd-0015-0015-0015-0015-000000000015",
+      "name": "Build Batch Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3090,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "x-api-key",
+              "value": "PEGA_AQUI_TU_ANTHROPIC_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "wfd-0016-0016-0016-0016-000000000016",
+      "name": "HTTP Anthropic Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
         3350,
-        360
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Parsea respuesta Anthropic del lote, recupera OTs originales y emite items clasificados\nconst httpResp  = $input.first().json;\nconst batchOts  = $('Build Batch Request').first().json.batch_ots || [];\n\nconst DEFAULT = { cotizacion:'En revisión', imputable_a:'En revisión', motivo_cierre:'En revisión' };\n\n// Si Anthropic devolvió error HTTP\nif (httpResp.error) {\n  return batchOts.map(ot => ({ json: {\n    ...ot,\n    '¿Hay cotización asumida por el cliente?': 'En revisión',\n    'Imputable a':    'En revisión',\n    'Motivo de cierre': 'En revisión',\n    'Comentarios':    'Error API lote: ' + JSON.stringify(httpResp.error).slice(0, 60)\n  } }));\n}\n\nconst text  = (httpResp.content && httpResp.content[0] && httpResp.content[0].text) || '';\nconst clean = text.trim()\n  .replace(/^```(?:json)?\\s*/i, '')\n  .replace(/```\\s*$/, '')\n  .trim();\n\nlet classifications = [];\ntry {\n  const parsed = JSON.parse(clean);\n  classifications = Array.isArray(parsed) ? parsed : [];\n} catch(e) {\n  // Parse falló → todo el lote en revisión, pero el loop continúa\n  return batchOts.map(ot => ({ json: {\n    ...ot,\n    '¿Hay cotización asumida por el cliente?': 'En revisión',\n    'Imputable a':    'En revisión',\n    'Motivo de cierre': 'En revisión',\n    'Comentarios':    'Parse error en lote. CX revisar.'\n  } }));\n}\n\nconst classByCode = {};\nfor (const c of classifications) {\n  if (c && c.codigo_ot) classByCode[String(c.codigo_ot)] = c;\n}\n\nreturn batchOts.map(ot => {\n  const c = classByCode[String(ot.codigo_ot)] || { ...DEFAULT, comentarios: 'OT sin clasificar en lote.' };\n  return { json: {\n    ...ot,\n    '¿Hay cotización asumida por el cliente?': c.cotizacion    || 'En revisión',\n    'Imputable a':    c.imputable_a   || 'En revisión',\n    'Motivo de cierre': c.motivo_cierre || 'En revisión',\n    'Comentarios':    c.comentarios   || ''\n  } };\n});\n"
+      },
+      "id": "wfd-0017-0017-0017-0017-000000000017",
+      "name": "Parse & Emit Classified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3610,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Per-item: construye el mensaje Slack con Block Kit + botones para esta OT\nconst ot = $input.item.json;\n\n// ── Menciones fijas: CX siempre revisa ──\n// Para obtener Slack User IDs: en Slack, click perfil → ⋮ → Copy member ID\nconst MARIA    = 'SLACK_ID_MARIA_FERNANDA';   // ← pega el ID real aquí\nconst NATALIA  = 'SLACK_ID_NATALIA_BURITICA'; // ← pega el ID real aquí\nconst mention  = '<@' + MARIA + '> <@' + NATALIA + '>';\n\nconst fmtCOP = (n) => {\n  if (n == null || isNaN(n)) return '—';\n  return '$' + Number(n).toLocaleString('es-CO', {maximumFractionDigits:0});\n};\n\nconst obs   = (ot['Observacion de cierre'] || 'Sin observación').substring(0, 2800);\nconst razon = ot['Razon de cierre'] || '—';\nconst code  = ot.codigo_ot || 'OT';\n\nconst blocks = [\n  {\n    \"type\": \"header\",\n    \"text\": { \"type\": \"plain_text\", \"text\": \"📋 \" + code + \" — Pendiente\", \"emoji\": true }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      { \"type\": \"mrkdwn\", \"text\": \"*Servicio:* \" + (ot.tipo_de_servicio || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Fase:* \" + (ot.fase_actual || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Frontera:* \" + (ot.codigo_bia || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Contratista:* \" + (ot.contratista || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Ciudad:* \" + (ot.ciudad || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Costo:* \" + fmtCOP(ot['costo_total ($)']) }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      { \"type\": \"mrkdwn\", \"text\": \"*Generada por:* \" + (ot['Generada por'] || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Fecha:* \" + (ot.fecha_programada || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Periodo:* \" + (ot.Periodo || '—') },\n      { \"type\": \"mrkdwn\", \"text\": \"*Contract:* \" + (ot.contract_id || '—') }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": \"*Razón de cierre:* \" + razon }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": \"*Observación de cierre:*\\n> \" + obs.replace(/\\n/g, '\\n> ') }\n  },\n  { \"type\": \"divider\" },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\":\n      \"*🤖 Propuesta del clasificador:*\\n\" +\n      \"• *Imputable a:* `\" + (ot['Imputable a'] || 'En revisión') + \"`\\n\" +\n      \"• *Motivo de cierre:* `\" + (ot['Motivo de cierre'] || 'En revisión') + \"`\\n\" +\n      \"• *¿Cotización?:* `\" + (ot['¿Hay cotización asumida por el cliente?'] || 'En revisión') + \"`\\n\\n\" +\n      \"*Análisis:* \" + (ot.Comentarios || '—')\n    }\n  }\n];\n\n// Link del acta si existe\nconst linkAct = ot['Link de Act'];\nif (linkAct && linkAct.startsWith('http')) {\n  blocks.push({\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": \"📎 *Acta:* <\" + linkAct + \"|Ver acta>\" }\n  });\n}\n\nblocks.push({ \"type\": \"divider\" });\n\n// Botones de acción\nblocks.push({\n  \"type\": \"actions\",\n  \"block_id\": \"ot_actions\",\n  \"elements\": [\n    {\n      \"type\": \"button\",\n      \"text\": { \"type\": \"plain_text\", \"text\": \"✅ Confirmar propuesta\", \"emoji\": true },\n      \"style\": \"primary\",\n      \"action_id\": \"confirm_ot\",\n      \"value\": code\n    },\n    {\n      \"type\": \"button\",\n      \"text\": { \"type\": \"plain_text\", \"text\": \"✏️ Diligenciar formulario\", \"emoji\": true },\n      \"action_id\": \"open_form\",\n      \"value\": code\n    }\n  ]\n});\n\nblocks.push({\n  \"type\": \"context\",\n  \"elements\": [{\n    \"type\": \"mrkdwn\",\n    \"text\": mention + \" ← revisar esta OT\"\n  }]\n});\n\nreturn { json: {\n  ...ot,\n  slack_blocks: JSON.stringify(blocks),\n  slack_text: 'OT ' + code + ' (' + (ot.tipo_de_servicio || '') + ' · ' + (ot.fase_actual || '') + ') — Revisión pendiente'\n} };\n"
+      },
+      "id": "wfd-0030-0030-0030-0030-000000000030",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3870,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer PEGA_SLACK_BOT_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: 'PEGA_SLACK_CHANNEL_ID', text: $json.slack_text, blocks: JSON.parse($json.slack_blocks), unfurl_links: false }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "wfd-0031-0031-0031-0031-000000000031",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4130,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Per-item: construye INSERT para ot_clasificacion con el slack_ts del mensaje enviado\nconst ot     = $('Build Slack Message').item.json;\nconst slackR = $input.item.json;\nconst ts     = slackR.ts || slackR.message?.ts || '';\nconst ch     = slackR.channel || 'PEGA_SLACK_CHANNEL_ID';\n\nconst esc = s => String(s ?? '').replace(/'/g, \"''\").substring(0, 4000);\n\nconst sql = `INSERT INTO \"Oraculo_Opex\".ot_clasificacion\n  (codigo_ot, tipo_de_servicio, codigo_bia, nombre_de_frontera, costo_total,\n   contratista, fase_actual, fecha_programada, periodo, generada_por,\n   razon_de_cierre, observacion_de_cierre,\n   cotizacion, imputable_a, motivo_cierre, comentarios,\n   clasificacion_estado, slack_channel, slack_ts)\nVALUES\n  ('${esc(ot.codigo_ot)}', '${esc(ot.tipo_de_servicio)}', '${esc(ot.codigo_bia)}',\n   '${esc(ot.nombre_de_frontera)}', ${Number(ot['costo_total ($)']) || 0},\n   '${esc(ot.contratista)}', '${esc(ot.fase_actual)}', '${esc(ot.fecha_programada)}',\n   '${esc(ot.Periodo)}', '${esc(ot['Generada por'])}',\n   '${esc(ot['Razon de cierre'])}', '${esc(ot['Observacion de cierre'])}',\n   '${esc(ot['¿Hay cotización asumida por el cliente?'])}', '${esc(ot['Imputable a'])}',\n   '${esc(ot['Motivo de cierre'])}', '${esc(ot.Comentarios)}',\n   'pendiente', '${esc(ch)}', '${esc(ts)}')\nON CONFLICT (codigo_ot) DO UPDATE SET\n  slack_channel = EXCLUDED.slack_channel,\n  slack_ts = EXCLUDED.slack_ts,\n  cotizacion = EXCLUDED.cotizacion,\n  imputable_a = EXCLUDED.imputable_a,\n  motivo_cierre = EXCLUDED.motivo_cierre,\n  comentarios = EXCLUDED.comentarios`;\n\nreturn { json: { sql } };\n"
+      },
+      "id": "wfd-0032-0032-0032-0032-000000000032",
+      "name": "Build ot_clasificacion INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4390,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "wfd-0033-0033-0033-0033-000000000033",
+      "name": "PG INSERT ot_clasificacion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4650,
+        620
       ],
       "credentials": {
         "postgres": {
@@ -518,23 +728,12 @@
       "main": [
         [
           {
-            "node": "Split Items para Sheet",
+            "node": "Prepare Items",
             "type": "main",
             "index": 0
           }
         ],
         []
-      ]
-    },
-    "Split Items para Sheet": {
-      "main": [
-        [
-          {
-            "node": "GSheets Agregar Filas",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "GSheets Agregar Filas": {
@@ -553,6 +752,111 @@
         [
           {
             "node": "Postgres INSERT Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Items": {
+      "main": [
+        [
+          {
+            "node": "Loop de 8 en 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop de 8 en 8": {
+      "main": [
+        [
+          {
+            "node": "Build Batch Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Batch Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Anthropic Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Anthropic Classify": {
+      "main": [
+        [
+          {
+            "node": "Parse & Emit Classified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Emit Classified": {
+      "main": [
+        [
+          {
+            "node": "GSheets Agregar Filas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        [
+          {
+            "node": "Build ot_clasificacion INSERT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build ot_clasificacion INSERT": {
+      "main": [
+        [
+          {
+            "node": "PG INSERT ot_clasificacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG INSERT ot_clasificacion": {
+      "main": [
+        [
+          {
+            "node": "Loop de 8 en 8",
             "type": "main",
             "index": 0
           }

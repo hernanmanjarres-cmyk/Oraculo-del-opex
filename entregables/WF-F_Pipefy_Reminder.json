@@ -1,0 +1,212 @@
+{
+  "name": "WF-F | Pipefy Reminder (COGS)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "wff-0001",
+      "name": "Trigger Lunes 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT codigo_ot, tipo_de_servicio, fase_actual, costo_total, contratista, slack_channel, slack_ts, monto_cobro, pipefy_reminder_count, created_at FROM \"Oraculo_Opex\".ot_clasificacion WHERE caso_cerrado = FALSE AND clasificacion_estado IN ('confirmada','corregida') AND imputable_a NOT IN ('No imputable','Se asume por servicio','Factores externos') AND pipefy_id IS NULL AND slack_ts IS NOT NULL ORDER BY created_at ASC",
+        "options": {}
+      },
+      "id": "wff-0002",
+      "name": "PG Query Pendientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wff-0003",
+      "name": "IF Hay Pendientes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        750,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Per-item: construye recordatorio Slack en el hilo original\nconst ot = $input.item.json;\nconst count = (ot.pipefy_reminder_count || 0) + 1;\nconst emoji = count >= 3 ? '🔴' : count >= 2 ? '🟡' : '🔵';\nconst dias = Math.floor((Date.now() - new Date(ot.created_at).getTime()) / 86400000);\n\nconst text = emoji + ' *Recordatorio #' + count + '* — esta OT lleva *' + dias + ' días* sin Pipefy.\\n\\n' +\n  '`' + ot.codigo_ot + '` · ' + ot.tipo_de_servicio + ' · ' + ot.fase_actual + '\\n' +\n  'Costo: $' + (Number(ot.costo_total) || 0).toLocaleString('es-CO') + '\\n\\n' +\n  'Por favor responde en este hilo con `pipefy: <ID>` para cerrar el caso.' +\n  (ot.monto_cobro ? '\\nMonto a cobrar registrado: $' + Number(ot.monto_cobro).toLocaleString('es-CO') : '');\n\nreturn { json: {\n  slack_body: { channel: ot.slack_channel, thread_ts: ot.slack_ts, text },\n  codigo_ot: ot.codigo_ot,\n  new_count: count\n} };"
+      },
+      "id": "wff-0004",
+      "name": "Build Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer PEGA_SLACK_BOT_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.slack_body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "wff-0005",
+      "name": "Post Slack Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'UPDATE \"Oraculo_Opex\".ot_clasificacion SET pipefy_reminder_count = ' + $('Build Reminder').item.json.new_count + ' WHERE codigo_ot = \\'' + $('Build Reminder').item.json.codigo_ot.replace(/'/g, \"''\") + '\\'' }}",
+        "options": {}
+      },
+      "id": "wff-0006",
+      "name": "PG Update Reminder Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase OPEX"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Trigger Lunes 9am": {
+      "main": [
+        [
+          {
+            "node": "PG Query Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Query Pendientes": {
+      "main": [
+        [
+          {
+            "node": "IF Hay Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Build Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Reminder": {
+      "main": [
+        [
+          {
+            "node": "Post Slack Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Slack Reminder": {
+      "main": [
+        [
+          {
+            "node": "PG Update Reminder Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
