@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe forense — Emergencia medidor quemado · Los Hornitos SAS (CO0100002149)</title>
+<style>
+  :root{
+    --primary:#0b3d91; --accent:#d62828; --warning:#f77f00;
+    --ok:#2a9d8f; --bg:#f7f7fa; --txt:#1f1f1f; --muted:#5e5e5e;
+    --card:#ffffff; --border:#e3e3e8;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0;line-height:1.55}
+  .wrap{max-width:1200px;margin:0 auto;padding:32px 28px 80px}
+  header{border-bottom:4px solid var(--primary);padding-bottom:18px;margin-bottom:28px}
+  h1{font-size:26px;margin:0 0 4px;color:var(--primary)}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;color:var(--primary);border-left:5px solid var(--primary);padding-left:10px;margin:38px 0 14px}
+  h3{font-size:15px;color:var(--primary);margin:18px 0 8px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+  .kpi .v{font-size:24px;font-weight:700;color:var(--primary)}
+  .kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+  .kpi.red .v{color:var(--accent)} .kpi.orange .v{color:var(--warning)} .kpi.ok .v{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th{background:var(--primary);color:#fff;padding:8px 10px;text-align:left;font-weight:600}
+  td{padding:7px 10px;border-bottom:1px solid var(--border)}
+  tr:nth-child(even) td{background:#fafafc}
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+  .b-red{background:#fde2e2;color:#a01818}
+  .b-orange{background:#feeacc;color:#a35a00}
+  .b-yellow{background:#fff5cf;color:#7a5800}
+  .b-green{background:#d4f1ec;color:#1f6f63}
+  .b-blue{background:#e0e8f9;color:#234182}
+  .ev{background:#fff7ee;border-left:5px solid var(--warning);padding:12px 16px;margin:10px 0;border-radius:0 6px 6px 0}
+  .alert{background:#fde2e2;border-left:5px solid var(--accent);padding:12px 16px;margin:10px 0;border-radius:0 6px 6px 0}
+  .good{background:#e9f7f5;border-left:5px solid var(--ok);padding:12px 16px;margin:10px 0;border-radius:0 6px 6px 0}
+  .quote{font-style:italic;color:#444;padding:6px 12px;border-left:3px solid var(--muted);margin:6px 0}
+  .chart{display:flex;align-items:flex-end;height:160px;gap:6px;padding:14px 4px 26px;border-bottom:1px solid var(--border);position:relative}
+  .bar{flex:1;background:linear-gradient(180deg,var(--primary),#3a66c2);border-radius:3px 3px 0 0;position:relative;min-height:2px;cursor:default}
+  .bar.over{background:linear-gradient(180deg,var(--accent),#e85959)}
+  .bar.warn{background:linear-gradient(180deg,var(--warning),#fba84a)}
+  .bar .lbl{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%) rotate(-30deg);transform-origin:left top;font-size:10px;color:var(--muted);white-space:nowrap}
+  .bar .val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:600;color:var(--txt)}
+  .legend{display:flex;gap:14px;justify-content:center;font-size:11px;color:var(--muted);margin-top:8px}
+  .dot{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:4px}
+  ol li, ul li{margin:5px 0}
+  .small{font-size:12px;color:var(--muted)}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:780px){.grid{grid-template-columns:repeat(2,1fr)} .twocol{grid-template-columns:1fr}}
+  footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Informe forense — Emergencia medidor quemado</h1>
+  <div class="sub">Cliente: <strong>Los Hornitos SAS</strong> (Pastelería) · Código BIA: <strong>CO0100002149</strong> · Contrato: 12572 · SIC: Frt46275 · Serial medidor: 23061200<br>
+  Bogotá D.C. · OR: ENEL CUNDINAMARCA · Medida: Directa Trifásica Nivel 1 · Fecha del evento: <strong>28-abr-2026, 21:42</strong> · Análisis emitido: 14-may-2026</div>
+</header>
+
+<section class="grid">
+  <div class="kpi red"><div class="v">28-abr-26</div><div class="l">Fecha emergencia</div></div>
+  <div class="kpi red"><div class="v">~30 meses</div><div class="l">Vida útil real (vs 120-180 esperados)</div></div>
+  <div class="kpi orange"><div class="v">72.1 A</div><div class="l">Pico de corriente registrado</div></div>
+  <div class="kpi red"><div class="v">#8 AWG</div><div class="l">Calibre acometida (50 A nominal)</div></div>
+</section>
+
+<section>
+  <h2>Conclusión ejecutiva</h2>
+  <div class="alert">
+    <strong>Causa raíz: subdimensionamiento del conductor de acometida y desbalance de carga crónico — NO sobrecarga del medidor.</strong><br>
+    El medidor quemó por <strong>calor irradiado desde un cable de acometida operando crónicamente por encima de su ampacidad</strong> (50 A nominal frente a picos sostenidos de 60–72 A en Fase B), agravado por desbalance estructural (Fase B carga 2× el resto) y por estar instalado en celda 60×60 con <strong>fondo de madera, sin disipación adecuada</strong>. La degradación térmica progresiva de la bornera (sulfatación + recalentamiento) culminó en la fusión del medidor el 28-abr-2026. La corriente registrada por el medidor NUNCA superó 80 A — por sí solo el medidor habría sobrevivido.
+  </div>
+
+  <div class="card">
+    <h3>Lo que cuentan los datos en una línea</h3>
+    <p>Durante los últimos 7 meses el cable estuvo <strong>906 horas por encima de su ampacidad nominal</strong> (50 A), con tendencia ascendente mes a mes. En las <strong>36–48 horas previas al evento</strong> el voltaje de la Fase C cayó progresivamente de 120 V a <strong>86 V</strong> — síntoma inequívoco de mal contacto / recalentamiento en la bornera. El medidor murió a las 08:00 del 27-abr (lecturas de corriente y voltaje a cero); el cliente reportó la emergencia 37 horas después.</p>
+  </div>
+</section>
+
+<section>
+  <h2>1. Línea de tiempo del evento</h2>
+  <table>
+    <thead><tr><th>Fecha</th><th>Evento</th><th>Fuente</th></tr></thead>
+    <tbody>
+      <tr><td>26-oct-2023</td><td>Primera lectura DLMS del medidor 23061200 (inicio de operación)</td><td>prod-bia-cgm.consumptions</td></tr>
+      <tr><td>09-sep-2025</td><td>Visita "Normalización Telemedidas" — falla de módem corregida; medidor operativo. Acometida documentada 3x#8 AWG. <strong>No se documenta capacidad del medidor.</strong></td><td>operations.visitas_general</td></tr>
+      <tr><td>16-sep-2025</td><td>Pre-visita / inspección de frontera. Acometida 2x#8 AWG observada. Se sugiere adecuar celda a AE305 o policarbonato (no se ejecutó).</td><td>operations.visitas_general</td></tr>
+      <tr><td>Oct 2025 – Mar 2026</td><td><strong>Tendencia creciente</strong> de horas sobre ampacidad del cable: 76 → 201 horas/mes</td><td>Análisis DLMS</td></tr>
+      <tr><td>26-abr-2026, 21:00</td><td><strong>Voltaje Fase C comienza a colapsar</strong>: 120 V → 89 V en 5 horas</td><td>DLMS hourly</td></tr>
+      <tr><td>27-abr-2026, 08:00</td><td><strong>Medidor deja de reportar corrientes y voltajes</strong> — falla terminal</td><td>DLMS hourly</td></tr>
+      <tr class="badge"><td>28-abr-2026, 21:42</td><td><strong>EMERGENCIA atendida.</strong> Hallazgo: <em>"medidor derretido y quemado en bornera; cables de acometida y parcial con recalentamiento y sulfatación"</em>. Cliente queda con servicio directo aguas abajo del totalizador.</td><td>Acta visita emergencia</td></tr>
+      <tr><td>29-abr-2026, 08:00</td><td>Segunda visita programada — cancelada porque la OT ya estaba realizada</td><td>operations.visitas_general</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>2. Evidencia física (acta de emergencia, 28-abr-26)</h2>
+  <div class="ev">
+    <p class="quote">"Se evidencia medidor derretido y quemado en bornera"</p>
+    <p class="quote">"Se procede a cortar cables de acometida y parcial por recalentamiento y sulfatación"</p>
+    <p class="quote">"Se encinta parcial sulfatada y recalentada para dejar al cliente en servicio directo"</p>
+    <p class="quote">"Se recomienda cambio de celda por AE305, cambio de acometida concéntrica 3x8AWG (15 mts), y por la afectación en la parcial se sugiere el cambio de esta"</p>
+  </div>
+  <p class="small">El acta confirma sulfatación y recalentamiento en los conductores, no solo en el medidor — patrón clásico de subdimensionamiento del conductor donde el calor del cable irradia hacia la bornera.</p>
+</section>
+
+<section>
+  <h2>3. Datos técnicos de la instalación</h2>
+  <div class="twocol">
+    <div class="card">
+      <h3>Configuración encontrada en sitio</h3>
+      <table>
+        <tr><td><strong>Tipo de medida</strong></td><td>Directa Trifásica (FX1)</td></tr>
+        <tr><td><strong>Nivel de tensión</strong></td><td>Nivel 1 (120/208 V)</td></tr>
+        <tr><td><strong>Serial medidor</strong></td><td>23061200</td></tr>
+        <tr><td><strong>Marca medidor</strong></td><td>Sin marca visible (celda)</td></tr>
+        <tr><td><strong>Capacidad medidor</strong></td><td><span class="badge b-orange">Sin documentar</span></td></tr>
+        <tr><td><strong>Totalizador</strong></td><td>100 A marca Steck</td></tr>
+        <tr><td><strong>Acometida</strong></td><td>3x #8 AWG línea abierta aérea</td></tr>
+        <tr><td><strong>Parcial</strong></td><td>3x #8 AWG línea abierta</td></tr>
+        <tr><td><strong>Celda</strong></td><td>60x60 sin marca, <strong>fondo de madera</strong></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Ampacidad y márgenes (NTC 2050 / NTC 1340)</h3>
+      <table>
+        <tr><th>Elemento</th><th>Capacidad</th><th>Estado</th></tr>
+        <tr><td>Cable #8 AWG THW</td><td>50 A nominal</td><td><span class="badge b-red">Subdimensionado</span></td></tr>
+        <tr><td>Totalizador Steck</td><td>100 A</td><td><span class="badge b-green">OK</span></td></tr>
+        <tr><td>Medidor (asumido 100 A)</td><td>100 A</td><td><span class="badge b-green">Dentro de rango</span></td></tr>
+        <tr><td>Celda fondo madera</td><td>Sin disipación</td><td><span class="badge b-red">Inadecuada</span></td></tr>
+      </table>
+      <p class="small"><strong>Margen NTC 2050 (125%):</strong> para un medidor 100 A el cable mínimo es #2 AWG (115 A). Aquí se instaló <strong>#8 AWG, 4 calibres por debajo del mínimo</strong>. Es subdimensionamiento severo.</p>
+      <p class="small"><strong>No hay registro</strong> en <code>operations.alcances_general</code> para este contrato — el alcance técnico nunca se cargó al sistema, lo que explica que la deficiencia no se detectó documentalmente.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>4. Perfil de corriente — evidencia DLMS</h2>
+
+  <div class="card">
+    <h3>Picos mensuales y horas sobre ampacidad del cable (50 A) — últimos 7 meses</h3>
+    <div class="chart">
+      <div class="bar" style="height:38%"><span class="val">76</span><span class="lbl">Oct-25</span></div>
+      <div class="bar" style="height:25%"><span class="val">50</span><span class="lbl">Nov-25</span></div>
+      <div class="bar warn" style="height:59%"><span class="val">119</span><span class="lbl">Dic-25</span></div>
+      <div class="bar warn" style="height:78%"><span class="val">156</span><span class="lbl">Ene-26</span></div>
+      <div class="bar over" style="height:95%"><span class="val">192</span><span class="lbl">Feb-26</span></div>
+      <div class="bar over" style="height:100%"><span class="val">201</span><span class="lbl">Mar-26</span></div>
+      <div class="bar warn" style="height:56%"><span class="val">112</span><span class="lbl">Abr-26*</span></div>
+    </div>
+    <p class="legend small">
+      <span><span class="dot" style="background:var(--primary)"></span>&lt;100 h</span>
+      <span><span class="dot" style="background:var(--warning)"></span>100–180 h</span>
+      <span><span class="dot" style="background:var(--accent)"></span>&gt;180 h</span>
+      <span>* Abril-26 cortado al evento (27-abr)</span>
+    </p>
+    <p class="small">Tendencia crítica: el número de horas con corriente por encima de ampacidad del cable <strong>se triplicó</strong> entre noviembre (50 h) y marzo (201 h). El cliente añadió carga sin que la infraestructura se redimensionara.</p>
+  </div>
+
+  <div class="card">
+    <h3>Resumen mensual completo</h3>
+    <table>
+      <thead><tr><th>Mes</th><th>Energía (kWh)</th><th>I máx (A)</th><th>I promedio (A)</th><th>Horas ≥50 A</th><th>Horas ≥80 A</th><th>Horas ≥100 A</th></tr></thead>
+      <tbody>
+        <tr><td>Oct 2025</td><td>6.615</td><td>61.6</td><td>37.8</td><td>76</td><td>0</td><td>0</td></tr>
+        <tr><td>Nov 2025</td><td>6.260</td><td>64.2</td><td>36.6</td><td>50</td><td>0</td><td>0</td></tr>
+        <tr><td>Dic 2025</td><td>6.700</td><td>62.0</td><td>39.2</td><td>119</td><td>0</td><td>0</td></tr>
+        <tr><td>Ene 2026</td><td>6.660</td><td>67.6</td><td>40.3</td><td>156</td><td>0</td><td>0</td></tr>
+        <tr><td>Feb 2026</td><td>6.000</td><td>69.8</td><td>42.3</td><td>192</td><td>0</td><td>0</td></tr>
+        <tr><td>Mar 2026</td><td>6.464</td><td><strong>72.1</strong></td><td>41.6</td><td><strong>201</strong></td><td>0</td><td>0</td></tr>
+        <tr><td>Abr 2026 (al 27)</td><td>5.829</td><td>67.5</td><td>35.0</td><td>112</td><td>0</td><td>0</td></tr>
+        <tr style="background:#fde2e2"><td colspan="4"><strong>TOTAL (7 meses)</strong></td><td><strong>906 h</strong></td><td>0 h</td><td>0 h</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Lectura clave: <strong>nunca se cruzó 80 A</strong> (zona de fatiga térmica del medidor 100 A), pero el cable estaba <strong>siempre</strong> al límite o por encima — el fallo no es del medidor sino del conductor.</p>
+  </div>
+</section>
+
+<section>
+  <h2>5. Desbalance de carga (causa concurrente)</h2>
+  <div class="card">
+    <p>El medidor reporta lecturas por fase. Análisis del pico diario máximo a lo largo de los 91 días de la ventana de análisis:</p>
+    <table>
+      <thead><tr><th>Fase</th><th>Pico máx absoluto</th><th>Pico promedio diario</th><th>Comportamiento</th></tr></thead>
+      <tbody>
+        <tr><td>Fase A</td><td>38.6 A</td><td>~29 A</td><td><span class="badge b-green">Carga normal</span></td></tr>
+        <tr style="background:#fde2e2"><td><strong>Fase B</strong></td><td><strong>72.1 A</strong></td><td><strong>~60 A</strong></td><td><span class="badge b-red">Concentra el 100% de la sobrecarga</span></td></tr>
+        <tr><td>Fase C</td><td>43.7 A</td><td>~27 A</td><td><span class="badge b-green">Carga normal</span></td></tr>
+      </tbody>
+    </table>
+    <p class="small">Durante <strong>los 91 días analizados, el pico diario siempre fue en Fase B</strong> (sin excepción). Phase B cargaba aproximadamente <strong>2× lo que cargaban A y C</strong>. Esto concentra todo el estrés térmico en un solo punto de contacto de la bornera — exactamente donde el acta describe el quemado.</p>
+    <p class="small">La causa probable es una distribución desigual de cargas: equipos grandes (hornos, refrigeración) conectados predominantemente a la fase B. Es una decisión del electricista del cliente que se podría corregir sin obra mayor.</p>
+  </div>
+</section>
+
+<section>
+  <h2>6. Señal temprana ignorada — colapso de voltaje 36-48 h pre-evento</h2>
+  <div class="alert">
+    <strong>Esta es la señal que el monitoreo debería haber capturado.</strong> El voltaje de la Fase C empezó a caer progresivamente desde el mediodía del 26 de abril, llegando a 86 V — un 28% por debajo del nominal — 24 horas antes de la falla terminal. Patrón clásico de mal contacto / recalentamiento progresivo en bornera.
+  </div>
+  <table>
+    <thead><tr><th>Día / hora</th><th>V Fase A</th><th>V Fase B</th><th>V Fase C</th><th>Observación</th></tr></thead>
+    <tbody>
+      <tr><td>25-abr 12:00</td><td>119.0 V</td><td>117.0 V</td><td>114.9 V</td><td>Normal</td></tr>
+      <tr><td>26-abr 14:00</td><td>120.4 V</td><td>120.2 V</td><td>107.8 V</td><td><span class="badge b-yellow">Anomalía leve</span></td></tr>
+      <tr><td>26-abr 18:00</td><td>121.8 V</td><td>120.5 V</td><td>110.4 V</td><td><span class="badge b-yellow">Persiste</span></td></tr>
+      <tr><td>26-abr 21:00</td><td>122.8 V</td><td>121.7 V</td><td><strong>97.1 V</strong></td><td><span class="badge b-orange">Caída acelerada</span></td></tr>
+      <tr style="background:#fde2e2"><td>26-abr 22:00</td><td>123.0 V</td><td>122.4 V</td><td><strong>89.3 V</strong></td><td><span class="badge b-red">Crítico</span></td></tr>
+      <tr style="background:#fde2e2"><td>27-abr 02:00</td><td>122.2 V</td><td>121.7 V</td><td><strong>86.4 V</strong></td><td><span class="badge b-red">Mínimo</span></td></tr>
+      <tr><td>27-abr 08:00</td><td>0</td><td>0</td><td>0</td><td><span class="badge b-red">Medidor muerto</span></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Por Ley de Ohm, una caída de 30 V con corriente sostenida indica que se generó una resistencia parásita en la bornera (estimada en ~1 Ω). Esa resistencia disipa <strong>I²·R = ~30² × 1 = 900 W</strong> concentrados en un punto de contacto — energía térmica que en pocas horas funde la conexión.</p>
+</section>
+
+<section>
+  <h2>7. Vida útil del equipo</h2>
+  <div class="twocol">
+    <div class="card">
+      <h3>Edad del medidor</h3>
+      <table>
+        <tr><td>Primera lectura DLMS</td><td>26-oct-2023</td></tr>
+        <tr><td>Falla terminal</td><td>27-abr-2026</td></tr>
+        <tr><td><strong>Vida útil real</strong></td><td><strong>~30 meses (2,5 años)</strong></td></tr>
+        <tr><td>Vida útil esperada (IEC 62052-11)</td><td>10–15 años</td></tr>
+        <tr><td>Cumplimiento</td><td><span class="badge b-red">17–25% de la vida esperada</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Por qué falló prematuro</h3>
+      <p class="small">Según IEC 62052-11, una falla a los 2,5 años indica con muy alta probabilidad <strong>fatiga térmica acumulada</strong>, no defecto de fábrica. La acumulación de horas con la bornera expuesta a calor externo (cable subdimensionado + celda con madera + concentración en fase B) degrada el cobre y los plásticos de manera irreversible.</p>
+      <p class="small">El medidor habría durado &gt;10 años en condiciones normales. Cambiarlo sin corregir la causa raíz garantiza repetir la emergencia.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>8. Clasificación retrospectiva — esta frontera DEBIÓ haberse marcado ALTO</h2>
+  <div class="card">
+    <p>Aplicando los criterios documentados en <code>criterios_riesgo.md</code> de la skill de detección temprana:</p>
+    <table>
+      <thead><tr><th>Criterio</th><th>Valor observado</th><th>Umbral</th><th>Cumple</th></tr></thead>
+      <tbody>
+        <tr><td>Pico de corriente &gt; ampacidad cable</td><td>72.1 A vs 50 A</td><td>cualquier pico &gt; ampacidad</td><td><span class="badge b-red">SÍ</span></td></tr>
+        <tr><td>Horas con corriente &gt; ampacidad cable</td><td>906 h en 7 meses</td><td>&gt;50 h en zona crítica</td><td><span class="badge b-red">SÍ (18×)</span></td></tr>
+        <tr><td>Tendencia creciente mes a mes</td><td>50 h → 201 h</td><td>+20% MoM</td><td><span class="badge b-red">SÍ</span></td></tr>
+        <tr><td>Capacidad medidor documentada</td><td>No</td><td>Acta explícita</td><td><span class="badge b-orange">Verificar</span></td></tr>
+        <tr><td>Uso medidor ≥80%</td><td>~72%</td><td>≥80%</td><td><span class="badge b-green">No</span></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Clasificación retrospectiva:</strong> <span class="badge b-red">ALTO / Verificar</span> — por pico sostenido sobre ampacidad del cable. Si la skill hubiera corrido en febrero de 2026 (cuando ya superaba 190 h sobre ampacidad en un mes), esta frontera habría aparecido en el top del barrido y la visita técnica podría haber detectado el cable subdimensionado <strong>10 semanas antes del evento</strong>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>9. Recomendaciones</h2>
+  <div class="card">
+    <h3>Para la normalización inmediata (CX + CGM)</h3>
+    <ol>
+      <li><strong>Subir calibre de acometida y parcial.</strong> El acta recomienda "cambio de acometida concéntrica 3x8 AWG" — eso replicaría el mismo problema. La normalización debe usar como mínimo <strong>3x #4 AWG (85 A)</strong> y preferiblemente <strong>3x #2 AWG (115 A)</strong> para cumplir el margen NTC 2050 del 125% sobre el medidor de 100 A.</li>
+      <li><strong>Reemplazar la celda</strong> de fondo de madera por AE305 metálica con ventilación adecuada, como ya se recomendó desde la pre-visita de septiembre-2025.</li>
+      <li><strong>Documentar capacidad del nuevo medidor</strong> en el acta de instalación — campo obligatorio para cumplir la regla de la skill.</li>
+      <li><strong>Cargar el alcance técnico en <code>operations.alcances_general</code></strong> — actualmente vacío para este contrato.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Para el cliente (Ingeniería)</h3>
+    <ul>
+      <li><strong>Redistribuir cargas entre las 3 fases.</strong> Hoy Fase B carga ~2× lo que cargan A y C. Mover circuitos de horno/refrigeración a las otras fases reduce el pico máximo a ~50 A y mejora factor de utilización.</li>
+      <li>Evaluar si el medidor 100 A es suficiente a futuro o se requiere un 160 A — el cliente tuvo crecimiento de carga sostenido (h≥50 A creció 3× en 5 meses).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Para la operación CGM (palanca de proceso)</h3>
+    <ul>
+      <li>Implementar el barrido semanal de fronteras con <strong>pico &gt; ampacidad del cable documentado</strong>. Esta regla por sí sola habría detectado Los Hornitos desde octubre-2025.</li>
+      <li>Agregar al monitoreo CGM una <strong>alerta de caída de voltaje &gt;15% por más de 4 horas en una fase mientras las otras dos están normales</strong>. Esa señal precedió el evento por 24-48 h.</li>
+      <li>Hacer obligatorio el campo "Capacidad nominal del medidor (A)" en el acta digital de instalación / normalización — sin esto, el 91,5% de fronteras quedan en categoría "Verificar" en la auditoría.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>Fuentes: <code>operations.visitas_general</code> (DB 2344, 3 visitas relevantes); <code>operations.alcances_general</code> (DB 2344, sin registros para contract_id=12572); <code>prod-bia-cgm.consumptions</code> (DB 35, 22.080 lecturas horarias entre 26-oct-2023 y 02-may-2026).<br>
+  Marco normativo: NTC 2050 (ampacidad conductores), NTC 1340 (calidad servicio), IEC 62052-11 (vida útil medidores), CREG 015/038 (telemedida).<br>
+  Análisis emitido por: Hernán Manjarres · Analista OPEX · BIA Energy · 14-may-2026.</p>
+</footer>
+
+</div>
+</body>
+</html>

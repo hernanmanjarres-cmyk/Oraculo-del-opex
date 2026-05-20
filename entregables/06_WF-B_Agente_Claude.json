@@ -381,7 +381,9 @@
       "position": [
         1290,
         620
-      ]
+      ],
+      "continueOnFail": true,
+      "notes": "Solo responde cuando WF-B fue llamado vía Webhook directo. Cuando viene de Execute Workflow (WF-G) no hay webhook activo — continueOnFail evita que esto rompa la ejecución."
     },
     {
       "parameters": {
@@ -433,7 +435,7 @@
         "method": "POST",
         "url": "https://slack.com/api/chat.postMessage",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "nodeCredentialType": "slackApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -459,9 +461,9 @@
       ],
       "notes": "Envía la respuesta al canal/hilo de Slack via chat.postMessage. Responde en el mismo hilo si thread_ts presente.",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "GciOWwHMTLVJJuAu",
-          "name": "Header Auth account 12"
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
         }
       }
     },
@@ -492,7 +494,7 @@
         "method": "GET",
         "url": "https://slack.com/api/conversations.replies",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "nodeCredentialType": "slackApi",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -522,7 +524,7 @@
           }
         }
       },
-      "id": "wfb-0015-0015-0015-000000000015",
+      "id": "wfb-0016-fetch-hilo-padre-000000000016",
       "name": "Fetch hilo padre",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -533,9 +535,9 @@
       "continueOnFail": true,
       "notes": "Si la pregunta vino dentro de un hilo, trae el mensaje padre del hilo via Slack API. Si no es hilo (slack_thread_ts null) Slack devuelve ok:false y se ignora.",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "GciOWwHMTLVJJuAu",
-          "name": "Header Auth account 12"
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
         }
       }
     },
@@ -576,6 +578,35 @@
     },
     {
       "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "wfb-exec-trigger-0001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        700
+      ],
+      "notes": "Punto de entrada cuando WF-G (u otro workflow) llama a WF-B via 'Execute Workflow'. Recibe { message, session_id } y lo pasa directo a Normalizar input."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Retorna el output del agente al workflow padre (WF-G).\n// Cuando WF-B es llamado via Execute Workflow, el padre recibe\n// el output de todos los nodos hoja — este nodo garantiza que\n// el campo 'output' esté disponible para Parse Sections en WF-G.\nconst agentOutput = $('Agente OPEX (Claude)').first()?.json?.output || '';\nreturn [{ json: { output: agentOutput } }];\n"
+      },
+      "id": "wfb-final-output-0001",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1230,
+        400
+      ],
+      "notes": "Nodo hoja que el Execute Workflow de WF-G captura como respuesta. Sin conexiones salientes."
+    },
+    {
+      "parameters": {
         "jsCode": "// Selecciona aleatoriamente una frase mística para mostrar que el oráculo está trabajando\n// Se ejecuta ANTES de Normalizar input, así que lee los datos del Pre-router Slack\nconst frases = [\n  '🔮 Consultando los telares del conocimiento...',\n  '🔮 Las nebulosas del OPEX se alinean... permíteme un momento.',\n  '🔮 Desentrañando los pergaminos sagrados del backlog...',\n  '🔮 Las estrellas del OPEX están hablando... escuchando atentamente.',\n  '🔮 Invocando los registros antiguos de Metabase y Supabase...',\n  '🔮 El cristal mágico se ilumina... revelando la respuesta.',\n  '🔮 Cruzando los hilos del tiempo y los datos... un momento.',\n  '🔮 Despertando a los espíritus de la base de datos...',\n  '🔮 Recorriendo los pergaminos digitales en busca de tu verdad...',\n  '🔮 Los vientos del CAC murmuran respuestas... afinando el oído.'\n];\n\n// El input viene del Pre-router Slack (vía IF Es Slack Event)\n// Formato: { is_challenge: false, skip: false, body: { slack_channel_id, slack_thread_ts, slack_msg_ts, ... } }\nconst raw = $input.first().json || {};\nconst slackData = raw.body || {};\n\nconst channelId = slackData.slack_channel_id;\nconst replyTs = slackData.slack_thread_ts || slackData.slack_msg_ts;\n\n// Si por alguna razón no hay channel_id, descartamos\nif (!channelId) {\n  return [];\n}\n\nconst frase = frases[Math.floor(Math.random() * frases.length)];\n\nconst payload = { channel: channelId, text: frase };\nif (replyTs) payload.thread_ts = replyTs;\n\nreturn [{ json: { payload } }];\n"
       },
       "id": "wfb-0017-telares-build",
@@ -592,7 +623,7 @@
         "method": "POST",
         "url": "https://slack.com/api/chat.postMessage",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "nodeCredentialType": "slackApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -621,9 +652,9 @@
       "continueOnFail": true,
       "notes": "Mensaje inmediato 'consultando los telares' para feedback al usuario mientras el agente trabaja. continueOnFail para que un fallo aquí no rompa el flujo principal.",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "GciOWwHMTLVJJuAu",
-          "name": "Header Auth account 12"
+        "slackApi": {
+          "id": "SLACK_API_CREDENTIAL_ID",
+          "name": "Oráculo del opex"
         }
       }
     }
@@ -870,11 +901,27 @@
         ]
       ]
     },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalizar input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Guardar en memoria": {
       "main": [
         [
           {
             "node": "Enrutar respuesta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Final Output",
             "type": "main",
             "index": 0
           }
