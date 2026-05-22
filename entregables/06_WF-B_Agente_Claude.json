@@ -919,11 +919,6 @@
             "node": "Enrutar respuesta",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Final Output",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -933,6 +928,17 @@
         [
           {
             "node": "Cargar contexto usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta HTTP": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
             "type": "main",
             "index": 0
           }
