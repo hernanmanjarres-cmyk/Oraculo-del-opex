@@ -63,6 +63,8 @@
   "ots_abiertas": [
     {
       "codigo_ot": "3bb34d01-4366-4421-aadd-19f29c905fe8",
+      "ot_title": "INST_45408_DEA5C2",
+      "service_name": "Instalación",
       "codigo_bia": "CO1100006831",
       "service_type_id": "INST",
       "electrician_status_id": "REASSIGNED",
@@ -79,6 +81,8 @@
     },
     {
       "codigo_ot": "dc87bbbb-4771-494f-9523-513ca68d2e53",
+      "ot_title": "VIPE_45917_B7A144",
+      "service_name": "Visita previa",
       "codigo_bia": "CO0800006864",
       "service_type_id": "VIPE",
       "electrician_status_id": "ASSIGNED",
@@ -95,6 +99,8 @@
     },
     {
       "codigo_ot": "5c944201-57ba-4a15-887c-17eae5337d1d",
+      "ot_title": "VIPE_46315_CF3274",
+      "service_name": "Visita previa",
       "codigo_bia": "CO0800006891",
       "service_type_id": "VIPE",
       "electrician_status_id": "ASSIGNED",
@@ -111,6 +117,8 @@
     },
     {
       "codigo_ot": "e269a8b0-158d-42bf-9fb0-30be87624c13",
+      "ot_title": "VIPE_44006_CDE862",
+      "service_name": "Visita previa",
       "codigo_bia": "CO1100006717",
       "service_type_id": "VIPE",
       "electrician_status_id": "REASSIGNED",
@@ -134,6 +142,8 @@
   "ots_ejecutadas": [
     {
       "codigo_ot": "87cc2cab-4811-4fca-a5c4-58d8e1c619f1",
+      "ot_title": "NORM_39508_B52C32",
+      "service_name": "Normalización medida",
       "codigo_bia": "CO0200006454",
       "service_type_id": "NORM",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -146,6 +156,8 @@
     },
     {
       "codigo_ot": "a65f1d78-2070-4938-b2f6-801b08ef954e",
+      "ot_title": "VIPE_44240_A5E4BE",
+      "service_name": "Visita previa",
       "codigo_bia": "CO2000006705",
       "service_type_id": "VIPE",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -158,6 +170,8 @@
     },
     {
       "codigo_ot": "27df6953-4cad-464c-9c58-7aebdc354c95",
+      "ot_title": "PREV_0_1349635790_1",
+      "service_name": "Visita pre-venta",
       "codigo_bia": "0",
       "service_type_id": "PREV",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -170,6 +184,8 @@
     },
     {
       "codigo_ot": "b262b533-e12a-4bc6-93f0-b27e50982d4b",
+      "ot_title": "VEXT_41067_8F8A44",
+      "service_name": "Verificación externa",
       "codigo_bia": "CO0800006559",
       "service_type_id": "VEXT",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -182,6 +198,8 @@
     },
     {
       "codigo_ot": "28aeaa09-5c62-4a8b-9098-cf0542e62b3a",
+      "ot_title": "VIPE_44039_80A0C6",
+      "service_name": "Visita previa",
       "codigo_bia": "CO0500006750",
       "service_type_id": "VIPE",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -194,6 +212,8 @@
     },
     {
       "codigo_ot": "5674d5ed-b78f-4087-a6d1-4f80abace2c2",
+      "ot_title": "VIPE_43827_95FE84",
+      "service_name": "Visita previa",
       "codigo_bia": "CO0500006734",
       "service_type_id": "VIPE",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",
@@ -206,6 +226,8 @@
     },
     {
       "codigo_ot": "a73eb010-771f-470c-b912-0a70a62ea8de",
+      "ot_title": "VIPE_43833_875B70",
+      "service_name": "Visita previa",
       "codigo_bia": "CO0500006735",
       "service_type_id": "VIPE",
       "electrician_status_id": "CLOSURE_SUCCESSFUL",

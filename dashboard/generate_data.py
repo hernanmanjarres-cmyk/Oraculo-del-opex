@@ -126,7 +126,8 @@ def build_ots_abiertas():
     """OTs abiertas (no cerradas/canceladas) con forecast P80+P50+P50+AVG, cascada L1/L2/L3."""
     sql = """
 WITH otas_abiertas AS (
-  SELECT v.id::text AS codigo_ot, v.internal_bia_code AS codigo_bia,
+  SELECT v.id::text AS codigo_ot, v.title AS ot_title, v.service_name,
+    v.internal_bia_code AS codigo_bia,
     v.service_type_id, v.electrician_status_id, h.operador_de_red, h.tipo_de_medida, v.contratista,
     v.fecha_visita::date AS fecha_programada, (v.contratista = 'BIA') AS is_bia
   FROM operations.visitas_general v
@@ -175,7 +176,7 @@ hist_l3 AS (
     AVG(transport_cost) AS avg_transporte
   FROM base_hist GROUP BY 1
 )
-SELECT a.codigo_ot, a.codigo_bia, a.service_type_id, a.electrician_status_id,
+SELECT a.codigo_ot, a.ot_title, a.service_name, a.codigo_bia, a.service_type_id, a.electrician_status_id,
   a.operador_de_red, a.tipo_de_medida, a.contratista, a.fecha_programada::text AS fecha_programada, a.is_bia,
   CASE WHEN a.is_bia THEN 0 ELSE ROUND(COALESCE(l1.p80_servicio, l2.p80_servicio, l3.p80_servicio, 0)) END AS servicio,
   CASE WHEN a.service_type_id IN ('INST','NORM') THEN ROUND(COALESCE(l1.p50_materiales, l2.p50_materiales, l3.p50_materiales, 0)) ELSE 0 END AS materiales,
@@ -201,6 +202,8 @@ def build_ots_ejecutadas():
     """OTs exitosas del mes con costo real desde opex_costs_general."""
     sql = """
 SELECT v.id::text AS codigo_ot,
+       v.title AS ot_title,
+       v.service_name,
        v.internal_bia_code AS codigo_bia,
        v.service_type_id,
        v.electrician_status_id,
@@ -219,7 +222,7 @@ WHERE v.fecha_visita >= date_trunc('month', CURRENT_DATE)
   AND v.electrician_status_id = 'CLOSURE_SUCCESSFUL'
   AND (oc.is_bia = false OR oc.is_bia IS NULL)
   AND COALESCE(oc.status, 'accepted') = 'accepted'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 ORDER BY costo_real DESC NULLS LAST, v.fecha_visita
 """.strip()
     return rows_from(run_sql(DB_GOLD, sql))
