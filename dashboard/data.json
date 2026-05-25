@@ -1,50 +1,67 @@
 {
   "fecha_corte": "2026-05-22",
-  "mes_label": "Mayo 2026",
-  "anio_mes": "2026-05",
+  "anio_mes_actual": "2026-05",
+  "mes_label_actual": "Mayo 2026",
   "meta_default": 21000000,
-  "ejecutado_por_servicio": [
-    {
-      "servicio": "Instalación",
-      "service_type_id": "INST",
-      "monto": 7993050
-    },
-    {
-      "servicio": "Normalización de medida",
-      "service_type_id": "NORM",
-      "monto": 1102000
-    },
-    {
-      "servicio": "Visita previa",
-      "service_type_id": "VIPE",
-      "monto": 1232500
-    },
-    {
-      "servicio": "Verificación externa",
-      "service_type_id": "VEXT",
-      "monto": 230000
-    },
-    {
-      "servicio": "Legalización",
-      "service_type_id": "LEGA",
-      "monto": 0
-    },
-    {
-      "servicio": "Visita prevención",
-      "service_type_id": "PREV",
-      "monto": 0
-    },
-    {
-      "servicio": "Revisión por QA",
-      "service_type_id": "REQA",
-      "monto": 0
-    },
-    {
-      "servicio": "Suspensión carro canasta",
-      "service_type_id": "SUCA",
-      "monto": 0
+  "ejecutado_por_servicio_by_month": {
+    "2026-04": [
+      {
+        "servicio": "Instalación",
+        "service_type_id": "INST",
+        "monto": 46243312
+      },
+      {
+        "servicio": "Legalización",
+        "service_type_id": "LEGA",
+        "monto": 1254000
+      },
+      {
+        "servicio": "Normalización de medida",
+        "service_type_id": "NORM",
+        "monto": 34655647
+      },
+      {
+        "servicio": "Visita previa",
+        "service_type_id": "VIPE",
+        "monto": 7596500
+      }
+    ],
+    "2026-05": [
+      {
+        "servicio": "Instalación",
+        "service_type_id": "INST",
+        "monto": 7993050
+      },
+      {
+        "servicio": "Legalización",
+        "service_type_id": "LEGA",
+        "monto": 0
+      },
+      {
+        "servicio": "Normalización de medida",
+        "service_type_id": "NORM",
+        "monto": 1102000
+      },
+      {
+        "servicio": "Verificación externa",
+        "service_type_id": "VEXT",
+        "monto": 230000
+      },
+      {
+        "servicio": "Visita previa",
+        "service_type_id": "VIPE",
+        "monto": 1232500
+      }
+    ]
+  },
+  "conteo_inst_norm_ejecutadas_por_or_by_month": {
+    "2026-05": {
+      "EMCALI CALI": {
+        "INST": 0,
+        "NORM": 1
+      }
     }
-  ],
+  },
   "tarifas_descargo_por_or": {
     "ENEL CUNDINAMARCA": 6000000,
     "CODENSA": 6000000,
@@ -54,12 +71,6 @@
     "ESSA SANTANDER": 1000000
   },
   "tarifa_acompanamiento": 360000,
-  "conteo_inst_norm_ejecutadas_por_or": {
-    "EMCALI CALI": {
-      "INST": 0,
-      "NORM": 1
-    }
-  },
   "ots_abiertas": [
     {
       "codigo_ot": "3bb34d01-4366-4421-aadd-19f29c905fe8",
@@ -72,6 +83,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
       "fecha_programada": "2026-05-28",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 276750,
@@ -90,6 +102,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
@@ -108,6 +121,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
@@ -126,19 +140,186 @@
       "tipo_de_medida": "Indirecta",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
       "adicionales": 0,
       "transporte": 44835,
       "total_ot": 44835
+    },
+    {
+      "codigo_ot": "1279fbf4-1974-43a3-8b3f-fa0e9e5f8e16",
+      "ot_title": "INST_45665_87ACB5",
+      "service_name": "Instalación",
+      "codigo_bia": "CO0800006843",
+      "service_type_id": "INST",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "AIRE CARIBE_SOL",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-04",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 5986000,
+      "materiales": 487680,
+      "adicionales": 390000,
+      "transporte": 427361,
+      "total_ot": 7291041
+    },
+    {
+      "codigo_ot": "b9e02da7-5c0f-4fa2-8205-63dc9e71bf5e",
+      "ot_title": "NORM_39856_20F883",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006484",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-20",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 2310000,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 2736250
+    },
+    {
+      "codigo_ot": "22563d89-5704-44cb-bb4d-5e425f2031f9",
+      "ot_title": "NORM_42355_D9A1EB",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0800006631",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-17",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 2310000,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 2736250
+    },
+    {
+      "codigo_ot": "5b5a6f95-95a8-4b52-9c69-9ab9a5bc24e9",
+      "ot_title": "NORM_32749_DF5858",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0800005332",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ESSA SANTANDER",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-23",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 887100,
+      "materiales": 120378,
+      "adicionales": 450000,
+      "transporte": 0,
+      "total_ot": 1457478
+    },
+    {
+      "codigo_ot": "d0830a5f-444f-4648-8dcc-3834a497cd70",
+      "ot_title": "NORM_39581_ADD0A5",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006464",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-07",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "f498f1b5-9089-4d6c-bf30-ffc05dbbd615",
+      "ot_title": "NORM_39955_957C56",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006488",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-13",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "f9bcf441-cf50-411f-8721-3bbfb244c24b",
+      "ot_title": "NORM_39580_8EC285",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006465",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-07",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "5b7f019d-83af-4d04-87ff-af216abb8f85",
+      "ot_title": "LEGA_39580_2014D9",
+      "service_name": "Legalización",
+      "codigo_bia": "CO0100006465",
+      "service_type_id": "LEGA",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-09",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 20970,
+      "total_ot": 20970
+    },
+    {
+      "codigo_ot": "e17be944-46bb-410f-84b7-08f48e73b826",
+      "ot_title": "LEGA_39581_5DB86E",
+      "service_name": "Legalización",
+      "codigo_bia": "CO0100006464",
+      "service_type_id": "LEGA",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-09",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 20970,
+      "total_ot": 20970
     }
   ],
-  "generated_at": "2026-05-22T15:50:00-05:00",
-  "source": {
-    "ejecutado": "Metabase card 71645 (Seguimiento_opex_act)",
-    "forecast": "SQL operations.visitas_general + opex_costs_general, 12m hist excluyendo mes actual"
-  },
   "ots_ejecutadas": [
     {
       "codigo_ot": "87cc2cab-4811-4fca-a5c4-58d8e1c619f1",
@@ -151,6 +332,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ELECPROYECTOS",
       "fecha_visita": "2026-05-15",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 1102000
     },
@@ -165,6 +347,7 @@
       "tipo_de_medida": "Indirecta",
       "contratista": "C3",
       "fecha_visita": "2026-05-15",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 684000
     },
@@ -179,6 +362,7 @@
       "tipo_de_medida": null,
       "contratista": "ELECPROYECTOS",
       "fecha_visita": "2026-05-13",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 321600
     },
@@ -193,6 +377,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "DISELEC",
       "fecha_visita": "2026-05-21",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 230000
     },
@@ -207,6 +392,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-07",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 211000
     },
@@ -221,6 +407,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-01",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 187500
     },
@@ -235,8 +422,14 @@
       "tipo_de_medida": "Directa",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-06",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 150000
     }
-  ]
+  ],
+  "generated_at": "2026-05-22T16:00:00-05:00",
+  "source": {
+    "ejecutado": "Card Metabase 71645",
+    "forecast": "SQL operations.visitas_general + 12m histórico"
+  }
 }

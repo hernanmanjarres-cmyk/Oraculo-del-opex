@@ -136,51 +136,68 @@
 <script id="dashboard-data" type="application/json">
 {
   "fecha_corte": "2026-05-22",
-  "mes_label": "Mayo 2026",
-  "anio_mes": "2026-05",
+  "anio_mes_actual": "2026-05",
+  "mes_label_actual": "Mayo 2026",
   "meta_default": 21000000,
-  "ejecutado_por_servicio": [
-    {
-      "servicio": "Instalación",
-      "service_type_id": "INST",
-      "monto": 7993050
-    },
-    {
-      "servicio": "Normalización de medida",
-      "service_type_id": "NORM",
-      "monto": 1102000
-    },
-    {
-      "servicio": "Visita previa",
-      "service_type_id": "VIPE",
-      "monto": 1232500
-    },
-    {
-      "servicio": "Verificación externa",
-      "service_type_id": "VEXT",
-      "monto": 230000
-    },
-    {
-      "servicio": "Legalización",
-      "service_type_id": "LEGA",
-      "monto": 0
-    },
-    {
-      "servicio": "Visita prevención",
-      "service_type_id": "PREV",
-      "monto": 0
-    },
-    {
-      "servicio": "Revisión por QA",
-      "service_type_id": "REQA",
-      "monto": 0
-    },
-    {
-      "servicio": "Suspensión carro canasta",
-      "service_type_id": "SUCA",
-      "monto": 0
+  "ejecutado_por_servicio_by_month": {
+    "2026-04": [
+      {
+        "servicio": "Instalación",
+        "service_type_id": "INST",
+        "monto": 46243312
+      },
+      {
+        "servicio": "Legalización",
+        "service_type_id": "LEGA",
+        "monto": 1254000
+      },
+      {
+        "servicio": "Normalización de medida",
+        "service_type_id": "NORM",
+        "monto": 34655647
+      },
+      {
+        "servicio": "Visita previa",
+        "service_type_id": "VIPE",
+        "monto": 7596500
+      }
+    ],
+    "2026-05": [
+      {
+        "servicio": "Instalación",
+        "service_type_id": "INST",
+        "monto": 7993050
+      },
+      {
+        "servicio": "Legalización",
+        "service_type_id": "LEGA",
+        "monto": 0
+      },
+      {
+        "servicio": "Normalización de medida",
+        "service_type_id": "NORM",
+        "monto": 1102000
+      },
+      {
+        "servicio": "Verificación externa",
+        "service_type_id": "VEXT",
+        "monto": 230000
+      },
+      {
+        "servicio": "Visita previa",
+        "service_type_id": "VIPE",
+        "monto": 1232500
+      }
+    ]
+  },
+  "conteo_inst_norm_ejecutadas_por_or_by_month": {
+    "2026-05": {
+      "EMCALI CALI": {
+        "INST": 0,
+        "NORM": 1
+      }
     }
-  ],
+  },
   "tarifas_descargo_por_or": {
     "ENEL CUNDINAMARCA": 6000000,
     "CODENSA": 6000000,
@@ -190,12 +207,6 @@
     "ESSA SANTANDER": 1000000
   },
   "tarifa_acompanamiento": 360000,
-  "conteo_inst_norm_ejecutadas_por_or": {
-    "EMCALI CALI": {
-      "INST": 0,
-      "NORM": 1
-    }
-  },
   "ots_abiertas": [
     {
       "codigo_ot": "3bb34d01-4366-4421-aadd-19f29c905fe8",
@@ -208,6 +219,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
       "fecha_programada": "2026-05-28",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 276750,
@@ -226,6 +238,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
@@ -244,6 +257,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
@@ -262,19 +276,186 @@
       "tipo_de_medida": "Indirecta",
       "contratista": "BIA",
       "fecha_programada": "2026-05-26",
+      "mes_id": "2026-05",
       "is_bia": true,
       "servicio": 0,
       "materiales": 0,
       "adicionales": 0,
       "transporte": 44835,
       "total_ot": 44835
+    },
+    {
+      "codigo_ot": "1279fbf4-1974-43a3-8b3f-fa0e9e5f8e16",
+      "ot_title": "INST_45665_87ACB5",
+      "service_name": "Instalación",
+      "codigo_bia": "CO0800006843",
+      "service_type_id": "INST",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "AIRE CARIBE_SOL",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-04",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 5986000,
+      "materiales": 487680,
+      "adicionales": 390000,
+      "transporte": 427361,
+      "total_ot": 7291041
+    },
+    {
+      "codigo_ot": "b9e02da7-5c0f-4fa2-8205-63dc9e71bf5e",
+      "ot_title": "NORM_39856_20F883",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006484",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-20",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 2310000,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 2736250
+    },
+    {
+      "codigo_ot": "22563d89-5704-44cb-bb4d-5e425f2031f9",
+      "ot_title": "NORM_42355_D9A1EB",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0800006631",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-17",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 2310000,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 2736250
+    },
+    {
+      "codigo_ot": "5b5a6f95-95a8-4b52-9c69-9ab9a5bc24e9",
+      "ot_title": "NORM_32749_DF5858",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0800005332",
+      "service_type_id": "NORM",
+      "electrician_status_id": "PENDING_ASSIGNMENT",
+      "operador_de_red": "ESSA SANTANDER",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": null,
+      "fecha_programada": "2026-06-23",
+      "mes_id": "2026-06",
+      "is_bia": false,
+      "servicio": 887100,
+      "materiales": 120378,
+      "adicionales": 450000,
+      "transporte": 0,
+      "total_ot": 1457478
+    },
+    {
+      "codigo_ot": "d0830a5f-444f-4648-8dcc-3834a497cd70",
+      "ot_title": "NORM_39581_ADD0A5",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006464",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-07",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "f498f1b5-9089-4d6c-bf30-ffc05dbbd615",
+      "ot_title": "NORM_39955_957C56",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006488",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-13",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "f9bcf441-cf50-411f-8721-3bbfb244c24b",
+      "ot_title": "NORM_39580_8EC285",
+      "service_name": "Normalización medida",
+      "codigo_bia": "CO0100006465",
+      "service_type_id": "NORM",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-07",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 140000,
+      "adicionales": 230000,
+      "transporte": 56250,
+      "total_ot": 426250
+    },
+    {
+      "codigo_ot": "5b7f019d-83af-4d04-87ff-af216abb8f85",
+      "ot_title": "LEGA_39580_2014D9",
+      "service_name": "Legalización",
+      "codigo_bia": "CO0100006465",
+      "service_type_id": "LEGA",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-09",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 20970,
+      "total_ot": 20970
+    },
+    {
+      "codigo_ot": "e17be944-46bb-410f-84b7-08f48e73b826",
+      "ot_title": "LEGA_39581_5DB86E",
+      "service_name": "Legalización",
+      "codigo_bia": "CO0100006464",
+      "service_type_id": "LEGA",
+      "electrician_status_id": "ASSIGNED",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-06-09",
+      "mes_id": "2026-06",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 20970,
+      "total_ot": 20970
     }
   ],
-  "generated_at": "2026-05-22T15:50:00-05:00",
-  "source": {
-    "ejecutado": "Metabase card 71645 (Seguimiento_opex_act)",
-    "forecast": "SQL operations.visitas_general + opex_costs_general, 12m hist excluyendo mes actual"
-  },
   "ots_ejecutadas": [
     {
       "codigo_ot": "87cc2cab-4811-4fca-a5c4-58d8e1c619f1",
@@ -287,6 +468,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ELECPROYECTOS",
       "fecha_visita": "2026-05-15",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 1102000
     },
@@ -301,6 +483,7 @@
       "tipo_de_medida": "Indirecta",
       "contratista": "C3",
       "fecha_visita": "2026-05-15",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 684000
     },
@@ -315,6 +498,7 @@
       "tipo_de_medida": null,
       "contratista": "ELECPROYECTOS",
       "fecha_visita": "2026-05-13",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 321600
     },
@@ -329,6 +513,7 @@
       "tipo_de_medida": "Directa",
       "contratista": "DISELEC",
       "fecha_visita": "2026-05-21",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 230000
     },
@@ -343,6 +528,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-07",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 211000
     },
@@ -357,6 +543,7 @@
       "tipo_de_medida": "Semidirecta",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-01",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 187500
     },
@@ -371,10 +558,16 @@
       "tipo_de_medida": "Directa",
       "contratista": "ISELEC",
       "fecha_visita": "2026-05-06",
+      "mes_id": "2026-05",
       "is_bia": false,
       "costo_real": 150000
     }
-  ]
+  ],
+  "generated_at": "2026-05-22T16:00:00-05:00",
+  "source": {
+    "ejecutado": "Card Metabase 71645",
+    "forecast": "SQL operations.visitas_general + 12m histórico"
+  }
 }
 </script>
 <!-- ▲▲▲ FIN DATA EMBEBIDA ▲▲▲ -->
@@ -711,7 +904,7 @@
 
   async function loadPresupuestos() {
     PRESUPUESTOS = {};
-    if (!sb) { PRESUPUESTOS[DATA.anio_mes] = { anio_mes: DATA.anio_mes, monto: DATA.meta_default || 21000000 }; return; }
+    if (!sb) { PRESUPUESTOS[DATA.anio_mes_actual] = { anio_mes: DATA.anio_mes_actual, monto: DATA.meta_default || 21000000 }; return; }
     const { data, error } = await sb.from('dashboard_presupuestos').select('*').order('anio_mes');
     if (error) { console.error('Error presup:', error); return; }
     for (const r of (data || [])) PRESUPUESTOS[r.anio_mes] = r;
@@ -722,7 +915,7 @@
   function initMonthFilter() {
     const sel = $('month-filter');
     const meses = Object.keys(PRESUPUESTOS).sort();
-    if (meses.length === 0) meses.push(DATA.anio_mes);
+    if (meses.length === 0) meses.push(DATA.anio_mes_actual);
 
     const labelDe = (am) => {
       const [y, m] = am.split('-');
@@ -733,7 +926,7 @@
 
     // Resolver mes inicial: query param > mes en curso (de data.json)
     const urlMonth = new URLSearchParams(window.location.search).get('month');
-    const defaultMonth = (urlMonth && meses.includes(urlMonth)) ? urlMonth : DATA.anio_mes;
+    const defaultMonth = (urlMonth && meses.includes(urlMonth)) ? urlMonth : DATA.anio_mes_actual;
     SELECTED_MONTH = meses.includes(defaultMonth) ? defaultMonth : meses[meses.length - 1];
     sel.value = SELECTED_MONTH;
 
@@ -880,13 +1073,27 @@
   // ═══════════════════════════════════════════════════════════════════
   const sum = arr => arr.reduce((s, x) => s + (Number(x) || 0), 0);
 
-  function totalEjecutadoServicios() { return sum((DATA.ejecutado_por_servicio || []).map(r => r.monto)); }
-  function totalForecastOTs() { return sum((DATA.ots_abiertas || []).filter(o => !o.is_bia).map(o => o.total_ot)); }
+  // ─── Helpers que filtran por SELECTED_MONTH ───────────────────────
+  function otsAbiertasMes() {
+    return (DATA.ots_abiertas || []).filter(o => o.mes_id === SELECTED_MONTH);
+  }
+  function otsEjecutadasMes() {
+    return (DATA.ots_ejecutadas || []).filter(o => o.mes_id === SELECTED_MONTH);
+  }
+  function ejecutadoServiciosMes() {
+    return (DATA.ejecutado_por_servicio_by_month || {})[SELECTED_MONTH] || [];
+  }
+  function conteosMes() {
+    return (DATA.conteo_inst_norm_ejecutadas_por_or_by_month || {})[SELECTED_MONTH] || {};
+  }
+
+  function totalEjecutadoServicios() { return sum(ejecutadoServiciosMes().map(r => r.monto)); }
+  function totalForecastOTs() { return sum(otsAbiertasMes().filter(o => !o.is_bia).map(o => o.total_ot)); }
 
   function descargosEjecutados() {
     const tarifas = DATA.tarifas_descargo_por_or || {};
     let total = 0;
-    for (const [or, byService] of Object.entries(DATA.conteo_inst_norm_ejecutadas_por_or || {})) {
+    for (const [or, byService] of Object.entries(conteosMes())) {
       total += ((byService.INST || 0) + (byService.NORM || 0)) * (tarifas[or] || 0);
     }
     return total;
@@ -894,85 +1101,88 @@
   function acompanamientosEjecutados() {
     const t = DATA.tarifa_acompanamiento || 0;
     let n = 0;
-    for (const byService of Object.values(DATA.conteo_inst_norm_ejecutadas_por_or || {}))
+    for (const byService of Object.values(conteosMes()))
       n += (byService.INST || 0) + (byService.NORM || 0);
     return n * t;
   }
   function descargosProyectados() {
-    // Descargo se paga al OR por cada INST/NORM, sin importar quién es contratista (BIA o externo).
     const tarifas = DATA.tarifas_descargo_por_or || {};
     let total = 0;
-    for (const ot of DATA.ots_abiertas || []) {
+    for (const ot of otsAbiertasMes()) {
       if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
       total += tarifas[ot.operador_de_red] || 0;
     }
     return total;
   }
   function acompanamientosProyectados() {
-    // Acompañamiento es costo interno por cada INST/NORM, sin importar contratista.
     let n = 0;
-    for (const ot of DATA.ots_abiertas || []) {
+    for (const ot of otsAbiertasMes()) {
       if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
     }
     return n * (DATA.tarifa_acompanamiento || 0);
   }
   function sumAdicionalesAbiertas() {
-    return sum((DATA.ots_abiertas || [])
+    return sum(otsAbiertasMes()
       .filter(o => !o.is_bia)
       .map(o => ADICIONALES[o.codigo_ot]?.monto || 0));
   }
 
   function getBudget() {
-    const am = SELECTED_MONTH || DATA.anio_mes;
+    const am = SELECTED_MONTH || DATA.anio_mes_actual;
     return Number(PRESUPUESTOS[am]?.monto ?? DATA.meta_default ?? 0);
   }
-  function isMesEnCurso() { return SELECTED_MONTH === DATA.anio_mes; }
+  function isMesEnCurso() { return SELECTED_MONTH === DATA.anio_mes_actual; }
 
   // ═══════════════════════════════════════════════════════════════════
   // Render principal
   // ═══════════════════════════════════════════════════════════════════
   function render() {
-    $('mes-label').textContent = DATA.mes_label || DATA.anio_mes;
     $('fecha-corte').textContent = DATA.fecha_corte;
     $('generated-at').textContent = (DATA.generated_at || '').replace('T', ' ').slice(0, 16);
 
-    // Si el mes seleccionado NO es el mes en curso, los datos detallados (ejec/forecast)
-    // no aplican — solo el presupuesto. Marcamos esto en la UI.
     const mesEnCurso = isMesEnCurso();
-    $('month-context').innerHTML = mesEnCurso
-      ? '<strong style="color:var(--ok)">●</strong> Mes en curso — datos en vivo'
-      : '<strong style="color:var(--warn)">●</strong> Solo presupuesto · datos detallados solo disponibles para el mes en curso';
+    // Label del mes seleccionado
+    const [y, m] = SELECTED_MONTH.split('-');
+    const mesNombre = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][+m - 1];
+    $('mes-label').textContent = `${mesNombre} ${y}`;
 
-    // Si NO es mes en curso, todo lo detallado va a 0 (no tenemos data histórica detallada todavía)
-    const factor = mesEnCurso ? 1 : 0;
+    // Context label
+    const mesActual = DATA.anio_mes_actual;
+    let contextHtml;
+    if (mesEnCurso) {
+      contextHtml = '<strong style="color:var(--ok)">●</strong> Mes en curso — datos en vivo';
+    } else if (SELECTED_MONTH > mesActual) {
+      const nAbiertas = otsAbiertasMes().length;
+      contextHtml = `<strong style="color:var(--info)">●</strong> Mes futuro — ${nAbiertas} OTs programadas. Solo forecast (sin ejecutado).`;
+    } else {
+      contextHtml = '<strong style="color:var(--warn)">●</strong> Mes pasado — ejecutado de card 71645, sin detalle OT.';
+    }
+    $('month-context').innerHTML = contextHtml;
 
-    const ejec = totalEjecutadoServicios() * factor;
-    const descE = descargosEjecutados() * factor;
-    const acompE = acompanamientosEjecutados() * factor;
-    const forecastOTs = totalForecastOTs() * factor;
-    const adicAbiertas = sumAdicionalesAbiertas() * factor;
-    const descP = descargosProyectados() * factor;
-    const acompP = acompanamientosProyectados() * factor;
+    // Cálculos con los helpers filtrados por mes
+    const ejec = totalEjecutadoServicios();
+    const descE = descargosEjecutados();
+    const acompE = acompanamientosEjecutados();
+    const forecastOTs = totalForecastOTs();
+    const adicAbiertas = sumAdicionalesAbiertas();
+    const descP = descargosProyectados();
+    const acompP = acompanamientosProyectados();
 
     const totalEjec = ejec + descE + acompE;
     const totalForecast = forecastOTs + adicAbiertas + descP + acompP;
     const totalProy = totalEjec + totalForecast;
 
-    // KPI: cantidad de OTs ejecutadas (visitas exitosas) del mes en curso
-    const otsEjecExternas = mesEnCurso ? (DATA.ots_ejecutadas || []).filter(o => !o.is_bia).length : 0;
+    const otsEjec = otsEjecutadasMes().filter(o => !o.is_bia);
     const breakdown = {};
-    if (mesEnCurso) for (const o of (DATA.ots_ejecutadas || [])) {
-      if (o.is_bia) continue;
-      breakdown[o.service_type_id] = (breakdown[o.service_type_id] || 0) + 1;
-    }
-    const breakdownTxt = Object.entries(breakdown).map(([k, v]) => `${v} ${k}`).join(' · ') || (mesEnCurso ? 'sin ejecutadas aún' : 'mes futuro / pasado');
+    for (const o of otsEjec) breakdown[o.service_type_id] = (breakdown[o.service_type_id] || 0) + 1;
+    const breakdownTxt = Object.entries(breakdown).map(([k, v]) => `${v} ${k}`).join(' · ') || 'sin ejecutadas';
 
     $('kpi-ejecutado').textContent = fmtCOP(ejec);
-    $('kpi-ots-ejec').textContent = otsEjecExternas;
+    $('kpi-ots-ejec').textContent = otsEjec.length;
     $('kpi-ots-ejec-sub').textContent = breakdownTxt;
     $('kpi-descargos-acomp').textContent = fmtCOP(descE + acompE);
     $('kpi-forecast').textContent = fmtCOP(totalForecast);
-    $('n-otas-abiertas').textContent = mesEnCurso ? (DATA.ots_abiertas || []).filter(o => !o.is_bia).length : 0;
+    $('n-otas-abiertas').textContent = otsAbiertasMes().filter(o => !o.is_bia).length;
 
     const budget = getBudget();
     $('kpi-total').textContent = fmtCOP(totalProy);
@@ -989,13 +1199,12 @@
     if (statusClass) kpiCard.classList.add(statusClass);
     $('kpi-vs-meta').textContent = statusText;
     $('progress-fill').style.width = budget > 0 ? Math.min(100, (totalProy / budget) * 100) + '%' : '0%';
-    $('budget-status').innerHTML = mesEnCurso
-      ? `Total: <strong>${fmtCOP(totalProy)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong>`
-      : `Presupuesto definido: <strong>${fmtCOP(budget)}</strong> · (editable desde ⚙️ Admin)`;
+    $('budget-status').innerHTML = `Total proyectado: <strong>${fmtCOP(totalProy)}</strong> · Presupuesto del mes: <strong>${fmtCOP(budget)}</strong> · (editable en ⚙️ Admin)`;
 
     // Servicios bar
-    const maxMonto = Math.max(...(DATA.ejecutado_por_servicio || []).map(r => r.monto || 0), 1);
-    $('services-list').innerHTML = (DATA.ejecutado_por_servicio || [])
+    const ejecRows = ejecutadoServiciosMes();
+    const maxMonto = Math.max(...ejecRows.map(r => r.monto || 0), 1);
+    $('services-list').innerHTML = ejecRows
       .filter(r => r.monto > 0).sort((a, b) => b.monto - a.monto)
       .map(r => `<div class="service-row">
         <div>${r.servicio} <span class="badge ext">${r.service_type_id}</span></div>
@@ -1021,7 +1230,8 @@
 
   function renderTablaAbiertas() {
     const tbody = $('abiertas-tbody');
-    tbody.innerHTML = (DATA.ots_abiertas || []).map(ot => {
+    const otas = otsAbiertasMes();
+    tbody.innerHTML = otas.map(ot => {
       const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
       const total = (ot.total_ot || 0) + Number(adic);
       return `<tr class="${ot.is_bia ? 'bia' : ''}">
@@ -1038,7 +1248,7 @@
       </tr>`;
     }).join('') || '<tr><td colspan="10" class="empty">Sin OTs abiertas este mes.</td></tr>';
 
-    const ext = (DATA.ots_abiertas || []).filter(o => !o.is_bia);
+    const ext = otas.filter(o => !o.is_bia);
     const f = sum(ext.map(o => o.total_ot));
     const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
     $('abiertas-forecast-total').textContent = fmtCOP(f);
@@ -1050,7 +1260,8 @@
 
   function renderTablaEjecutadas() {
     const tbody = $('ejecutadas-tbody');
-    tbody.innerHTML = (DATA.ots_ejecutadas || []).map(ot => {
+    const otas = otsEjecutadasMes();
+    tbody.innerHTML = otas.map(ot => {
       const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
       const real = ot.costo_real || 0;
       const total = real + Number(adic);
@@ -1068,7 +1279,7 @@
       </tr>`;
     }).join('') || '<tr><td colspan="10" class="empty">Sin OTs ejecutadas (exitosas) este mes.</td></tr>';
 
-    const ext = (DATA.ots_ejecutadas || []).filter(o => !o.is_bia);
+    const ext = otas.filter(o => !o.is_bia);
     const r = sum(ext.map(o => o.costo_real || 0));
     const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
     $('ejecutadas-real-total').textContent = fmtCOP(r);
@@ -1155,7 +1366,7 @@
     $('presup-tbody').innerHTML = meses.map(am => {
       const r = PRESUPUESTOS[am];
       const updated = (r.updated_at || '').slice(0, 16).replace('T', ' ');
-      const isCurrent = am === DATA.anio_mes;
+      const isCurrent = am === DATA.anio_mes_actual;
       return `<tr${isCurrent ? ' style="background:rgba(56,189,248,0.05)"' : ''}>
         <td><strong>${labelDe(am)}</strong>${isCurrent ? ' <span class="badge ext">en curso</span>' : ''}</td>
         <td class="right">

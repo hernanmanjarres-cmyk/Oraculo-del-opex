@@ -73,30 +73,36 @@ def rows_from(resp):
     return [dict(zip(cols, r)) for r in rows]
 
 
+SERVICE_NAME_TO_ID = {
+    "Instalación": "INST",
+    "Normalización de medida": "NORM",
+    "Visita previa": "VIPE",
+    "Verificación externa": "VEXT",
+    "Legalización": "LEGA",
+    "Visita prevención": "PREV",
+    "Visita pre-venta": "PREV",
+    "Revisión por QA": "REQA",
+    "Suspensión carro canasta": "SUCA",
+}
+
+
 # ── Construcción del JSON ────────────────────────────────────────────────
-def build_ejecutado_por_servicio(anio_mes):
-    """Filtra la card 71645 al mes actual."""
-    mapping = {
-        "Instalación": "INST",
-        "Normalización de medida": "NORM",
-        "Visita previa": "VIPE",
-        "Verificación externa": "VEXT",
-        "Legalización": "LEGA",
-        "Visita prevención": "PREV",
-        "Revisión por QA": "REQA",
-        "Suspensión carro canasta": "SUCA",
-    }
+def build_ejecutado_by_month():
+    """Toma la card 71645 y devuelve { anio_mes: [{servicio, service_type_id, monto}, ...] }."""
     resp = run_card(CARD_EJECUTADO)
     rows = rows_from(resp)
-    acc = {svc: 0 for svc in mapping}
+    out = {}
     for r in rows:
         svc_name = r.get("service_name")
-        if r.get("anio_mes") == anio_mes and svc_name in acc:
-            acc[svc_name] += int(r.get("Sum of costo_total_ot ($)") or 0)
-    return [
-        {"servicio": k, "service_type_id": mapping[k], "monto": v}
-        for k, v in acc.items()
-    ]
+        am = r.get("anio_mes")
+        if not am or svc_name not in SERVICE_NAME_TO_ID:
+            continue
+        out.setdefault(am, []).append({
+            "servicio": svc_name,
+            "service_type_id": SERVICE_NAME_TO_ID[svc_name],
+            "monto": int(r.get("Sum of costo_total_ot ($)") or 0),
+        })
+    return out
 
 
 def build_conteos_ejecutadas():
@@ -129,11 +135,13 @@ WITH otas_abiertas AS (
   SELECT v.id::text AS codigo_ot, v.title AS ot_title, v.service_name,
     v.internal_bia_code AS codigo_bia,
     v.service_type_id, v.electrician_status_id, h.operador_de_red, h.tipo_de_medida, v.contratista,
-    v.fecha_visita::date AS fecha_programada, (v.contratista = 'BIA') AS is_bia
+    v.fecha_visita::date AS fecha_programada,
+    to_char(v.fecha_visita, 'YYYY-MM') AS mes_id,
+    (v.contratista = 'BIA') AS is_bia
   FROM operations.visitas_general v
   LEFT JOIN operations.hubspot_general h ON h.codigo_bia = v.internal_bia_code
   WHERE v.fecha_visita >= date_trunc('month', CURRENT_DATE)
-    AND v.fecha_visita < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+    AND v.fecha_visita < '2027-01-01'
     AND v.service_type_id IN ('VIPE','INST','NORM','LEGA','PREV','REQA','SUCA','VEXT')
     AND (v.electrician_status_id IS NULL
          OR v.electrician_status_id NOT IN ('CLOSURE_SUCCESSFUL','CLOSURE_FAILED','CLOSURE_CANCELED'))
@@ -177,7 +185,8 @@ hist_l3 AS (
   FROM base_hist GROUP BY 1
 )
 SELECT a.codigo_ot, a.ot_title, a.service_name, a.codigo_bia, a.service_type_id, a.electrician_status_id,
-  a.operador_de_red, a.tipo_de_medida, a.contratista, a.fecha_programada::text AS fecha_programada, a.is_bia,
+  a.operador_de_red, a.tipo_de_medida, a.contratista, a.fecha_programada::text AS fecha_programada,
+  a.mes_id, a.is_bia,
   CASE WHEN a.is_bia THEN 0 ELSE ROUND(COALESCE(l1.p80_servicio, l2.p80_servicio, l3.p80_servicio, 0)) END AS servicio,
   CASE WHEN a.service_type_id IN ('INST','NORM') THEN ROUND(COALESCE(l1.p50_materiales, l2.p50_materiales, l3.p50_materiales, 0)) ELSE 0 END AS materiales,
   CASE WHEN a.service_type_id IN ('INST','NORM') THEN ROUND(COALESCE(l1.p50_adicionales, l2.p50_adicionales, l3.p50_adicionales, 0)) ELSE 0 END AS adicionales,
@@ -211,6 +220,7 @@ SELECT v.id::text AS codigo_ot,
        h.tipo_de_medida,
        v.contratista,
        v.fecha_visita::text AS fecha_visita,
+       to_char(v.fecha_visita, 'YYYY-MM') AS mes_id,
        (v.contratista = 'BIA') AS is_bia,
        ROUND(SUM(oc.service_cost + oc.material_cost + oc.transport_cost + oc.other_cost)) AS costo_real
 FROM operations.visitas_general v
@@ -222,7 +232,7 @@ WHERE v.fecha_visita >= date_trunc('month', CURRENT_DATE)
   AND v.electrician_status_id = 'CLOSURE_SUCCESSFUL'
   AND (oc.is_bia = false OR oc.is_bia IS NULL)
   AND COALESCE(oc.status, 'accepted') = 'accepted'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 ORDER BY costo_real DESC NULLS LAST, v.fecha_visita
 """.strip()
     return rows_from(run_sql(DB_GOLD, sql))
@@ -237,24 +247,25 @@ def main():
     }[now.strftime("%m")] + " " + now.strftime("%Y")
 
     print(f"Generando data para {anio_mes}…")
-    ejecutado = build_ejecutado_por_servicio(anio_mes)
+    ejec_by_month = build_ejecutado_by_month()
     conteos = build_conteos_ejecutadas()
+    conteos_by_month = { anio_mes: conteos } if conteos else {}
     otas_abiertas = build_ots_abiertas()
     otas_ejecutadas = build_ots_ejecutadas()
-    print(f"  ejecutado por servicio: {len(ejecutado)} categorías")
-    print(f"  OR con visitas exitosas: {len(conteos)}")
-    print(f"  OTs abiertas: {len(otas_abiertas)}")
-    print(f"  OTs ejecutadas: {len(otas_ejecutadas)}")
+    print(f"  ejecutado por mes: {sorted(ejec_by_month.keys())}")
+    print(f"  OR con visitas exitosas (mes actual): {len(conteos)}")
+    print(f"  OTs abiertas (mes actual + futuros): {len(otas_abiertas)}")
+    print(f"  OTs ejecutadas (mes actual): {len(otas_ejecutadas)}")
 
     payload = {
         "fecha_corte": now.strftime("%Y-%m-%d"),
-        "mes_label": mes_label,
-        "anio_mes": anio_mes,
+        "mes_label_actual": mes_label,
+        "anio_mes_actual": anio_mes,
         "meta_default": 21_000_000,
-        "ejecutado_por_servicio": ejecutado,
+        "ejecutado_por_servicio_by_month": ejec_by_month,
         "tarifas_descargo_por_or": TARIFAS_DESCARGO,
         "tarifa_acompanamiento": TARIFA_ACOMP,
-        "conteo_inst_norm_ejecutadas_por_or": conteos,
+        "conteo_inst_norm_ejecutadas_por_or_by_month": conteos_by_month,
         "ots_abiertas": otas_abiertas,
         "ots_ejecutadas": otas_ejecutadas,
         "generated_at": now.isoformat(timespec="seconds"),
