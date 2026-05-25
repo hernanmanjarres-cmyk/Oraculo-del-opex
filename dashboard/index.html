@@ -515,6 +515,39 @@
 
     <!-- ════ TAB ADMIN (solo super_admin) ════ -->
     <div id="tab-admin" class="tab-pane">
+
+      <!-- Tarifas -->
+      <div class="card" style="margin-bottom:16px;">
+        <h2>Tarifas (descargos y acompañamiento)</h2>
+        <div class="help" style="margin-bottom:14px;">
+          Editá las tarifas globales que usa el dashboard. Cualquier OR sin tarifa definida se trata como <strong>$0</strong>.
+        </div>
+
+        <div class="admin-section">
+          <h3>Acompañamiento (interno BIA, por cada INST o NORM)</h3>
+          <div class="budget-row">
+            <label>Tarifa por actividad</label>
+            <input type="number" id="tarifa-acomp-input" min="0" step="10000" style="max-width:200px">
+            <button class="btn btn-sm" id="save-tarifa-acomp">Guardar</button>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Descargos por Operador de Red</h3>
+          <table>
+            <thead><tr><th>Operador de Red</th><th class="right">Tarifa por INST/NORM</th><th class="right">Acciones</th></tr></thead>
+            <tbody id="tarifas-or-tbody"></tbody>
+          </table>
+          <form id="add-tarifa-form" class="add-user-form" style="margin-top:14px;">
+            <input type="text" id="new-tarifa-or" placeholder="Nombre exacto del OR (ej: EMCALI CALI)" required>
+            <input type="number" id="new-tarifa-monto" placeholder="Monto $" min="0" step="100000" required style="max-width:160px">
+            <button type="submit" class="btn">Agregar OR</button>
+          </form>
+          <div id="tarifas-msg" class="help" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Usuarios -->
       <div class="card">
         <h2>Administración de usuarios</h2>
 
@@ -619,8 +652,32 @@
     MY_ROLE = roleRow?.role || 'lector';  // si no existe → lector por defecto
 
     await loadAdicionales();
+    await loadConfig();
     showApp();
     render();
+  }
+
+  // Cargar tarifas desde dashboard_config y sobreescribir DATA
+  async function loadConfig() {
+    if (!sb) return;
+    const { data, error } = await sb.from('dashboard_config').select('*');
+    if (error) { console.error('Error config:', error); return; }
+    for (const row of (data || [])) {
+      if (row.key === 'tarifas_descargo_por_or' && row.value) {
+        DATA.tarifas_descargo_por_or = row.value;
+      } else if (row.key === 'tarifa_acompanamiento') {
+        DATA.tarifa_acompanamiento = Number(row.value) || 0;
+      }
+    }
+  }
+
+  async function saveConfig(key, value) {
+    if (!sb || !isAdmin()) return false;
+    const { error } = await sb.from('dashboard_config').upsert({
+      key, value, updated_by: MY_EMAIL
+    });
+    if (error) { alert('Error: ' + error.message); return false; }
+    return true;
   }
 
   function showLogin() {
@@ -927,6 +984,7 @@
   // ═══════════════════════════════════════════════════════════════════
   async function renderAdmin() {
     if (!isAdmin()) return;
+    renderTarifas();
     if (!sb) { $('users-tbody').innerHTML = '<tr><td colspan="4" class="empty">Modo offline — sin admin.</td></tr>'; return; }
     const { data, error } = await sb.from('dashboard_users').select('*').order('updated_at', { ascending: false });
     if (error) { $('users-tbody').innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`; return; }
@@ -969,6 +1027,78 @@
     const { error } = await sb.from('dashboard_users').upsert({ email, role, updated_by: MY_EMAIL });
     if (error) $('add-user-msg').textContent = 'Error: ' + error.message;
     else { $('add-user-msg').textContent = '✅ Agregado.'; $('new-user-email').value = ''; renderAdmin(); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // TARIFAS (descargo por OR + acompañamiento) — solo super_admin
+  // ═══════════════════════════════════════════════════════════════════
+  function renderTarifas() {
+    $('tarifa-acomp-input').value = DATA.tarifa_acompanamiento || 0;
+    const tarifas = DATA.tarifas_descargo_por_or || {};
+    const ors = Object.keys(tarifas).sort();
+    $('tarifas-or-tbody').innerHTML = ors.map(or => `
+      <tr>
+        <td>${or}</td>
+        <td class="right">
+          <input type="number" class="tarifa-or-input" data-or="${or}" value="${tarifas[or] || 0}" min="0" step="100000" style="max-width:160px;text-align:right">
+        </td>
+        <td class="right">
+          <button class="btn btn-sm save-tarifa-or" data-or="${or}">Guardar</button>
+          <button class="btn btn-danger btn-sm delete-tarifa-or" data-or="${or}">Borrar</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="3" class="empty">Sin tarifas. Agregá una abajo.</td></tr>';
+
+    document.querySelectorAll('.save-tarifa-or').forEach(btn => btn.addEventListener('click', async e => {
+      const or = e.target.dataset.or;
+      const input = document.querySelector(`.tarifa-or-input[data-or="${or}"]`);
+      const monto = Number(input.value) || 0;
+      const newMap = { ...(DATA.tarifas_descargo_por_or || {}), [or]: monto };
+      if (await saveConfig('tarifas_descargo_por_or', newMap)) {
+        DATA.tarifas_descargo_por_or = newMap;
+        $('tarifas-msg').textContent = `✅ ${or}: ${fmtCOP(monto)}`;
+        render();
+      }
+    }));
+
+    document.querySelectorAll('.delete-tarifa-or').forEach(btn => btn.addEventListener('click', async e => {
+      const or = e.target.dataset.or;
+      if (!confirm(`¿Borrar tarifa de ${or}?`)) return;
+      const newMap = { ...(DATA.tarifas_descargo_por_or || {}) };
+      delete newMap[or];
+      if (await saveConfig('tarifas_descargo_por_or', newMap)) {
+        DATA.tarifas_descargo_por_or = newMap;
+        renderTarifas();
+        render();
+      }
+    }));
+  }
+
+  $('save-tarifa-acomp').addEventListener('click', async () => {
+    if (!isAdmin()) return;
+    const monto = Number($('tarifa-acomp-input').value) || 0;
+    if (await saveConfig('tarifa_acompanamiento', monto)) {
+      DATA.tarifa_acompanamiento = monto;
+      $('tarifas-msg').textContent = `✅ Acompañamiento: ${fmtCOP(monto)}`;
+      render();
+    }
+  });
+
+  $('add-tarifa-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!isAdmin()) return;
+    const or = $('new-tarifa-or').value.trim();
+    const monto = Number($('new-tarifa-monto').value) || 0;
+    if (!or) return;
+    const newMap = { ...(DATA.tarifas_descargo_por_or || {}), [or]: monto };
+    if (await saveConfig('tarifas_descargo_por_or', newMap)) {
+      DATA.tarifas_descargo_por_or = newMap;
+      $('new-tarifa-or').value = '';
+      $('new-tarifa-monto').value = '';
+      $('tarifas-msg').textContent = `✅ ${or} agregado: ${fmtCOP(monto)}`;
+      renderTarifas();
+      render();
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════

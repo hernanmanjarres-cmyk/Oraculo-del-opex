@@ -46,11 +46,38 @@ CREATE INDEX IF NOT EXISTS idx_dashboard_adicionales_updated
   ON public.dashboard_adicionales (updated_at DESC);
 
 
+-- ── 2B) CONFIG GENÉRICO (TARIFAS, MISC) ────────────────────────────────
+-- Tabla key/value para configuración editable: tarifas de descargo por OR,
+-- tarifa de acompañamiento, etc. Cualquier autenticado lee, solo super_admin escribe.
+
+CREATE TABLE IF NOT EXISTS public.dashboard_config (
+  key            TEXT PRIMARY KEY,
+  value          JSONB NOT NULL,
+  description    TEXT,
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_by     TEXT
+);
+
+-- Seed: tarifas iniciales
+INSERT INTO public.dashboard_config (key, value, description, updated_by)
+VALUES
+  ('tarifas_descargo_por_or',
+   '{"ENEL CUNDINAMARCA": 6000000, "CODENSA": 6000000, "EPM ANTIOQUIA": 3000000, "CELSIA VALLE": 3000000, "CELSIA TOLIMA": 3000000, "ESSA SANTANDER": 1000000}'::jsonb,
+   'Tarifa de descargo que cobra cada OR por permitir corte de energía durante INST/NORM',
+   'system'),
+  ('tarifa_acompanamiento',
+   '360000'::jsonb,
+   'Tarifa interna de acompañamiento BIA por cada INST o NORM ejecutada',
+   'system')
+ON CONFLICT (key) DO NOTHING;
+
+
 -- ── 3) ROW-LEVEL SECURITY (RLS) ────────────────────────────────────────
 -- Activar RLS y definir quién puede hacer qué.
 
 ALTER TABLE public.dashboard_users        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dashboard_adicionales  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dashboard_config       ENABLE ROW LEVEL SECURITY;
 
 -- ── Helper: función inline para obtener el rol del usuario actual ──────
 CREATE OR REPLACE FUNCTION public.dashboard_role()
@@ -100,6 +127,23 @@ CREATE POLICY "adic_write_usuario_or_admin"
   WITH CHECK (public.dashboard_role() IN ('usuario', 'super_admin'));
 
 
+-- ── Políticas sobre dashboard_config ────────────────────────────────────
+
+-- Todo autenticado puede LEER config (necesario para mostrar las tarifas).
+DROP POLICY IF EXISTS "cfg_select_authenticated" ON public.dashboard_config;
+CREATE POLICY "cfg_select_authenticated"
+  ON public.dashboard_config FOR SELECT
+  TO authenticated USING (TRUE);
+
+-- Solo super_admin puede editar las tarifas.
+DROP POLICY IF EXISTS "cfg_write_super_admin" ON public.dashboard_config;
+CREATE POLICY "cfg_write_super_admin"
+  ON public.dashboard_config FOR ALL
+  TO authenticated
+  USING (public.dashboard_role() = 'super_admin')
+  WITH CHECK (public.dashboard_role() = 'super_admin');
+
+
 -- ── 4) TRIGGER: actualizar updated_at en cada UPDATE ───────────────────
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -117,6 +161,11 @@ CREATE TRIGGER trg_dashboard_users_updated
 DROP TRIGGER IF EXISTS trg_dashboard_adicionales_updated ON public.dashboard_adicionales;
 CREATE TRIGGER trg_dashboard_adicionales_updated
   BEFORE UPDATE ON public.dashboard_adicionales
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_dashboard_config_updated ON public.dashboard_config;
+CREATE TRIGGER trg_dashboard_config_updated
+  BEFORE UPDATE ON public.dashboard_config
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 
