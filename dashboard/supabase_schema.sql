@@ -72,12 +72,31 @@ VALUES
 ON CONFLICT (key) DO NOTHING;
 
 
+-- ── 2C) PRESUPUESTOS POR MES ───────────────────────────────────────────
+-- Tabla con un registro por mes. Valores editables por super_admin.
+
+CREATE TABLE IF NOT EXISTS public.dashboard_presupuestos (
+  anio_mes       TEXT PRIMARY KEY,           -- "2026-01", "2026-02", ...
+  monto          NUMERIC NOT NULL DEFAULT 21000000,
+  notas          TEXT,
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_by     TEXT
+);
+
+-- Seed: enero 2026 a diciembre 2026 con $21M default
+INSERT INTO public.dashboard_presupuestos (anio_mes, monto, updated_by)
+SELECT to_char(d, 'YYYY-MM') AS anio_mes, 21000000, 'system'
+FROM generate_series('2026-01-01'::date, '2026-12-01'::date, interval '1 month') AS d
+ON CONFLICT (anio_mes) DO NOTHING;
+
+
 -- ── 3) ROW-LEVEL SECURITY (RLS) ────────────────────────────────────────
 -- Activar RLS y definir quién puede hacer qué.
 
-ALTER TABLE public.dashboard_users        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.dashboard_adicionales  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.dashboard_config       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dashboard_users         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dashboard_adicionales   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dashboard_config        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dashboard_presupuestos  ENABLE ROW LEVEL SECURITY;
 
 -- ── Helper: función inline para obtener el rol del usuario actual ──────
 CREATE OR REPLACE FUNCTION public.dashboard_role()
@@ -144,6 +163,21 @@ CREATE POLICY "cfg_write_super_admin"
   WITH CHECK (public.dashboard_role() = 'super_admin');
 
 
+-- ── Políticas sobre dashboard_presupuestos ──────────────────────────────
+
+DROP POLICY IF EXISTS "presup_select_authenticated" ON public.dashboard_presupuestos;
+CREATE POLICY "presup_select_authenticated"
+  ON public.dashboard_presupuestos FOR SELECT
+  TO authenticated USING (TRUE);
+
+DROP POLICY IF EXISTS "presup_write_super_admin" ON public.dashboard_presupuestos;
+CREATE POLICY "presup_write_super_admin"
+  ON public.dashboard_presupuestos FOR ALL
+  TO authenticated
+  USING (public.dashboard_role() = 'super_admin')
+  WITH CHECK (public.dashboard_role() = 'super_admin');
+
+
 -- ── 4) TRIGGER: actualizar updated_at en cada UPDATE ───────────────────
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -166,6 +200,11 @@ CREATE TRIGGER trg_dashboard_adicionales_updated
 DROP TRIGGER IF EXISTS trg_dashboard_config_updated ON public.dashboard_config;
 CREATE TRIGGER trg_dashboard_config_updated
   BEFORE UPDATE ON public.dashboard_config
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_dashboard_presupuestos_updated ON public.dashboard_presupuestos;
+CREATE TRIGGER trg_dashboard_presupuestos_updated
+  BEFORE UPDATE ON public.dashboard_presupuestos
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 

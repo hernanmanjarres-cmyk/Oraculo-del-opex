@@ -423,11 +423,23 @@
     <!-- ════ TAB RESUMEN ════ -->
     <div id="tab-resumen" class="tab-pane active">
 
+      <!-- Filtro de mes -->
+      <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label style="color:var(--text-dim);font-size:13px;font-weight:500">📅 Mes</label>
+        <select id="month-filter" style="max-width:240px"></select>
+        <span id="month-context" style="color:var(--text-dim);font-size:12px"></span>
+      </div>
+
       <div class="grid grid-kpi">
         <div class="card kpi">
           <div class="kpi-label">Ejecutado contratistas</div>
           <div class="kpi-value" id="kpi-ejecutado">—</div>
           <div class="kpi-sub">Card Metabase 71645</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">OTs ejecutadas</div>
+          <div class="kpi-value" id="kpi-ots-ejec">—</div>
+          <div class="kpi-sub" id="kpi-ots-ejec-sub">visitas exitosas del mes</div>
         </div>
         <div class="card kpi">
           <div class="kpi-label">+ Descargos + Acompañamientos</div>
@@ -447,14 +459,13 @@
       </div>
 
       <div class="card" style="margin-bottom:16px;">
-        <h2>Presupuesto del mes</h2>
+        <h2>Presupuesto del mes seleccionado</h2>
         <div class="budget-row">
-          <label for="budget-input">Meta efectiva ($)</label>
-          <input type="number" id="budget-input" min="0" step="100000">
-          <button class="btn btn-secondary btn-sm" id="reset-budget">Reset</button>
+          <label>Meta efectiva</label>
+          <div style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums" id="budget-display">—</div>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-        <div class="help" id="budget-status">El presupuesto se guarda solo en tu navegador.</div>
+        <div class="help" id="budget-status">Los presupuestos se editan desde la pestaña ⚙️ Admin (solo super_admin).</div>
       </div>
 
       <div class="grid grid-main">
@@ -538,6 +549,21 @@
     <!-- ════ TAB ADMIN (solo super_admin) ════ -->
     <div id="tab-admin" class="tab-pane">
 
+      <!-- Presupuestos por mes -->
+      <div class="card" style="margin-bottom:16px;">
+        <h2>Presupuestos por mes</h2>
+        <div class="help" style="margin-bottom:14px;">
+          Editá el presupuesto (meta efectiva) de cada mes. Lo que pongas acá es lo que se ve en el dashboard cuando alguien selecciona ese mes.
+        </div>
+        <div style="overflow-x:auto;">
+        <table id="presup-table">
+          <thead><tr><th>Mes</th><th class="right">Presupuesto</th><th class="right">Actualizado</th><th class="right">Acciones</th></tr></thead>
+          <tbody id="presup-tbody"></tbody>
+        </table>
+        </div>
+        <div id="presup-msg" class="help" style="margin-top:8px;"></div>
+      </div>
+
       <!-- Tarifas -->
       <div class="card" style="margin-bottom:16px;">
         <h2>Tarifas (descargos y acompañamiento)</h2>
@@ -620,6 +646,8 @@
   let MY_EMAIL = null;
   let MY_ROLE = 'lector';    // default seguro
   let ADICIONALES = {};      // ot_id → { monto, notas, updated_by, updated_at }
+  let PRESUPUESTOS = {};     // anio_mes → { monto, updated_by, updated_at }
+  let SELECTED_MONTH = null; // anio_mes seleccionado en el filtro
 
   const STORAGE_BUDGET = 'opex_dashboard_budget';
   const STORAGE_ADIC_LOCAL = 'opex_dashboard_adicionales_local';  // fallback offline
@@ -675,8 +703,44 @@
 
     await loadAdicionales();
     await loadConfig();
+    await loadPresupuestos();
+    initMonthFilter();
     showApp();
     render();
+  }
+
+  async function loadPresupuestos() {
+    PRESUPUESTOS = {};
+    if (!sb) { PRESUPUESTOS[DATA.anio_mes] = { anio_mes: DATA.anio_mes, monto: DATA.meta_default || 21000000 }; return; }
+    const { data, error } = await sb.from('dashboard_presupuestos').select('*').order('anio_mes');
+    if (error) { console.error('Error presup:', error); return; }
+    for (const r of (data || [])) PRESUPUESTOS[r.anio_mes] = r;
+  }
+
+  // Inicializa el selector de mes. Lee query param ?month=YYYY-MM si está presente
+  // (usado por el bot del 7am para forzar el mes actual).
+  function initMonthFilter() {
+    const sel = $('month-filter');
+    const meses = Object.keys(PRESUPUESTOS).sort();
+    if (meses.length === 0) meses.push(DATA.anio_mes);
+
+    const labelDe = (am) => {
+      const [y, m] = am.split('-');
+      const nombre = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][+m - 1];
+      return `${nombre} ${y}`;
+    };
+    sel.innerHTML = meses.map(am => `<option value="${am}">${labelDe(am)}</option>`).join('');
+
+    // Resolver mes inicial: query param > mes en curso (de data.json)
+    const urlMonth = new URLSearchParams(window.location.search).get('month');
+    const defaultMonth = (urlMonth && meses.includes(urlMonth)) ? urlMonth : DATA.anio_mes;
+    SELECTED_MONTH = meses.includes(defaultMonth) ? defaultMonth : meses[meses.length - 1];
+    sel.value = SELECTED_MONTH;
+
+    sel.addEventListener('change', () => {
+      SELECTED_MONTH = sel.value;
+      render();
+    });
   }
 
   // Cargar tarifas desde dashboard_config y sobreescribir DATA
@@ -858,7 +922,11 @@
       .map(o => ADICIONALES[o.codigo_ot]?.monto || 0));
   }
 
-  function getBudget() { return Number(lsGet(STORAGE_BUDGET, null) ?? DATA?.meta_default ?? 0); }
+  function getBudget() {
+    const am = SELECTED_MONTH || DATA.anio_mes;
+    return Number(PRESUPUESTOS[am]?.monto ?? DATA.meta_default ?? 0);
+  }
+  function isMesEnCurso() { return SELECTED_MONTH === DATA.anio_mes; }
 
   // ═══════════════════════════════════════════════════════════════════
   // Render principal
@@ -868,25 +936,47 @@
     $('fecha-corte').textContent = DATA.fecha_corte;
     $('generated-at').textContent = (DATA.generated_at || '').replace('T', ' ').slice(0, 16);
 
-    const ejec = totalEjecutadoServicios();
-    const descE = descargosEjecutados();
-    const acompE = acompanamientosEjecutados();
-    const forecastOTs = totalForecastOTs();
-    const adicAbiertas = sumAdicionalesAbiertas();
-    const descP = descargosProyectados();
-    const acompP = acompanamientosProyectados();
+    // Si el mes seleccionado NO es el mes en curso, los datos detallados (ejec/forecast)
+    // no aplican — solo el presupuesto. Marcamos esto en la UI.
+    const mesEnCurso = isMesEnCurso();
+    $('month-context').innerHTML = mesEnCurso
+      ? '<strong style="color:var(--ok)">●</strong> Mes en curso — datos en vivo'
+      : '<strong style="color:var(--warn)">●</strong> Solo presupuesto · datos detallados solo disponibles para el mes en curso';
+
+    // Si NO es mes en curso, todo lo detallado va a 0 (no tenemos data histórica detallada todavía)
+    const factor = mesEnCurso ? 1 : 0;
+
+    const ejec = totalEjecutadoServicios() * factor;
+    const descE = descargosEjecutados() * factor;
+    const acompE = acompanamientosEjecutados() * factor;
+    const forecastOTs = totalForecastOTs() * factor;
+    const adicAbiertas = sumAdicionalesAbiertas() * factor;
+    const descP = descargosProyectados() * factor;
+    const acompP = acompanamientosProyectados() * factor;
 
     const totalEjec = ejec + descE + acompE;
     const totalForecast = forecastOTs + adicAbiertas + descP + acompP;
     const totalProy = totalEjec + totalForecast;
 
+    // KPI: cantidad de OTs ejecutadas (visitas exitosas) del mes en curso
+    const otsEjecExternas = mesEnCurso ? (DATA.ots_ejecutadas || []).filter(o => !o.is_bia).length : 0;
+    const breakdown = {};
+    if (mesEnCurso) for (const o of (DATA.ots_ejecutadas || [])) {
+      if (o.is_bia) continue;
+      breakdown[o.service_type_id] = (breakdown[o.service_type_id] || 0) + 1;
+    }
+    const breakdownTxt = Object.entries(breakdown).map(([k, v]) => `${v} ${k}`).join(' · ') || (mesEnCurso ? 'sin ejecutadas aún' : 'mes futuro / pasado');
+
     $('kpi-ejecutado').textContent = fmtCOP(ejec);
+    $('kpi-ots-ejec').textContent = otsEjecExternas;
+    $('kpi-ots-ejec-sub').textContent = breakdownTxt;
     $('kpi-descargos-acomp').textContent = fmtCOP(descE + acompE);
     $('kpi-forecast').textContent = fmtCOP(totalForecast);
-    $('n-otas-abiertas').textContent = (DATA.ots_abiertas || []).filter(o => !o.is_bia).length;
+    $('n-otas-abiertas').textContent = mesEnCurso ? (DATA.ots_abiertas || []).filter(o => !o.is_bia).length : 0;
 
     const budget = getBudget();
     $('kpi-total').textContent = fmtCOP(totalProy);
+    $('budget-display').textContent = fmtCOP(budget);
     const kpiCard = $('kpi-card-total');
     kpiCard.classList.remove('ok', 'warn', 'danger');
     let statusText, statusClass;
@@ -899,9 +989,9 @@
     if (statusClass) kpiCard.classList.add(statusClass);
     $('kpi-vs-meta').textContent = statusText;
     $('progress-fill').style.width = budget > 0 ? Math.min(100, (totalProy / budget) * 100) + '%' : '0%';
-    $('budget-status').innerHTML = `Total: <strong>${fmtCOP(totalProy)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong>`;
-    $('budget-input').value = budget;
-    $('budget-input').disabled = !canEdit();
+    $('budget-status').innerHTML = mesEnCurso
+      ? `Total: <strong>${fmtCOP(totalProy)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong>`
+      : `Presupuesto definido: <strong>${fmtCOP(budget)}</strong> · (editable desde ⚙️ Admin)`;
 
     // Servicios bar
     const maxMonto = Math.max(...(DATA.ejecutado_por_servicio || []).map(r => r.monto || 0), 1);
@@ -1006,6 +1096,7 @@
   // ═══════════════════════════════════════════════════════════════════
   async function renderAdmin() {
     if (!isAdmin()) return;
+    renderPresupuestos();
     renderTarifas();
     if (!sb) { $('users-tbody').innerHTML = '<tr><td colspan="4" class="empty">Modo offline — sin admin.</td></tr>'; return; }
     const { data, error } = await sb.from('dashboard_users').select('*').order('updated_at', { ascending: false });
@@ -1050,6 +1141,47 @@
     if (error) $('add-user-msg').textContent = 'Error: ' + error.message;
     else { $('add-user-msg').textContent = '✅ Agregado.'; $('new-user-email').value = ''; renderAdmin(); }
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PRESUPUESTOS por mes — solo super_admin
+  // ═══════════════════════════════════════════════════════════════════
+  function renderPresupuestos() {
+    const meses = Object.keys(PRESUPUESTOS).sort();
+    const labelDe = (am) => {
+      const [y, m] = am.split('-');
+      const nombre = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][+m - 1];
+      return `${nombre} ${y}`;
+    };
+    $('presup-tbody').innerHTML = meses.map(am => {
+      const r = PRESUPUESTOS[am];
+      const updated = (r.updated_at || '').slice(0, 16).replace('T', ' ');
+      const isCurrent = am === DATA.anio_mes;
+      return `<tr${isCurrent ? ' style="background:rgba(56,189,248,0.05)"' : ''}>
+        <td><strong>${labelDe(am)}</strong>${isCurrent ? ' <span class="badge ext">en curso</span>' : ''}</td>
+        <td class="right">
+          <input type="number" class="presup-input" data-mes="${am}" value="${r.monto || 0}" min="0" step="100000" style="max-width:180px;text-align:right">
+        </td>
+        <td class="right" style="font-size:11px;color:var(--text-dim)">${updated}</td>
+        <td class="right">
+          <button class="btn btn-sm save-presup" data-mes="${am}">Guardar</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" class="empty">Sin presupuestos. Corré supabase_schema.sql para sembrar Ene-Dic 2026.</td></tr>';
+
+    document.querySelectorAll('.save-presup').forEach(btn => btn.addEventListener('click', async e => {
+      if (!sb || !isAdmin()) return;
+      const mes = e.target.dataset.mes;
+      const input = document.querySelector(`.presup-input[data-mes="${mes}"]`);
+      const monto = Number(input.value) || 0;
+      const { data, error } = await sb.from('dashboard_presupuestos')
+        .upsert({ anio_mes: mes, monto, updated_by: MY_EMAIL }).select().single();
+      if (error) { $('presup-msg').textContent = 'Error: ' + error.message; return; }
+      PRESUPUESTOS[mes] = data;
+      $('presup-msg').textContent = `✅ ${mes}: ${fmtCOP(monto)}`;
+      renderPresupuestos();
+      render();
+    }));
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // TARIFAS (descargo por OR + acompañamiento) — solo super_admin
@@ -1126,8 +1258,7 @@
   // ═══════════════════════════════════════════════════════════════════
   // Eventos misc
   // ═══════════════════════════════════════════════════════════════════
-  $('budget-input').addEventListener('input', e => { lsSet(STORAGE_BUDGET, Number(e.target.value)); render(); });
-  $('reset-budget').addEventListener('click', () => { localStorage.removeItem(STORAGE_BUDGET); render(); });
+  // (budget input antiguo eliminado — ahora los presupuestos se editan desde Admin)
 
   boot();
   </script>
