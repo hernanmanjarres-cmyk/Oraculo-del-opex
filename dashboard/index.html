@@ -696,13 +696,19 @@
         <table id="abiertas-table">
           <thead><tr>
             <th>OT</th><th>Código BIA</th><th>OR</th><th>Servicio</th><th>Medida</th>
-            <th>Contratista</th><th>Fecha</th><th class="right">Forecast</th>
-            <th class="right">Adicional global</th><th class="right">Total con adicional</th>
+            <th>Contratista</th><th>Fecha</th>
+            <th class="right">Forecast</th>
+            <th class="right" title="Solo aplica a INST/NORM">Descargo</th>
+            <th class="right" title="Solo aplica a INST/NORM">Acomp.</th>
+            <th class="right">Adicional</th>
+            <th class="right">Total OT</th>
           </tr></thead>
           <tbody id="abiertas-tbody"></tbody>
           <tfoot><tr style="font-weight:600;border-top:2px solid var(--border);">
             <td colspan="7">Subtotal contratistas (sin BIA)</td>
             <td class="right" id="abiertas-forecast-total">—</td>
+            <td class="right" id="abiertas-descargo-total">—</td>
+            <td class="right" id="abiertas-acomp-total">—</td>
             <td class="right" id="abiertas-adicional-total">—</td>
             <td class="right" id="abiertas-total-final">—</td>
           </tr></tfoot>
@@ -723,13 +729,19 @@
         <table id="ejecutadas-table">
           <thead><tr>
             <th>OT</th><th>Código BIA</th><th>OR</th><th>Servicio</th><th>Medida</th>
-            <th>Contratista</th><th>Fecha cierre</th><th class="right">Costo real</th>
-            <th class="right">Adicional global</th><th class="right">Total</th>
+            <th>Contratista</th><th>Fecha cierre</th>
+            <th class="right">Costo real</th>
+            <th class="right" title="Solo aplica a INST/NORM">Descargo</th>
+            <th class="right" title="Solo aplica a INST/NORM">Acomp.</th>
+            <th class="right">Adicional</th>
+            <th class="right">Total OT</th>
           </tr></thead>
           <tbody id="ejecutadas-tbody"></tbody>
           <tfoot><tr style="font-weight:600;border-top:2px solid var(--border);">
             <td colspan="7">Subtotal contratistas</td>
             <td class="right" id="ejecutadas-real-total">—</td>
+            <td class="right" id="ejecutadas-descargo-total">—</td>
+            <td class="right" id="ejecutadas-acomp-total">—</td>
             <td class="right" id="ejecutadas-adicional-total">—</td>
             <td class="right" id="ejecutadas-total-final">—</td>
           </tr></tfoot>
@@ -1029,28 +1041,50 @@
   // ═══════════════════════════════════════════════════════════════════
   // CRUD adicionales
   // ═══════════════════════════════════════════════════════════════════
-  async function setAdicional(otId, monto) {
-    monto = Number(monto) || 0;
+  // Actualiza UN campo de la fila por OT.
+  // field: 'monto' | 'descargo' | 'acompanamiento'
+  // value: string del input. '' / 0 → null (vuelve al default tarifario)
+  async function setOtField(otId, field, value) {
     if (!canEdit()) return;
+    const parsed = (value === '' || value == null) ? null : Number(value);
+    // Conseguir lo existente (puede estar en memoria sin haberse persistido aún)
+    const existing = ADICIONALES[otId] || { ot_id: otId, monto: 0, descargo: null, acompanamiento: null };
+    const updated = { ...existing, [field]: parsed };
+    // monto siempre tiene que ser número (DB es NOT NULL DEFAULT 0)
+    if (field === 'monto') updated.monto = parsed || 0;
+
+    // Si TODO está vacío/0 → borrar la fila
+    const isEmpty = (!updated.monto || updated.monto === 0)
+                 && updated.descargo == null
+                 && updated.acompanamiento == null;
 
     if (!sb) {
-      if (monto === 0) delete ADICIONALES[otId];
-      else ADICIONALES[otId] = { ot_id: otId, monto, updated_by: 'local', updated_at: new Date().toISOString() };
+      if (isEmpty) delete ADICIONALES[otId];
+      else ADICIONALES[otId] = { ...updated, updated_by: 'local', updated_at: new Date().toISOString() };
       lsSet(STORAGE_ADIC_LOCAL, ADICIONALES);
       return;
     }
 
-    if (monto === 0) {
+    if (isEmpty) {
       const { error } = await sb.from('dashboard_adicionales').delete().eq('ot_id', otId);
       if (error) { alert('Error borrando: ' + error.message); return; }
       delete ADICIONALES[otId];
     } else {
-      const row = { ot_id: otId, monto, updated_by: MY_EMAIL };
+      const row = {
+        ot_id: otId,
+        monto: updated.monto || 0,
+        descargo: updated.descargo,
+        acompanamiento: updated.acompanamiento,
+        updated_by: MY_EMAIL,
+      };
       const { data, error } = await sb.from('dashboard_adicionales').upsert(row).select().single();
       if (error) { alert('Error guardando: ' + error.message); return; }
       ADICIONALES[otId] = data;
     }
   }
+
+  // Compat con código viejo (algunos handlers todavía llaman setAdicional)
+  async function setAdicional(otId, monto) { return setOtField(otId, 'monto', monto); }
 
   async function resetAllAdicionales() {
     if (!canEdit()) return;
@@ -1090,36 +1124,33 @@
   function totalEjecutadoServicios() { return sum(ejecutadoServiciosMes().map(r => r.monto)); }
   function totalForecastOTs() { return sum(otsAbiertasMes().filter(o => !o.is_bia).map(o => o.total_ot)); }
 
+  // Helpers que devuelven descargo / acompañamiento aplicable a UNA OT.
+  // Si hay override (ADICIONALES[ot.codigo_ot].descargo o .acompanamiento) se usa ese.
+  // Si no, se usa la tarifa por OR (descargo) o global (acompañamiento).
+  function descargoDeOt(ot) {
+    if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') return 0;
+    const ad = ADICIONALES[ot.codigo_ot] || {};
+    if (ad.descargo != null) return Number(ad.descargo);
+    return (DATA.tarifas_descargo_por_or || {})[ot.operador_de_red] || 0;
+  }
+  function acompanamientoDeOt(ot) {
+    if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') return 0;
+    const ad = ADICIONALES[ot.codigo_ot] || {};
+    if (ad.acompanamiento != null) return Number(ad.acompanamiento);
+    return DATA.tarifa_acompanamiento || 0;
+  }
+
   function descargosEjecutados() {
-    const tarifas = DATA.tarifas_descargo_por_or || {};
-    let total = 0;
-    for (const [or, byService] of Object.entries(conteosMes())) {
-      total += ((byService.INST || 0) + (byService.NORM || 0)) * (tarifas[or] || 0);
-    }
-    return total;
+    return sum(otsEjecutadasMes().map(descargoDeOt));
   }
   function acompanamientosEjecutados() {
-    const t = DATA.tarifa_acompanamiento || 0;
-    let n = 0;
-    for (const byService of Object.values(conteosMes()))
-      n += (byService.INST || 0) + (byService.NORM || 0);
-    return n * t;
+    return sum(otsEjecutadasMes().map(acompanamientoDeOt));
   }
   function descargosProyectados() {
-    const tarifas = DATA.tarifas_descargo_por_or || {};
-    let total = 0;
-    for (const ot of otsAbiertasMes()) {
-      if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
-      total += tarifas[ot.operador_de_red] || 0;
-    }
-    return total;
+    return sum(otsAbiertasMes().map(descargoDeOt));
   }
   function acompanamientosProyectados() {
-    let n = 0;
-    for (const ot of otsAbiertasMes()) {
-      if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
-    }
-    return n * (DATA.tarifa_acompanamiento || 0);
+    return sum(otsAbiertasMes().map(acompanamientoDeOt));
   }
   function sumAdicionalesAbiertas() {
     return sum(otsAbiertasMes()
@@ -1239,18 +1270,41 @@
     renderTablaEjecutadas();
   }
 
-  function adicionalInput(otId, currentVal) {
+  // Construye un input editable. field = 'monto' | 'descargo' | 'acompanamiento'.
+  // Si la OT NO es INST/NORM y field es descargo/acomp, devuelve "—".
+  function otInput(ot, field, currentVal, defaultVal, opts = {}) {
     const editable = canEdit();
-    return `<input type="number" class="adicional" data-ot="${otId}" min="0" step="10000"
-              value="${currentVal || ''}" placeholder="0" ${editable ? '' : 'disabled'}>`;
+    const isInstNorm = ot.service_type_id === 'INST' || ot.service_type_id === 'NORM';
+    if ((field === 'descargo' || field === 'acompanamiento') && !isInstNorm) {
+      return '<span style="color:var(--text-dim)">—</span>';
+    }
+    // Si current es null/undefined, mostrar el default tarifario pero como placeholder (no value)
+    // para que se vea que es heredado, no override.
+    const hasOverride = currentVal != null;
+    const valAttr = hasOverride ? `value="${currentVal}"` : `value=""`;
+    const placeholder = defaultVal ? fmtCOP(defaultVal).replace('$', '') : '0';
+    const style = hasOverride ? '' : 'color:var(--text-dim);font-style:italic';
+    return `<input type="number" class="ot-field" data-ot="${ot.codigo_ot}" data-field="${field}"
+              min="0" step="10000" ${valAttr} placeholder="${placeholder}"
+              ${editable ? '' : 'disabled'} style="max-width:130px;text-align:right;${style}"
+              title="${hasOverride ? 'Override manual' : 'Default tarifario · escribí un número para override'}">`;
+  }
+
+  // Total visible de una OT considerando overrides
+  function totalDeOt(ot, base) {
+    const ad = ADICIONALES[ot.codigo_ot] || {};
+    const monto = Number(ad.monto || 0);
+    return (base || 0) + monto + descargoDeOt(ot) + acompanamientoDeOt(ot);
   }
 
   function renderTablaAbiertas() {
     const tbody = $('abiertas-tbody');
     const otas = otsAbiertasMes();
     tbody.innerHTML = otas.map(ot => {
-      const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
-      const total = (ot.total_ot || 0) + Number(adic);
+      const ad = ADICIONALES[ot.codigo_ot] || {};
+      const tarifaDesc = (DATA.tarifas_descargo_por_or || {})[ot.operador_de_red] || 0;
+      const tarifaAcomp = DATA.tarifa_acompanamiento || 0;
+      const total = totalDeOt(ot, ot.total_ot);
       return `<tr class="${ot.is_bia ? 'bia' : ''}">
         <td title="${ot.codigo_ot}" style="font-family:monospace;font-size:12px">${ot.ot_title || (ot.codigo_ot ? ot.codigo_ot.slice(0, 8) + '…' : '-')}</td>
         <td>${ot.codigo_bia || '-'}</td>
@@ -1260,28 +1314,35 @@
         <td>${ot.contratista || '-'}</td>
         <td>${ot.fecha_programada || '-'}</td>
         <td class="right">${fmtCOP(ot.total_ot)}</td>
-        <td class="right">${adicionalInput(ot.codigo_ot, adic)}</td>
+        <td class="right">${otInput(ot, 'descargo', ad.descargo, tarifaDesc)}</td>
+        <td class="right">${otInput(ot, 'acompanamiento', ad.acompanamiento, tarifaAcomp)}</td>
+        <td class="right">${otInput(ot, 'monto', ad.monto, 0)}</td>
         <td class="right"><strong>${fmtCOP(total)}</strong></td>
       </tr>`;
-    }).join('') || '<tr><td colspan="10" class="empty">Sin OTs abiertas este mes.</td></tr>';
+    }).join('') || '<tr><td colspan="12" class="empty">Sin OTs abiertas este mes.</td></tr>';
 
-    const ext = otas.filter(o => !o.is_bia);
-    const f = sum(ext.map(o => o.total_ot));
-    const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
+    // Subtotales (todas las OTs, incluyendo BIA porque descargo/acomp aplican igual)
+    const f = sum(otas.filter(o => !o.is_bia).map(o => o.total_ot));
+    const d = sum(otas.map(descargoDeOt));
+    const ac = sum(otas.map(acompanamientoDeOt));
+    const ad = sum(otas.filter(o => !o.is_bia).map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
     $('abiertas-forecast-total').textContent = fmtCOP(f);
-    $('abiertas-adicional-total').textContent = fmtCOP(a);
-    $('abiertas-total-final').textContent = fmtCOP(f + a);
+    $('abiertas-descargo-total').textContent = fmtCOP(d);
+    $('abiertas-acomp-total').textContent = fmtCOP(ac);
+    $('abiertas-adicional-total').textContent = fmtCOP(ad);
+    $('abiertas-total-final').textContent = fmtCOP(f + d + ac + ad);
 
-    bindAdicionalInputs(tbody);
+    bindOtInputs(tbody);
   }
 
   function renderTablaEjecutadas() {
     const tbody = $('ejecutadas-tbody');
     const otas = otsEjecutadasMes();
     tbody.innerHTML = otas.map(ot => {
-      const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
-      const real = ot.costo_real || 0;
-      const total = real + Number(adic);
+      const ad = ADICIONALES[ot.codigo_ot] || {};
+      const tarifaDesc = (DATA.tarifas_descargo_por_or || {})[ot.operador_de_red] || 0;
+      const tarifaAcomp = DATA.tarifa_acompanamiento || 0;
+      const total = totalDeOt(ot, ot.costo_real);
       return `<tr class="${ot.is_bia ? 'bia' : ''}">
         <td title="${ot.codigo_ot}" style="font-family:monospace;font-size:12px">${ot.ot_title || (ot.codigo_ot ? ot.codigo_ot.slice(0, 8) + '…' : '-')}</td>
         <td>${ot.codigo_bia || '-'}</td>
@@ -1290,31 +1351,36 @@
         <td>${ot.tipo_de_medida || '-'}</td>
         <td>${ot.contratista || '-'}</td>
         <td>${ot.fecha_visita || '-'}</td>
-        <td class="right">${fmtCOP(real)}</td>
-        <td class="right">${adicionalInput(ot.codigo_ot, adic)}</td>
+        <td class="right">${fmtCOP(ot.costo_real)}</td>
+        <td class="right">${otInput(ot, 'descargo', ad.descargo, tarifaDesc)}</td>
+        <td class="right">${otInput(ot, 'acompanamiento', ad.acompanamiento, tarifaAcomp)}</td>
+        <td class="right">${otInput(ot, 'monto', ad.monto, 0)}</td>
         <td class="right"><strong>${fmtCOP(total)}</strong></td>
       </tr>`;
-    }).join('') || '<tr><td colspan="10" class="empty">Sin OTs ejecutadas (exitosas) este mes.</td></tr>';
+    }).join('') || '<tr><td colspan="12" class="empty">Sin OTs ejecutadas (exitosas) este mes.</td></tr>';
 
-    const ext = otas.filter(o => !o.is_bia);
-    const r = sum(ext.map(o => o.costo_real || 0));
-    const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
+    const r = sum(otas.filter(o => !o.is_bia).map(o => o.costo_real || 0));
+    const d = sum(otas.map(descargoDeOt));
+    const ac = sum(otas.map(acompanamientoDeOt));
+    const ad = sum(otas.filter(o => !o.is_bia).map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
     $('ejecutadas-real-total').textContent = fmtCOP(r);
-    $('ejecutadas-adicional-total').textContent = fmtCOP(a);
-    $('ejecutadas-total-final').textContent = fmtCOP(r + a);
+    $('ejecutadas-descargo-total').textContent = fmtCOP(d);
+    $('ejecutadas-acomp-total').textContent = fmtCOP(ac);
+    $('ejecutadas-adicional-total').textContent = fmtCOP(ad);
+    $('ejecutadas-total-final').textContent = fmtCOP(r + d + ac + ad);
 
-    bindAdicionalInputs(tbody);
+    bindOtInputs(tbody);
   }
 
-  function bindAdicionalInputs(scope) {
-    scope.querySelectorAll('input.adicional').forEach(inp => {
+  function bindOtInputs(scope) {
+    scope.querySelectorAll('input.ot-field').forEach(inp => {
       let timer;
       inp.addEventListener('input', e => {
         clearTimeout(timer);
         timer = setTimeout(async () => {
-          await setAdicional(e.target.dataset.ot, e.target.value);
+          await setOtField(e.target.dataset.ot, e.target.dataset.field, e.target.value);
           render();
-        }, 400);  // debounce
+        }, 500);  // debounce
       });
     });
   }

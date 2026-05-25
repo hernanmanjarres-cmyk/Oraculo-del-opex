@@ -35,12 +35,18 @@ ON CONFLICT (email) DO UPDATE
 
 CREATE TABLE IF NOT EXISTS public.dashboard_adicionales (
   ot_id          TEXT PRIMARY KEY,        -- codigo_ot
-  monto          NUMERIC NOT NULL DEFAULT 0,
+  monto          NUMERIC NOT NULL DEFAULT 0,    -- gasto adicional libre por OT
+  descargo       NUMERIC,                       -- override descargo (NULL = usar tarifa OR)
+  acompanamiento NUMERIC,                       -- override acompañamiento (NULL = usar tarifa global)
   notas          TEXT,
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_by     TEXT
 );
+
+-- Migración idempotente: si la tabla ya existía sin estas columnas, las agregamos.
+ALTER TABLE public.dashboard_adicionales ADD COLUMN IF NOT EXISTS descargo NUMERIC;
+ALTER TABLE public.dashboard_adicionales ADD COLUMN IF NOT EXISTS acompanamiento NUMERIC;
 
 CREATE INDEX IF NOT EXISTS idx_dashboard_adicionales_updated
   ON public.dashboard_adicionales (updated_at DESC);
