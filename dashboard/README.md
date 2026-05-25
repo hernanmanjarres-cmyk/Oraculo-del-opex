@@ -1,107 +1,136 @@
 # Dashboard OPEX Activación
 
-Dashboard HTML autónomo para seguimiento del OPEX del ciclo de activación.
-**No necesita servidor, ni login, ni nada técnico** — abrís el archivo y ya.
+Dashboard interactivo con login, roles y datos compartidos.
 
-## Paso 1 — Ver el dashboard AHORA (más fácil imposible)
+## ✨ Features
 
-1. Abrí Finder.
-2. Andá a la carpeta `dashboard/`.
-3. **Doble click en `index.html`**.
-4. Se abre en tu navegador (Safari, Chrome, lo que tengas por defecto).
-5. ✅ Ya está. Vas a ver los datos actuales del mes (al 22 de mayo de 2026).
+- **3 pestañas**: Resumen (KPIs), OTs abiertas (forecast), OTs ejecutadas (mes en curso)
+- **Login con magic link** (sin contraseña, llega a tu correo)
+- **3 roles**:
+  - `lector` → ve todo, no edita
+  - `usuario` → ve + edita gastos adicionales (compartidos entre todos)
+  - `super_admin` → todo + pestaña Admin para gestionar usuarios
+- **Adicionales globales**: el monto que cargás se ve igual para todos
+- **Migración automática**: si una OT pasa de abierta a ejecutada, su adicional la sigue (clave por `ot_id`)
+- **Modo offline**: si no configurás Supabase, funciona local (sin auth, adicionales en navegador)
 
-**Por qué funciona ahora**: la data está embebida adentro del propio `index.html`. No hay fetch, no hay servidor, no hay configuración. Cuando regeneres los datos (paso 3) el HTML se actualiza solo.
+## 🚀 Setup completo (paso a paso)
 
-## Paso 2 — Compartirlo con otras personas
+### Paso 1 — Crear las tablas en Supabase
 
-### Opción A (rápida): mandá el archivo
-- `index.html` es **un solo archivo autocontenido**. Mandalo por Slack/email a quien quieras.
-- La persona hace doble click → ve el mismo dashboard.
-- ⚠️ Verá los datos que estaban embebidos al momento de mandárselo (no actualizados en tiempo real).
+1. Andá a tu proyecto Supabase del Oráculo del OPEX → **SQL Editor**.
+2. Pegá el contenido de `dashboard/supabase_schema.sql` y ejecutalo.
+3. Verificá con:
+   ```sql
+   SELECT email, role FROM public.dashboard_users;
+   ```
+   Deberías ver `hernan.manjarres@bia.app | super_admin`.
 
-### Opción B (pública, siempre fresca): GitHub Pages
-1. En github.com, andá al repo `Oraculo-del-opex` → Settings → Pages.
-2. Source: **Deploy from a branch**.
-3. Branch: `feature/dashboard-opex-activacion` (o `main` cuando lo fusiones).
-4. Folder: `/dashboard`. Click Save.
-5. Esperá 1-2 min. Aparece la URL: `https://hernanmanjarres-cmyk.github.io/Oraculo-del-opex/`.
-6. Cualquiera con esa URL lo puede ver desde el celu o la web.
+### Paso 2 — Habilitar Magic Link en Supabase Auth
 
-## Paso 3 — Refrescar datos (cuando querés ver cifras actuales)
+1. Supabase → **Authentication** → **Providers**.
+2. Activar **Email**: ON. Magic link viene activado por defecto.
+3. **Authentication** → **URL Configuration**:
+   - **Site URL**: la URL donde vas a hostear el HTML (ej: GitHub Pages `https://hernanmanjarres-cmyk.github.io/Oraculo-del-opex/`).
+     - Si querés probar local, ponete `http://localhost:8080` también.
+   - **Redirect URLs**: agregá la misma URL al allowlist.
 
-Esto regenera tanto `data.json` como la data embebida en `index.html`.
+### Paso 3 — Configurar el HTML con tus credenciales Supabase
+
+1. Andá a Supabase → **Settings** → **API**.
+2. Copiá:
+   - **Project URL** (algo como `https://xxxxx.supabase.co`)
+   - **anon public key** (algo largo que empieza con `eyJ...`) — esta key es **pública y segura**, RLS protege los datos.
+3. Abrí `dashboard/index.html` en un editor de texto.
+4. Buscá el bloque `<!-- ▼▼▼ CONFIG ▼▼▼ -->` y reemplazá:
+   ```json
+   {
+     "url": "https://xxxxx.supabase.co",
+     "anonKey": "eyJ..."
+   }
+   ```
+5. Guardá.
+
+### Paso 4 — Probarlo en local
 
 ```bash
-# 1. Conseguí una API key de Metabase (en bia.metabaseapp.com, perfil → personal API tokens).
-export METABASE_API_KEY="metabase_..."
+cd "/Users/hernanmanjarres/Documents/Automatizaciones/Analista Opex/dashboard"
+python3 -m http.server 8080
+```
 
-# 2. Corré el generador.
-cd "/Users/hernanmanjarres/Documents/Automatizaciones/Analista Opex"
+Abrí `http://localhost:8080` en el navegador.
+
+> ⚠️ Magic link requiere **server real** (no doble click en `file://`). Para probar localmente, usá `python3 -m http.server`. Para abrir directo (doble click) usá modo offline (no pongas URL de Supabase).
+
+1. Ingresá tu correo → recibís email con link.
+2. Click en el link → te logueás automáticamente.
+3. Como sos `super_admin`, vas a ver las 4 pestañas (incluida Admin).
+4. Probá agregar otro usuario en la pestaña Admin con rol `lector` o `usuario`.
+
+### Paso 5 — Publicarlo (GitHub Pages)
+
+1. GitHub repo → **Settings** → **Pages**.
+2. **Source**: `feature/dashboard-opex-activacion`, folder `/dashboard`. Save.
+3. En 1-2 min aparece la URL pública.
+4. Volvé a Supabase → **Auth** → **URL Configuration** y agregá esa URL como Site URL + Redirect URL.
+5. Cualquier persona que esté en `dashboard_users` con su email puede acceder y ver según su rol.
+
+### Paso 6 — Refrescar datos (cuando quieras cifras actualizadas)
+
+```bash
+export METABASE_API_KEY="metabase_..."   # tu API key personal de Metabase
 python3 dashboard/generate_data.py
 ```
 
-Sale algo así:
-```
-Generando data para 2026-05…
-  ejecutado por servicio: 8 categorías
-  OR con visitas exitosas: 4
-  OTs abiertas: 5
-✅ Escrito: data.json
-✅ HTML actualizado: index.html
-```
+Esto regenera:
+- `dashboard/data.json` (sidecar)
+- `dashboard/index.html` (data embebida)
 
-Volvé a abrir `index.html` (o recargá si estaba abierto) y vas a ver los nuevos números.
+Después hacés `git commit` + `git push` para que GitHub Pages tome la nueva versión.
 
-## Paso 4 — Cómo usar el dashboard
-
-### KPIs arriba
-- **Ejecutado contratistas**: lo que ya se gastó en visitas exitosas (card Metabase 71645).
-- **Descargos + Acompañamientos**: lo ya pagado por descargos a OR y los $360k por INST/NORM ejecutadas.
-- **Forecast pendiente**: proyección de las OTs todavía abiertas + cualquier "gasto adicional" que vos cargues.
-- **Total proyectado**: la suma — comparada con la meta. Verde si vas bajo, amarillo si te acercás, rojo si te pasás.
-
-### Presupuesto editable
-- Cambiá el valor de la meta efectiva → todo se recalcula al instante.
-- Se guarda en tu navegador (no en archivo). Si alguien más abre el HTML verá el default ($21M).
-
-### Gastos adicionales por OT
-- En la tabla de "OTs abiertas", la columna **Gasto adicional** es editable.
-- Cargá ahí costos que sabés que van a ocurrir pero no están en la base (ej: imprevistos, materiales extra).
-- Se suma automáticamente al forecast.
-- Se guarda en localStorage del navegador.
-
-## Paso 5 (futuro) — Bot envía screenshot 7am Lun-Vie
-
-Plan documentado en el README pero no implementado todavía:
-1. GitHub Action que corre `generate_data.py` cada lun-vie 7am Bogotá.
-2. Servicio externo (htmlcsstoimage.com, urlbox.io) que toma screenshot del HTML.
-3. Nodo HTTP en WF-G que llama al servicio + sube la imagen a Slack con un texto breve.
-
-Cuando confirmes que el dashboard funciona, lo armamos en otro PR.
-
----
-
-## Estructura de archivos
+## 📁 Estructura
 
 ```
 dashboard/
-├── index.html        # El dashboard. Data embebida adentro. Doble click → funciona.
-├── data.json         # Mismo contenido en JSON (sidecar, para inspección/futuras integraciones).
-├── generate_data.py  # Regenera el HTML y JSON desde Metabase.
-└── README.md         # Este archivo.
+├── index.html              # Dashboard (config Supabase + data embebida)
+├── data.json               # Sidecar de datos
+├── generate_data.py        # Refresca data desde Metabase
+├── supabase_schema.sql     # SQL para crear tablas + RLS
+└── README.md
 ```
 
-## Preguntas frecuentes
+## 🔐 Cómo funcionan los roles
 
-**P: ¿Por qué no se actualiza solo?**
-R: Porque la data está embebida. Corré `python3 dashboard/generate_data.py` cuando quieras refrescar. (Con GitHub Pages + GitHub Action eso se automatiza.)
+| Acción | lector | usuario | super_admin |
+|---|---|---|---|
+| Ver Resumen, OTs abiertas, OTs ejecutadas | ✅ | ✅ | ✅ |
+| Editar presupuesto (solo tu navegador) | ✅ | ✅ | ✅ |
+| Editar gastos adicionales (globales) | ❌ | ✅ | ✅ |
+| Ver pestaña Admin | ❌ | ❌ | ✅ |
+| Agregar/borrar usuarios | ❌ | ❌ | ✅ |
+| Cambiar rol de otros | ❌ | ❌ | ✅ |
 
-**P: ¿Si edito un gasto adicional y otra persona abre el mismo HTML, ¿lo ve?**
-R: No. Eso vive en el localStorage del navegador de cada uno. Es feature, no bug — cada uno juega con sus "qué pasaría si".
+**Importante**: las políticas RLS de Supabase imponen estas reglas a nivel base de datos. Aunque alguien manipule el HTML, no puede insertar/editar si su rol no lo permite. La UI solo refleja lo que el backend ya bloquea.
 
-**P: ¿Y si quiero compartir los adicionales que cargué?**
-R: Por ahora hay que coordinarlo manual. Para hacerlo persistente habría que agregar Supabase o algo similar — siguiente iteración.
+## ❓ Preguntas frecuentes
 
-**P: ¿Funciona en celular?**
-R: Sí, es responsive. Probalo desde GitHub Pages en el celu.
+**P: Si abro `index.html` con doble click, ¿funciona?**
+R: Sí, pero entra en **modo offline** (sin login, adicionales en localStorage del navegador). Para login + roles + datos compartidos necesitás servirlo por HTTP (local o GitHub Pages).
+
+**P: ¿Qué pasa si una OT pasa de abierta a ejecutada?**
+R: Nada que hacer. El adicional está keyed por `ot_id`. Al regenerar los datos (`generate_data.py`), la OT aparece en la pestaña ejecutadas con su adicional intacto.
+
+**P: ¿Los lectores ven los adicionales que cargué?**
+R: Sí. Los adicionales son globales — todos los ven igual.
+
+**P: ¿Puedo dar acceso temporal a alguien externo?**
+R: Sí. Pestaña Admin → Agregar `email@externo.com` con rol `lector`. Cuando quieras quitárselo: borralo desde la misma pestaña.
+
+**P: ¿Datos en tiempo real?**
+R: Por ahora hay que recargar la página para ver lo que cargó otro usuario. Si lo querés en vivo, hay que activar Supabase Realtime — siguiente iteración.
+
+**P: ¿Y el screenshot a las 7am?**
+R: TODO. Cuando confirmes que el dashboard funciona, armamos:
+1. GitHub Action que corre `generate_data.py` lun-vie 7am Bogotá y commitea.
+2. Servicio de screenshot (htmlcsstoimage.com) que toma foto del dashboard logueado.
+3. Nodo en WF-G que postea la imagen en Slack con texto breve.

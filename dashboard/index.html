@@ -14,271 +14,125 @@
       --text: #f1f5f9;
       --text-dim: #94a3b8;
       --accent: #38bdf8;
+      --accent-2: #0ea5e9;
       --ok: #22c55e;
       --warn: #f59e0b;
       --danger: #ef4444;
       --info: #a78bfa;
     }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-    .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 24px; padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    header h1 { font-size: 24px; margin: 0; font-weight: 600; }
-    header .meta { color: var(--text-dim); font-size: 13px; text-align: right; }
-    header .meta strong { color: var(--accent); }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+    .container { max-width:1280px; margin:0 auto; padding:24px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px; }
+    header h1 { font-size:24px; margin:0; font-weight:600; }
+    header .meta { color:var(--text-dim); font-size:13px; text-align:right; }
+    header .meta strong { color:var(--accent); }
+    .user-info { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-dim); }
+    .user-info .email { color:var(--text); }
 
-    .grid { display: grid; gap: 16px; }
-    .grid-kpi { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px; }
-    .grid-main { grid-template-columns: 1fr 1fr; }
-    @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+    .grid { display:grid; gap:16px; }
+    .grid-kpi { grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); margin-bottom:24px; }
+    .grid-main { grid-template-columns:1fr 1fr; }
+    @media (max-width:900px) { .grid-main { grid-template-columns:1fr; } header { flex-direction:column; align-items:flex-start; } }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 20px;
-    }
-    .card h2 {
-      font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
-      color: var(--text-dim); margin: 0 0 12px 0; font-weight: 500;
-    }
-    .kpi { padding: 18px 20px; }
-    .kpi-label {
-      font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
-      color: var(--text-dim); margin-bottom: 6px;
-    }
-    .kpi-value {
-      font-size: 26px; font-weight: 600; margin: 0;
-      font-variant-numeric: tabular-nums;
-    }
-    .kpi-sub {
-      font-size: 12px; color: var(--text-dim); margin-top: 4px;
-      font-variant-numeric: tabular-nums;
-    }
-    .kpi.ok .kpi-value { color: var(--ok); }
-    .kpi.warn .kpi-value { color: var(--warn); }
-    .kpi.danger .kpi-value { color: var(--danger); }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; }
+    .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin:0 0 12px 0; font-weight:500; }
+    .kpi { padding:18px 20px; }
+    .kpi-label { font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:6px; }
+    .kpi-value { font-size:26px; font-weight:600; margin:0; font-variant-numeric:tabular-nums; }
+    .kpi-sub { font-size:12px; color:var(--text-dim); margin-top:4px; font-variant-numeric:tabular-nums; }
+    .kpi.ok .kpi-value { color:var(--ok); }
+    .kpi.warn .kpi-value { color:var(--warn); }
+    .kpi.danger .kpi-value { color:var(--danger); }
 
-    .progress-bar {
-      width: 100%; height: 10px; background: var(--surface-2);
-      border-radius: 5px; overflow: hidden; margin-top: 12px;
-    }
-    .progress-fill {
-      height: 100%; transition: width 0.5s ease;
-      background: linear-gradient(90deg, var(--ok), var(--warn) 70%, var(--danger));
-    }
+    .progress-bar { width:100%; height:10px; background:var(--surface-2); border-radius:5px; overflow:hidden; margin-top:12px; }
+    .progress-fill { height:100%; transition:width 0.5s ease; background:linear-gradient(90deg, var(--ok), var(--warn) 70%, var(--danger)); }
 
-    input[type="number"], input[type="text"] {
-      background: var(--surface-2); color: var(--text);
-      border: 1px solid var(--border); border-radius: 6px;
-      padding: 6px 10px; font-size: 14px; width: 100%;
-      font-variant-numeric: tabular-nums; font-family: inherit;
+    input[type=number], input[type=text], input[type=email], select {
+      background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:6px;
+      padding:6px 10px; font-size:14px; width:100%; font-variant-numeric:tabular-nums; font-family:inherit;
     }
-    input[type="number"]:focus, input[type="text"]:focus {
-      outline: none; border-color: var(--accent);
-    }
-    input.adicional { max-width: 120px; text-align: right; }
-    .budget-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-    .budget-row label { color: var(--text-dim); font-size: 14px; min-width: 140px; }
-    .budget-row input { max-width: 200px; }
+    input:focus, select:focus { outline:none; border-color:var(--accent); }
+    input.adicional { max-width:130px; text-align:right; }
+    .budget-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+    .budget-row label { color:var(--text-dim); font-size:14px; min-width:140px; }
+    .budget-row input { max-width:200px; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td {
-      text-align: left; padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-      font-variant-numeric: tabular-nums;
-    }
-    th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-    td.right, th.right { text-align: right; }
-    tr.bia { color: var(--text-dim); font-style: italic; }
-    tr.bia td:first-child::before { content: "🏠 "; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; }
+    th { color:var(--text-dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; }
+    td.right, th.right { text-align:right; }
+    tr.bia { color:var(--text-dim); font-style:italic; }
+    tr.bia td:first-child::before { content:"🏠 "; }
 
-    .services-bar {
-      display: grid; gap: 8px; margin-top: 8px;
-    }
-    .service-row {
-      display: grid; grid-template-columns: 200px 1fr auto;
-      gap: 12px; align-items: center; font-size: 13px;
-    }
-    .service-bar-bg {
-      background: var(--surface-2); height: 8px; border-radius: 4px; overflow: hidden;
-    }
-    .service-bar-fill {
-      height: 100%; background: var(--accent); border-radius: 4px;
-    }
-    .service-row .label { color: var(--text); }
-    .service-row .amount { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; min-width: 110px; text-align: right; }
+    .services-bar { display:grid; gap:8px; margin-top:8px; }
+    .service-row { display:grid; grid-template-columns:200px 1fr auto; gap:12px; align-items:center; font-size:13px; }
+    .service-bar-bg { background:var(--surface-2); height:8px; border-radius:4px; overflow:hidden; }
+    .service-bar-fill { height:100%; background:var(--accent); border-radius:4px; }
+    .service-row .amount { color:var(--text); font-variant-numeric:tabular-nums; font-weight:500; min-width:110px; text-align:right; }
 
-    .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 12px;
-      font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
-    }
-    .badge.bia { background: rgba(167,139,250,0.15); color: var(--info); }
-    .badge.ext { background: rgba(56,189,248,0.15); color: var(--accent); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:500; letter-spacing:0.02em; }
+    .badge.bia { background:rgba(167,139,250,0.15); color:var(--info); }
+    .badge.ext { background:rgba(56,189,248,0.15); color:var(--accent); }
+    .badge.role-lector { background:rgba(148,163,184,0.2); color:var(--text-dim); }
+    .badge.role-usuario { background:rgba(56,189,248,0.15); color:var(--accent); }
+    .badge.role-super_admin { background:rgba(245,158,11,0.15); color:var(--warn); }
 
-    .help {
-      font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.4;
-    }
-    .help kbd {
-      background: var(--surface-2); padding: 1px 5px; border-radius: 3px;
-      font-family: monospace; font-size: 11px;
-    }
-    .footer {
-      margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
-      text-align: center; color: var(--text-dim); font-size: 12px;
-    }
-    .footer a { color: var(--accent); text-decoration: none; }
+    .help { font-size:12px; color:var(--text-dim); margin-top:6px; line-height:1.4; }
+    .footer { margin-top:32px; padding-top:16px; border-top:1px solid var(--border); text-align:center; color:var(--text-dim); font-size:12px; }
+    .footer a { color:var(--accent); text-decoration:none; }
 
-    .reset-btn {
-      background: transparent; color: var(--text-dim); border: 1px solid var(--border);
-      border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 11px;
-      margin-left: 8px;
-    }
-    .reset-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .btn { background:var(--accent); color:#0c1322; border:none; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; }
+    .btn:hover { background:var(--accent-2); }
+    .btn-secondary { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
+    .btn-secondary:hover { color:var(--text); border-color:var(--text-dim); }
+    .btn-danger { background:transparent; color:var(--danger); border:1px solid var(--danger); }
+    .btn-sm { padding:4px 10px; font-size:11px; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .tab-btn { background:transparent; color:var(--text-dim); border:none; padding:10px 16px; cursor:pointer; font-size:14px; font-family:inherit; border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .tab-btn:hover { color:var(--text); }
+    .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* Login screen */
+    .login-screen { max-width:420px; margin:80px auto; padding:32px; }
+    .login-screen h1 { font-size:24px; margin:0 0 4px 0; }
+    .login-screen p { color:var(--text-dim); font-size:14px; margin:0 0 24px 0; }
+    .login-form { display:flex; flex-direction:column; gap:12px; }
+    .login-form input { padding:10px 14px; font-size:15px; }
+    .login-form .btn { padding:10px 16px; font-size:15px; }
+    .login-msg { margin-top:14px; padding:10px 14px; border-radius:6px; font-size:13px; display:none; }
+    .login-msg.ok { display:block; background:rgba(34,197,94,0.1); color:var(--ok); border:1px solid rgba(34,197,94,0.3); }
+    .login-msg.err { display:block; background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.3); }
+
+    /* Admin panel */
+    .admin-section { margin-bottom:24px; }
+    .admin-section h3 { font-size:14px; margin:0 0 12px 0; color:var(--text); }
+    .add-user-form { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .add-user-form input { max-width:280px; }
+    .add-user-form select { max-width:160px; }
+
+    .loading { color:var(--text-dim); text-align:center; padding:40px; font-size:14px; }
+    .empty { color:var(--text-dim); text-align:center; padding:30px; font-size:13px; }
+
+    .read-only-banner { background:rgba(148,163,184,0.1); border:1px solid var(--border); padding:8px 14px; border-radius:6px; color:var(--text-dim); font-size:13px; margin-bottom:16px; }
+    .read-only-banner strong { color:var(--text); }
   </style>
 </head>
 <body>
-  <div class="container">
 
-    <header>
-      <div>
-        <h1>OPEX Activación BIA Energy</h1>
-        <div style="color: var(--text-dim); font-size: 14px;">Seguimiento del ciclo de activación · <span id="mes-label"></span></div>
-      </div>
-      <div class="meta">
-        Datos al <strong id="fecha-corte"></strong><br>
-        Generado <span id="generated-at"></span>
-      </div>
-    </header>
+  <!-- ▼▼▼ CONFIG — editar con tu URL y anon key de Supabase ▼▼▼ -->
+  <script id="supabase-config" type="application/json">
+  {
+    "url": "PEGA_AQUI_TU_SUPABASE_URL",
+    "anonKey": "PEGA_AQUI_TU_SUPABASE_ANON_KEY"
+  }
+  </script>
+  <!-- ▲▲▲ FIN CONFIG ▲▲▲ -->
 
-    <!-- KPI cards -->
-    <div class="grid grid-kpi">
-      <div class="card kpi">
-        <div class="kpi-label">Ejecutado contratistas</div>
-        <div class="kpi-value" id="kpi-ejecutado">—</div>
-        <div class="kpi-sub">Card Metabase 71645</div>
-      </div>
-      <div class="card kpi">
-        <div class="kpi-label">+ Descargos + Acompañamientos</div>
-        <div class="kpi-value" id="kpi-descargos-acomp">—</div>
-        <div class="kpi-sub">Ya ejecutados este mes</div>
-      </div>
-      <div class="card kpi">
-        <div class="kpi-label">Forecast pendiente</div>
-        <div class="kpi-value" id="kpi-forecast">—</div>
-        <div class="kpi-sub"><span id="n-otas-abiertas">0</span> OTs abiertas + adicionales</div>
-      </div>
-      <div class="card kpi" id="kpi-card-total">
-        <div class="kpi-label">Total proyectado mes</div>
-        <div class="kpi-value" id="kpi-total">—</div>
-        <div class="kpi-sub" id="kpi-vs-meta">vs meta —</div>
-      </div>
-    </div>
-
-    <!-- Presupuesto -->
-    <div class="card" style="margin-bottom: 16px;">
-      <h2>Presupuesto del mes</h2>
-      <div class="budget-row">
-        <label for="budget-input">Meta efectiva ($)</label>
-        <input type="number" id="budget-input" min="0" step="100000">
-        <button class="reset-btn" id="reset-budget">Reset</button>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%"></div></div>
-      <div class="help" id="budget-status">Editá el presupuesto y se guarda automáticamente en tu navegador.</div>
-    </div>
-
-    <div class="grid grid-main">
-      <!-- Ejecutado por servicio -->
-      <div class="card">
-        <h2>Ejecutado por servicio</h2>
-        <div id="services-list" class="services-bar"></div>
-        <div class="help" style="margin-top: 14px;">
-          Fuente: card 71645 (<em>Sum of costo_total_ot</em>). Solo servicios del ciclo de activación.
-        </div>
-      </div>
-
-      <!-- Descargos y acompañamientos -->
-      <div class="card">
-        <h2>Descargos y acompañamientos</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Concepto</th>
-              <th class="right">Ejecutado</th>
-              <th class="right">Proyectado</th>
-            </tr>
-          </thead>
-          <tbody id="extras-tbody">
-          </tbody>
-          <tfoot>
-            <tr style="font-weight: 600; border-top: 2px solid var(--border);">
-              <td>Total</td>
-              <td class="right" id="extras-ejec-total">—</td>
-              <td class="right" id="extras-proy-total">—</td>
-            </tr>
-          </tfoot>
-        </table>
-        <div class="help" style="margin-top: 10px;">
-          Descargos: $6M (Enel/Codensa), $3M (EPM, Celsia), $1M (ESSA) por cada INST/NORM.<br>
-          Acompañamientos: $360.000 por cada INST/NORM.
-        </div>
-      </div>
-    </div>
-
-    <!-- Tabla de OTs abiertas -->
-    <div class="card" style="margin-top: 16px;">
-      <h2>
-        OTs abiertas — proyección
-        <button class="reset-btn" id="reset-adicionales" style="margin-left:auto; float:right;">Limpiar adicionales</button>
-      </h2>
-      <div class="help" style="margin-bottom: 12px;">
-        Podés agregar un <strong>gasto adicional</strong> por OT (e.g. costo no previsto, materiales fuera de tarifa). Se guarda en tu navegador y se suma al forecast.
-      </div>
-      <div style="overflow-x: auto;">
-      <table id="ots-table">
-        <thead>
-          <tr>
-            <th>OT</th>
-            <th>Código BIA</th>
-            <th>OR</th>
-            <th>Servicio</th>
-            <th>Medida</th>
-            <th>Contratista</th>
-            <th>Fecha</th>
-            <th class="right">Forecast</th>
-            <th class="right">Gasto adicional</th>
-            <th class="right">Total con adicional</th>
-          </tr>
-        </thead>
-        <tbody id="ots-tbody"></tbody>
-        <tfoot>
-          <tr style="font-weight: 600; border-top: 2px solid var(--border);">
-            <td colspan="7">Subtotal contratistas (sin BIA)</td>
-            <td class="right" id="ots-forecast-total">—</td>
-            <td class="right" id="ots-adicional-total">—</td>
-            <td class="right" id="ots-total-final">—</td>
-          </tr>
-        </tfoot>
-      </table>
-      </div>
-    </div>
-
-    <div class="footer">
-      Dashboard generado automáticamente · <a href="https://github.com/hernanmanjarres-cmyk/Oraculo-del-opex">github</a> · BIA Energy
-    </div>
-
-  </div>
-
-<!-- ▼▼▼ DATA EMBEBIDA — reemplazada por generate_data.py ▼▼▼ -->
+  <!-- ▼▼▼ DATA EMBEBIDA — reemplazada por generate_data.py ▼▼▼ -->
 <script id="dashboard-data" type="application/json">
 {
   "fecha_corte": "2026-05-22",
@@ -347,6 +201,7 @@
       "codigo_ot": "3bb34d01-4366-4421-aadd-19f29c905fe8",
       "codigo_bia": "CO1100006831",
       "service_type_id": "INST",
+      "electrician_status_id": "REASSIGNED",
       "operador_de_red": "ENEL CUNDINAMARCA",
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
@@ -356,13 +211,13 @@
       "materiales": 276750,
       "adicionales": 300000,
       "transporte": 21171,
-      "total_ot": 597921,
-      "electrician_status_id": "REASSIGNED"
+      "total_ot": 597921
     },
     {
       "codigo_ot": "dc87bbbb-4771-494f-9523-513ca68d2e53",
       "codigo_bia": "CO0800006864",
       "service_type_id": "VIPE",
+      "electrician_status_id": "ASSIGNED",
       "operador_de_red": "AIRE CARIBE_SOL",
       "tipo_de_medida": "Directa",
       "contratista": "BIA",
@@ -372,13 +227,13 @@
       "materiales": 0,
       "adicionales": 0,
       "transporte": 94188,
-      "total_ot": 94188,
-      "electrician_status_id": "ASSIGNED"
+      "total_ot": 94188
     },
     {
       "codigo_ot": "5c944201-57ba-4a15-887c-17eae5337d1d",
       "codigo_bia": "CO0800006891",
       "service_type_id": "VIPE",
+      "electrician_status_id": "ASSIGNED",
       "operador_de_red": "AIRE CARIBE_SOL",
       "tipo_de_medida": "Semidirecta",
       "contratista": "BIA",
@@ -388,13 +243,13 @@
       "materiales": 0,
       "adicionales": 0,
       "transporte": 94188,
-      "total_ot": 94188,
-      "electrician_status_id": "ASSIGNED"
+      "total_ot": 94188
     },
     {
       "codigo_ot": "e269a8b0-158d-42bf-9fb0-30be87624c13",
       "codigo_bia": "CO1100006717",
       "service_type_id": "VIPE",
+      "electrician_status_id": "REASSIGNED",
       "operador_de_red": "ENEL CUNDINAMARCA",
       "tipo_de_medida": "Indirecta",
       "contratista": "BIA",
@@ -404,255 +259,725 @@
       "materiales": 0,
       "adicionales": 0,
       "transporte": 44835,
-      "total_ot": 44835,
-      "electrician_status_id": "REASSIGNED"
+      "total_ot": 44835
     }
   ],
   "generated_at": "2026-05-22T15:50:00-05:00",
   "source": {
     "ejecutado": "Metabase card 71645 (Seguimiento_opex_act)",
     "forecast": "SQL operations.visitas_general + opex_costs_general, 12m hist excluyendo mes actual"
-  }
+  },
+  "ots_ejecutadas": [
+    {
+      "codigo_ot": "87cc2cab-4811-4fca-a5c4-58d8e1c619f1",
+      "codigo_bia": "CO0200006454",
+      "service_type_id": "NORM",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "EMCALI CALI",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": "ELECPROYECTOS",
+      "fecha_visita": "2026-05-15",
+      "is_bia": false,
+      "costo_real": 1102000
+    },
+    {
+      "codigo_ot": "a65f1d78-2070-4938-b2f6-801b08ef954e",
+      "codigo_bia": "CO2000006705",
+      "service_type_id": "VIPE",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "AFINIA CARIBE_MAR",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "C3",
+      "fecha_visita": "2026-05-15",
+      "is_bia": false,
+      "costo_real": 684000
+    },
+    {
+      "codigo_ot": "27df6953-4cad-464c-9c58-7aebdc354c95",
+      "codigo_bia": "0",
+      "service_type_id": "PREV",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "Sin OR",
+      "tipo_de_medida": null,
+      "contratista": "ELECPROYECTOS",
+      "fecha_visita": "2026-05-13",
+      "is_bia": false,
+      "costo_real": 321600
+    },
+    {
+      "codigo_ot": "b262b533-e12a-4bc6-93f0-b27e50982d4b",
+      "codigo_bia": "CO0800006559",
+      "service_type_id": "VEXT",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "ESSA SANTANDER",
+      "tipo_de_medida": "Directa",
+      "contratista": "DISELEC",
+      "fecha_visita": "2026-05-21",
+      "is_bia": false,
+      "costo_real": 230000
+    },
+    {
+      "codigo_ot": "28aeaa09-5c62-4a8b-9098-cf0542e62b3a",
+      "codigo_bia": "CO0500006750",
+      "service_type_id": "VIPE",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "EPM ANTIOQUIA",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": "ISELEC",
+      "fecha_visita": "2026-05-07",
+      "is_bia": false,
+      "costo_real": 211000
+    },
+    {
+      "codigo_ot": "5674d5ed-b78f-4087-a6d1-4f80abace2c2",
+      "codigo_bia": "CO0500006734",
+      "service_type_id": "VIPE",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "EPM ANTIOQUIA",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": "ISELEC",
+      "fecha_visita": "2026-05-01",
+      "is_bia": false,
+      "costo_real": 187500
+    },
+    {
+      "codigo_ot": "a73eb010-771f-470c-b912-0a70a62ea8de",
+      "codigo_bia": "CO0500006735",
+      "service_type_id": "VIPE",
+      "electrician_status_id": "CLOSURE_SUCCESSFUL",
+      "operador_de_red": "EPM ANTIOQUIA",
+      "tipo_de_medida": "Directa",
+      "contratista": "ISELEC",
+      "fecha_visita": "2026-05-06",
+      "is_bia": false,
+      "costo_real": 150000
+    }
+  ]
 }
 </script>
 <!-- ▲▲▲ FIN DATA EMBEBIDA ▲▲▲ -->
 
-<script>
-// ─── Utilidades ─────────────────────────────────────────────────────────
-const fmtCOP = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO').replace(/,/g, '.');
-const fmtShort = n => {
-  const v = Math.round(Number(n) || 0);
-  if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
-  if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'k';
-  return '$' + v;
-};
 
-const STORAGE_BUDGET = 'opex_dashboard_budget';
-const STORAGE_ADICIONALES = 'opex_dashboard_adicionales';
+  <!-- ═══ LOGIN SCREEN ═══ -->
+  <div id="login-screen" class="login-screen" style="display:none">
+    <h1>🔮 OPEX Activación</h1>
+    <p>BIA Energy · Ingresá tu correo corporativo para recibir el link de acceso.</p>
+    <form id="login-form" class="login-form">
+      <input type="email" id="login-email" placeholder="tu.nombre@bia.app" required>
+      <button type="submit" class="btn">Enviarme el magic link</button>
+    </form>
+    <div id="login-msg" class="login-msg"></div>
+    <div class="help" style="margin-top:20px">Vas a recibir un correo. Hacé click en el botón del correo y te logueás automáticamente.</div>
+  </div>
 
-const lsGet = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
-const lsSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-// ─── Carga de datos ─────────────────────────────────────────────────────
-let DATA = null;
+  <!-- ═══ APP PRINCIPAL ═══ -->
+  <div id="app" class="container" style="display:none">
 
-function loadData() {
-  try {
-    const el = document.getElementById('dashboard-data');
-    DATA = JSON.parse(el.textContent);
-    render();
-  } catch (e) {
-    document.body.innerHTML = '<div style="padding:32px;color:#ef4444">Error parseando datos embebidos: ' + e.message + '</div>';
-  }
-}
-
-// ─── Cálculos ───────────────────────────────────────────────────────────
-function calcularDescargosEjecutados(d) {
-  const conteos = d.conteo_inst_norm_ejecutadas_por_or || {};
-  const tarifas = d.tarifas_descargo_por_or || {};
-  let total = 0;
-  for (const [or, byService] of Object.entries(conteos)) {
-    const tarifa = tarifas[or] || 0;
-    const nInstNorm = (byService.INST || 0) + (byService.NORM || 0);
-    total += nInstNorm * tarifa;
-  }
-  return total;
-}
-
-function calcularAcompanamientosEjecutados(d) {
-  const conteos = d.conteo_inst_norm_ejecutadas_por_or || {};
-  let nTotal = 0;
-  for (const byService of Object.values(conteos)) {
-    nTotal += (byService.INST || 0) + (byService.NORM || 0);
-  }
-  return nTotal * (d.tarifa_acompanamiento || 0);
-}
-
-function calcularDescargosProyectados(d) {
-  const tarifas = d.tarifas_descargo_por_or || {};
-  let total = 0;
-  for (const ot of d.ots_abiertas || []) {
-    if (ot.is_bia) continue;  // solo contratistas externos
-    if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
-    total += tarifas[ot.operador_de_red] || 0;
-  }
-  return total;
-}
-
-function calcularAcompanamientosProyectados(d) {
-  let n = 0;
-  for (const ot of d.ots_abiertas || []) {
-    if (ot.is_bia) continue;
-    if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
-  }
-  return n * (d.tarifa_acompanamiento || 0);
-}
-
-function totalEjecutadoServicios(d) {
-  return (d.ejecutado_por_servicio || []).reduce((s, r) => s + (r.monto || 0), 0);
-}
-
-function totalForecastOTs(d) {
-  return (d.ots_abiertas || [])
-    .filter(o => !o.is_bia)
-    .reduce((s, o) => s + (o.total_ot || 0), 0);
-}
-
-function getAdicionales() {
-  return lsGet(STORAGE_ADICIONALES, {});
-}
-
-function setAdicional(otId, value) {
-  const all = getAdicionales();
-  if (!value || Number(value) === 0) delete all[otId];
-  else all[otId] = Number(value);
-  lsSet(STORAGE_ADICIONALES, all);
-}
-
-function totalAdicionales() {
-  return Object.values(getAdicionales()).reduce((s, v) => s + Number(v || 0), 0);
-}
-
-function getBudget() {
-  return Number(lsGet(STORAGE_BUDGET, null) ?? DATA?.meta_default ?? 0);
-}
-
-// ─── Render ─────────────────────────────────────────────────────────────
-function render() {
-  document.getElementById('mes-label').textContent = DATA.mes_label || DATA.anio_mes;
-  document.getElementById('fecha-corte').textContent = DATA.fecha_corte;
-  document.getElementById('generated-at').textContent = (DATA.generated_at || '').replace('T', ' ').slice(0, 16);
-
-  const ejecutadoServicios = totalEjecutadoServicios(DATA);
-  const descargosEjec = calcularDescargosEjecutados(DATA);
-  const acompEjec = calcularAcompanamientosEjecutados(DATA);
-  const forecastOTs = totalForecastOTs(DATA);
-  const adicionales = totalAdicionales();
-  const descargosProy = calcularDescargosProyectados(DATA);
-  const acompProy = calcularAcompanamientosProyectados(DATA);
-
-  const ejecutadoTotal = ejecutadoServicios + descargosEjec + acompEjec;
-  const forecastTotal = forecastOTs + adicionales + descargosProy + acompProy;
-  const totalProyectado = ejecutadoTotal + forecastTotal;
-
-  // KPI 1
-  document.getElementById('kpi-ejecutado').textContent = fmtCOP(ejecutadoServicios);
-  // KPI 2
-  document.getElementById('kpi-descargos-acomp').textContent = fmtCOP(descargosEjec + acompEjec);
-  // KPI 3
-  document.getElementById('kpi-forecast').textContent = fmtCOP(forecastTotal);
-  document.getElementById('n-otas-abiertas').textContent = (DATA.ots_abiertas || []).filter(o => !o.is_bia).length;
-
-  // KPI 4 — total + comparación
-  const budget = getBudget();
-  document.getElementById('kpi-total').textContent = fmtCOP(totalProyectado);
-  const kpiCard = document.getElementById('kpi-card-total');
-  kpiCard.classList.remove('ok', 'warn', 'danger');
-  let statusText, statusClass;
-  if (budget <= 0) {
-    statusText = 'Sin presupuesto definido';
-    statusClass = '';
-  } else {
-    const desviacion = totalProyectado - budget;
-    const pct = (desviacion / budget) * 100;
-    if (desviacion > 0) {
-      statusText = `Excede meta en ${fmtCOP(desviacion)} (+${pct.toFixed(1)}%)`;
-      statusClass = pct > 10 ? 'danger' : 'warn';
-    } else {
-      statusText = `Bajo meta en ${fmtCOP(-desviacion)} (${pct.toFixed(1)}%)`;
-      statusClass = 'ok';
-    }
-  }
-  if (statusClass) kpiCard.classList.add(statusClass);
-  document.getElementById('kpi-vs-meta').textContent = statusText;
-
-  // Progress bar
-  const progressPct = budget > 0 ? Math.min(100, (totalProyectado / budget) * 100) : 0;
-  document.getElementById('progress-fill').style.width = progressPct + '%';
-  document.getElementById('budget-status').innerHTML =
-    `Total proyectado: <strong>${fmtCOP(totalProyectado)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong> · Consumido: <strong>${progressPct.toFixed(1)}%</strong>`;
-
-  document.getElementById('budget-input').value = budget;
-
-  // Servicios bar chart
-  const maxMonto = Math.max(...(DATA.ejecutado_por_servicio || []).map(r => r.monto || 0), 1);
-  document.getElementById('services-list').innerHTML = (DATA.ejecutado_por_servicio || [])
-    .filter(r => r.monto > 0)
-    .sort((a, b) => b.monto - a.monto)
-    .map(r => `
-      <div class="service-row">
-        <div class="label">${r.servicio} <span class="badge ext">${r.service_type_id}</span></div>
-        <div class="service-bar-bg"><div class="service-bar-fill" style="width:${(r.monto / maxMonto * 100).toFixed(1)}%"></div></div>
-        <div class="amount">${fmtCOP(r.monto)}</div>
+    <header>
+      <div>
+        <h1>OPEX Activación BIA Energy</h1>
+        <div style="color:var(--text-dim); font-size:14px;">Ciclo de activación · <span id="mes-label"></span></div>
       </div>
-    `).join('') || '<div style="color:var(--text-dim)">Sin ejecutado registrado este mes.</div>';
+      <div class="user-info">
+        <span class="email" id="user-email">—</span>
+        <span class="badge" id="user-role-badge">—</span>
+        <button class="btn btn-secondary btn-sm" id="logout-btn">Salir</button>
+      </div>
+    </header>
 
-  // Extras (descargos/acomp)
-  document.getElementById('extras-tbody').innerHTML = `
-    <tr><td>Descargos</td><td class="right">${fmtCOP(descargosEjec)}</td><td class="right">${fmtCOP(descargosProy)}</td></tr>
-    <tr><td>Acompañamientos</td><td class="right">${fmtCOP(acompEjec)}</td><td class="right">${fmtCOP(acompProy)}</td></tr>
-  `;
-  document.getElementById('extras-ejec-total').textContent = fmtCOP(descargosEjec + acompEjec);
-  document.getElementById('extras-proy-total').textContent = fmtCOP(descargosProy + acompProy);
+    <div id="read-only-banner" class="read-only-banner" style="display:none">
+      🔒 Sos <strong>lector</strong>: podés ver todo pero no editar adicionales ni presupuesto. Pedí permiso de <em>usuario</em> a un super_admin si necesitás cargar gastos.
+    </div>
 
-  // Tabla OTs
-  const adicionalesMap = getAdicionales();
-  const otRows = (DATA.ots_abiertas || []).map(ot => {
-    const adicional = adicionalesMap[ot.codigo_ot] || 0;
-    const totalConAdic = (ot.total_ot || 0) + Number(adicional || 0);
-    return `
-      <tr class="${ot.is_bia ? 'bia' : ''}">
-        <td title="${ot.codigo_ot}">${ot.codigo_ot.slice(0, 8)}…</td>
-        <td>${ot.codigo_bia}</td>
-        <td>${ot.operador_de_red}</td>
-        <td>${ot.service_type_id} <span class="badge ${ot.is_bia ? 'bia' : 'ext'}">${ot.is_bia ? 'BIA' : 'ext'}</span></td>
-        <td>${ot.tipo_de_medida || '-'}</td>
-        <td>${ot.contratista}</td>
-        <td>${ot.fecha_programada}</td>
-        <td class="right">${fmtCOP(ot.total_ot)}</td>
-        <td class="right">
-          <input type="number" class="adicional" data-ot="${ot.codigo_ot}" min="0" step="10000" value="${adicional || ''}" placeholder="0">
-        </td>
-        <td class="right"><strong>${fmtCOP(totalConAdic)}</strong></td>
-      </tr>
-    `;
-  }).join('');
-  document.getElementById('ots-tbody').innerHTML = otRows || '<tr><td colspan="10" style="color:var(--text-dim);text-align:center;padding:20px">Sin OTs abiertas.</td></tr>';
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="resumen">📊 Resumen</button>
+      <button class="tab-btn" data-tab="abiertas">🔧 OTs abiertas</button>
+      <button class="tab-btn" data-tab="ejecutadas">✅ OTs ejecutadas</button>
+      <button class="tab-btn" data-tab="admin" id="tab-btn-admin" style="display:none">⚙️ Admin</button>
+    </nav>
 
-  // Totales tabla OTs (solo contratistas externos)
-  const externas = (DATA.ots_abiertas || []).filter(o => !o.is_bia);
-  const sumForecast = externas.reduce((s, o) => s + (o.total_ot || 0), 0);
-  const sumAdicExternas = externas.reduce((s, o) => s + Number(adicionalesMap[o.codigo_ot] || 0), 0);
-  document.getElementById('ots-forecast-total').textContent = fmtCOP(sumForecast);
-  document.getElementById('ots-adicional-total').textContent = fmtCOP(sumAdicExternas);
-  document.getElementById('ots-total-final').textContent = fmtCOP(sumForecast + sumAdicExternas);
 
-  // Eventos de los inputs de adicional
-  document.querySelectorAll('input.adicional').forEach(inp => {
-    inp.addEventListener('input', e => {
-      setAdicional(e.target.dataset.ot, e.target.value);
-      render();  // re-render para actualizar totales
+    <!-- ════ TAB RESUMEN ════ -->
+    <div id="tab-resumen" class="tab-pane active">
+
+      <div class="grid grid-kpi">
+        <div class="card kpi">
+          <div class="kpi-label">Ejecutado contratistas</div>
+          <div class="kpi-value" id="kpi-ejecutado">—</div>
+          <div class="kpi-sub">Card Metabase 71645</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">+ Descargos + Acompañamientos</div>
+          <div class="kpi-value" id="kpi-descargos-acomp">—</div>
+          <div class="kpi-sub">Ya ejecutados este mes</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">Forecast pendiente</div>
+          <div class="kpi-value" id="kpi-forecast">—</div>
+          <div class="kpi-sub"><span id="n-otas-abiertas">0</span> OTs abiertas + adicionales</div>
+        </div>
+        <div class="card kpi" id="kpi-card-total">
+          <div class="kpi-label">Total proyectado mes</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub" id="kpi-vs-meta">vs meta —</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h2>Presupuesto del mes</h2>
+        <div class="budget-row">
+          <label for="budget-input">Meta efectiva ($)</label>
+          <input type="number" id="budget-input" min="0" step="100000">
+          <button class="btn btn-secondary btn-sm" id="reset-budget">Reset</button>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="help" id="budget-status">El presupuesto se guarda solo en tu navegador.</div>
+      </div>
+
+      <div class="grid grid-main">
+        <div class="card">
+          <h2>Ejecutado por servicio</h2>
+          <div id="services-list" class="services-bar"></div>
+          <div class="help" style="margin-top:14px;">Fuente: card Metabase 71645. Solo ciclo de activación.</div>
+        </div>
+        <div class="card">
+          <h2>Descargos y acompañamientos</h2>
+          <table>
+            <thead><tr><th>Concepto</th><th class="right">Ejecutado</th><th class="right">Proyectado</th></tr></thead>
+            <tbody id="extras-tbody"></tbody>
+            <tfoot><tr style="font-weight:600;border-top:2px solid var(--border);">
+              <td>Total</td><td class="right" id="extras-ejec-total">—</td><td class="right" id="extras-proy-total">—</td>
+            </tr></tfoot>
+          </table>
+          <div class="help" style="margin-top:10px;">$6M Enel/Codensa · $3M EPM/Celsia · $1M ESSA por cada INST/NORM. Acompañamiento $360k.</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ════ TAB OTs ABIERTAS ════ -->
+    <div id="tab-abiertas" class="tab-pane">
+      <div class="card">
+        <h2 style="display:flex;justify-content:space-between;align-items:center">
+          OTs abiertas — proyección
+          <button class="btn btn-secondary btn-sm permissioned" id="reset-adicionales-abiertas">Limpiar adicionales</button>
+        </h2>
+        <div class="help" style="margin-bottom:12px;">
+          Cargá <strong>gastos adicionales</strong> que no estén en BD. Como son <strong>globales</strong>, todos los demás los ven al instante. Cuando una OT pase a ejecutada, su adicional aparece automáticamente en la pestaña <em>OTs ejecutadas</em>.
+        </div>
+        <div style="overflow-x:auto;">
+        <table id="abiertas-table">
+          <thead><tr>
+            <th>OT</th><th>Código BIA</th><th>OR</th><th>Servicio</th><th>Medida</th>
+            <th>Contratista</th><th>Fecha</th><th class="right">Forecast</th>
+            <th class="right">Adicional global</th><th class="right">Total con adicional</th>
+          </tr></thead>
+          <tbody id="abiertas-tbody"></tbody>
+          <tfoot><tr style="font-weight:600;border-top:2px solid var(--border);">
+            <td colspan="7">Subtotal contratistas (sin BIA)</td>
+            <td class="right" id="abiertas-forecast-total">—</td>
+            <td class="right" id="abiertas-adicional-total">—</td>
+            <td class="right" id="abiertas-total-final">—</td>
+          </tr></tfoot>
+        </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ════ TAB OTs EJECUTADAS ════ -->
+    <div id="tab-ejecutadas" class="tab-pane">
+      <div class="card">
+        <h2>OTs ejecutadas del mes</h2>
+        <div class="help" style="margin-bottom:12px;">
+          Visitas exitosas del mes en curso. El <strong>costo real</strong> viene de opex_costs_general. Si una OT tenía adicional cuando estaba abierta, sigue acá. Podés agregar más adicionales (post-cierre).
+        </div>
+        <div style="overflow-x:auto;">
+        <table id="ejecutadas-table">
+          <thead><tr>
+            <th>OT</th><th>Código BIA</th><th>OR</th><th>Servicio</th><th>Medida</th>
+            <th>Contratista</th><th>Fecha cierre</th><th class="right">Costo real</th>
+            <th class="right">Adicional global</th><th class="right">Total</th>
+          </tr></thead>
+          <tbody id="ejecutadas-tbody"></tbody>
+          <tfoot><tr style="font-weight:600;border-top:2px solid var(--border);">
+            <td colspan="7">Subtotal contratistas</td>
+            <td class="right" id="ejecutadas-real-total">—</td>
+            <td class="right" id="ejecutadas-adicional-total">—</td>
+            <td class="right" id="ejecutadas-total-final">—</td>
+          </tr></tfoot>
+        </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ════ TAB ADMIN (solo super_admin) ════ -->
+    <div id="tab-admin" class="tab-pane">
+      <div class="card">
+        <h2>Administración de usuarios</h2>
+
+        <div class="admin-section">
+          <h3>Agregar usuario</h3>
+          <form id="add-user-form" class="add-user-form">
+            <input type="email" id="new-user-email" placeholder="usuario@bia.app" required>
+            <select id="new-user-role">
+              <option value="lector">lector (solo ver)</option>
+              <option value="usuario">usuario (ver + editar adicionales)</option>
+              <option value="super_admin">super_admin (todo + administrar)</option>
+            </select>
+            <button type="submit" class="btn">Agregar</button>
+          </form>
+          <div id="add-user-msg" class="help"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Usuarios registrados</h3>
+          <table>
+            <thead><tr><th>Email</th><th>Rol</th><th>Actualizado</th><th class="right">Acciones</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Datos al <strong id="fecha-corte">—</strong> · generado <span id="generated-at">—</span> ·
+      <a href="https://github.com/hernanmanjarres-cmyk/Oraculo-del-opex">github</a>
+    </div>
+  </div>
+
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <script>
+  // ═══════════════════════════════════════════════════════════════════
+  // Estado global
+  // ═══════════════════════════════════════════════════════════════════
+  const CONFIG = JSON.parse(document.getElementById('supabase-config').textContent);
+  const DATA = JSON.parse(document.getElementById('dashboard-data').textContent);
+  const HAS_SUPABASE = CONFIG.url && !CONFIG.url.startsWith('PEGA_AQUI');
+
+  let sb = null;        // Supabase client
+  let SESSION = null;   // sesión actual
+  let MY_EMAIL = null;
+  let MY_ROLE = 'lector';    // default seguro
+  let ADICIONALES = {};      // ot_id → { monto, notas, updated_by, updated_at }
+
+  const STORAGE_BUDGET = 'opex_dashboard_budget';
+  const STORAGE_ADIC_LOCAL = 'opex_dashboard_adicionales_local';  // fallback offline
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Utilidades
+  // ═══════════════════════════════════════════════════════════════════
+  const fmtCOP = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO').replace(/,/g, '.');
+  const lsGet = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
+  const lsSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const $ = id => document.getElementById(id);
+
+  function canEdit() { return MY_ROLE === 'usuario' || MY_ROLE === 'super_admin'; }
+  function isAdmin() { return MY_ROLE === 'super_admin'; }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BOOT — decide modo offline vs Supabase
+  // ═══════════════════════════════════════════════════════════════════
+  async function boot() {
+    if (!HAS_SUPABASE) {
+      // Modo offline: sin login, sin roles. Igual que la v1.
+      MY_EMAIL = 'offline@local';
+      MY_ROLE = 'super_admin';  // en offline tenés permisos completos (es local)
+      ADICIONALES = lsGet(STORAGE_ADIC_LOCAL, {});
+      showApp();
+      render();
+      return;
+    }
+
+    sb = supabase.createClient(CONFIG.url, CONFIG.anonKey);
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await onAuthed(session);
+    } else {
+      showLogin();
+    }
+
+    sb.auth.onAuthStateChange(async (event, sess) => {
+      if (event === 'SIGNED_IN' && sess) await onAuthed(sess);
+      if (event === 'SIGNED_OUT') showLogin();
+    });
+  }
+
+  async function onAuthed(session) {
+    SESSION = session;
+    MY_EMAIL = session.user.email;
+
+    // Leer rol del usuario
+    const { data: roleRow, error: roleErr } = await sb
+      .from('dashboard_users').select('role').eq('email', MY_EMAIL).maybeSingle();
+    if (roleErr) { console.error('Error rol:', roleErr); }
+    MY_ROLE = roleRow?.role || 'lector';  // si no existe → lector por defecto
+
+    await loadAdicionales();
+    showApp();
+    render();
+  }
+
+  function showLogin() {
+    $('login-screen').style.display = 'block';
+    $('app').style.display = 'none';
+  }
+  function showApp() {
+    $('login-screen').style.display = 'none';
+    $('app').style.display = 'block';
+    $('user-email').textContent = MY_EMAIL;
+    const badge = $('user-role-badge');
+    badge.textContent = MY_ROLE;
+    badge.className = 'badge role-' + MY_ROLE;
+    $('read-only-banner').style.display = canEdit() ? 'none' : 'block';
+    $('tab-btn-admin').style.display = isAdmin() ? 'inline-block' : 'none';
+
+    // Habilitar / deshabilitar elementos de edición
+    document.querySelectorAll('.permissioned').forEach(el => {
+      el.disabled = !canEdit();
+      el.style.opacity = canEdit() ? '1' : '0.5';
+    });
+  }
+
+  async function loadAdicionales() {
+    if (!sb) { ADICIONALES = lsGet(STORAGE_ADIC_LOCAL, {}); return; }
+    const { data, error } = await sb.from('dashboard_adicionales').select('*');
+    if (error) { console.error('Error adic:', error); return; }
+    ADICIONALES = {};
+    (data || []).forEach(r => { ADICIONALES[r.ot_id] = r; });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOGIN form
+  // ═══════════════════════════════════════════════════════════════════
+  $('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!sb) { msg('Configurá Supabase en supabase-config para usar login.', 'err'); return; }
+    const email = $('login-email').value.trim();
+    const { error } = await sb.auth.signInWithOtp({
+      email, options: { emailRedirectTo: window.location.href }
+    });
+    if (error) msg('Error: ' + error.message, 'err');
+    else msg('📧 Revisá tu correo. Hacé click en el link para entrar.', 'ok');
+  });
+  function msg(txt, kind) {
+    const el = $('login-msg'); el.textContent = txt; el.className = 'login-msg ' + kind;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOGOUT
+  // ═══════════════════════════════════════════════════════════════════
+  $('logout-btn').addEventListener('click', async () => {
+    if (sb) await sb.auth.signOut();
+    else { showLogin(); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // TABS
+  // ═══════════════════════════════════════════════════════════════════
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      $('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'admin') renderAdmin();
     });
   });
-}
 
-// ─── Eventos ─────────────────────────────────────────────────────────────
-document.getElementById('budget-input').addEventListener('input', e => {
-  lsSet(STORAGE_BUDGET, Number(e.target.value));
-  render();
-});
-document.getElementById('reset-budget').addEventListener('click', () => {
-  localStorage.removeItem(STORAGE_BUDGET);
-  render();
-});
-document.getElementById('reset-adicionales').addEventListener('click', () => {
-  if (confirm('¿Borrar todos los gastos adicionales que ingresaste?')) {
-    localStorage.removeItem(STORAGE_ADICIONALES);
+  // ═══════════════════════════════════════════════════════════════════
+  // CRUD adicionales
+  // ═══════════════════════════════════════════════════════════════════
+  async function setAdicional(otId, monto) {
+    monto = Number(monto) || 0;
+    if (!canEdit()) return;
+
+    if (!sb) {
+      if (monto === 0) delete ADICIONALES[otId];
+      else ADICIONALES[otId] = { ot_id: otId, monto, updated_by: 'local', updated_at: new Date().toISOString() };
+      lsSet(STORAGE_ADIC_LOCAL, ADICIONALES);
+      return;
+    }
+
+    if (monto === 0) {
+      const { error } = await sb.from('dashboard_adicionales').delete().eq('ot_id', otId);
+      if (error) { alert('Error borrando: ' + error.message); return; }
+      delete ADICIONALES[otId];
+    } else {
+      const row = { ot_id: otId, monto, updated_by: MY_EMAIL };
+      const { data, error } = await sb.from('dashboard_adicionales').upsert(row).select().single();
+      if (error) { alert('Error guardando: ' + error.message); return; }
+      ADICIONALES[otId] = data;
+    }
+  }
+
+  async function resetAllAdicionales() {
+    if (!canEdit()) return;
+    if (!confirm('¿Borrar TODOS los gastos adicionales (global, todos los usuarios)?')) return;
+    if (!sb) {
+      ADICIONALES = {}; lsSet(STORAGE_ADIC_LOCAL, {});
+    } else {
+      const ids = Object.keys(ADICIONALES);
+      if (ids.length === 0) return;
+      const { error } = await sb.from('dashboard_adicionales').delete().in('ot_id', ids);
+      if (error) { alert('Error: ' + error.message); return; }
+      ADICIONALES = {};
+    }
     render();
   }
-});
+  $('reset-adicionales-abiertas').addEventListener('click', resetAllAdicionales);
 
-loadData();
-</script>
+  // ═══════════════════════════════════════════════════════════════════
+  // Cálculos
+  // ═══════════════════════════════════════════════════════════════════
+  const sum = arr => arr.reduce((s, x) => s + (Number(x) || 0), 0);
+
+  function totalEjecutadoServicios() { return sum((DATA.ejecutado_por_servicio || []).map(r => r.monto)); }
+  function totalForecastOTs() { return sum((DATA.ots_abiertas || []).filter(o => !o.is_bia).map(o => o.total_ot)); }
+
+  function descargosEjecutados() {
+    const tarifas = DATA.tarifas_descargo_por_or || {};
+    let total = 0;
+    for (const [or, byService] of Object.entries(DATA.conteo_inst_norm_ejecutadas_por_or || {})) {
+      total += ((byService.INST || 0) + (byService.NORM || 0)) * (tarifas[or] || 0);
+    }
+    return total;
+  }
+  function acompanamientosEjecutados() {
+    const t = DATA.tarifa_acompanamiento || 0;
+    let n = 0;
+    for (const byService of Object.values(DATA.conteo_inst_norm_ejecutadas_por_or || {}))
+      n += (byService.INST || 0) + (byService.NORM || 0);
+    return n * t;
+  }
+  function descargosProyectados() {
+    const tarifas = DATA.tarifas_descargo_por_or || {};
+    let total = 0;
+    for (const ot of DATA.ots_abiertas || []) {
+      if (ot.is_bia) continue;
+      if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
+      total += tarifas[ot.operador_de_red] || 0;
+    }
+    return total;
+  }
+  function acompanamientosProyectados() {
+    let n = 0;
+    for (const ot of DATA.ots_abiertas || []) {
+      if (ot.is_bia) continue;
+      if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
+    }
+    return n * (DATA.tarifa_acompanamiento || 0);
+  }
+  function sumAdicionalesAbiertas() {
+    return sum((DATA.ots_abiertas || [])
+      .filter(o => !o.is_bia)
+      .map(o => ADICIONALES[o.codigo_ot]?.monto || 0));
+  }
+
+  function getBudget() { return Number(lsGet(STORAGE_BUDGET, null) ?? DATA?.meta_default ?? 0); }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Render principal
+  // ═══════════════════════════════════════════════════════════════════
+  function render() {
+    $('mes-label').textContent = DATA.mes_label || DATA.anio_mes;
+    $('fecha-corte').textContent = DATA.fecha_corte;
+    $('generated-at').textContent = (DATA.generated_at || '').replace('T', ' ').slice(0, 16);
+
+    const ejec = totalEjecutadoServicios();
+    const descE = descargosEjecutados();
+    const acompE = acompanamientosEjecutados();
+    const forecastOTs = totalForecastOTs();
+    const adicAbiertas = sumAdicionalesAbiertas();
+    const descP = descargosProyectados();
+    const acompP = acompanamientosProyectados();
+
+    const totalEjec = ejec + descE + acompE;
+    const totalForecast = forecastOTs + adicAbiertas + descP + acompP;
+    const totalProy = totalEjec + totalForecast;
+
+    $('kpi-ejecutado').textContent = fmtCOP(ejec);
+    $('kpi-descargos-acomp').textContent = fmtCOP(descE + acompE);
+    $('kpi-forecast').textContent = fmtCOP(totalForecast);
+    $('n-otas-abiertas').textContent = (DATA.ots_abiertas || []).filter(o => !o.is_bia).length;
+
+    const budget = getBudget();
+    $('kpi-total').textContent = fmtCOP(totalProy);
+    const kpiCard = $('kpi-card-total');
+    kpiCard.classList.remove('ok', 'warn', 'danger');
+    let statusText, statusClass;
+    if (budget <= 0) { statusText = 'Sin presupuesto definido'; statusClass = ''; }
+    else {
+      const d = totalProy - budget; const pct = (d / budget) * 100;
+      if (d > 0) { statusText = `Excede meta en ${fmtCOP(d)} (+${pct.toFixed(1)}%)`; statusClass = pct > 10 ? 'danger' : 'warn'; }
+      else { statusText = `Bajo meta en ${fmtCOP(-d)} (${pct.toFixed(1)}%)`; statusClass = 'ok'; }
+    }
+    if (statusClass) kpiCard.classList.add(statusClass);
+    $('kpi-vs-meta').textContent = statusText;
+    $('progress-fill').style.width = budget > 0 ? Math.min(100, (totalProy / budget) * 100) + '%' : '0%';
+    $('budget-status').innerHTML = `Total: <strong>${fmtCOP(totalProy)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong>`;
+    $('budget-input').value = budget;
+    $('budget-input').disabled = !canEdit();
+
+    // Servicios bar
+    const maxMonto = Math.max(...(DATA.ejecutado_por_servicio || []).map(r => r.monto || 0), 1);
+    $('services-list').innerHTML = (DATA.ejecutado_por_servicio || [])
+      .filter(r => r.monto > 0).sort((a, b) => b.monto - a.monto)
+      .map(r => `<div class="service-row">
+        <div>${r.servicio} <span class="badge ext">${r.service_type_id}</span></div>
+        <div class="service-bar-bg"><div class="service-bar-fill" style="width:${(r.monto / maxMonto * 100).toFixed(1)}%"></div></div>
+        <div class="amount">${fmtCOP(r.monto)}</div>
+      </div>`).join('') || '<div class="empty">Sin ejecutado registrado.</div>';
+
+    $('extras-tbody').innerHTML = `
+      <tr><td>Descargos</td><td class="right">${fmtCOP(descE)}</td><td class="right">${fmtCOP(descP)}</td></tr>
+      <tr><td>Acompañamientos</td><td class="right">${fmtCOP(acompE)}</td><td class="right">${fmtCOP(acompP)}</td></tr>`;
+    $('extras-ejec-total').textContent = fmtCOP(descE + acompE);
+    $('extras-proy-total').textContent = fmtCOP(descP + acompP);
+
+    renderTablaAbiertas();
+    renderTablaEjecutadas();
+  }
+
+  function adicionalInput(otId, currentVal) {
+    const editable = canEdit();
+    return `<input type="number" class="adicional" data-ot="${otId}" min="0" step="10000"
+              value="${currentVal || ''}" placeholder="0" ${editable ? '' : 'disabled'}>`;
+  }
+
+  function renderTablaAbiertas() {
+    const tbody = $('abiertas-tbody');
+    tbody.innerHTML = (DATA.ots_abiertas || []).map(ot => {
+      const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
+      const total = (ot.total_ot || 0) + Number(adic);
+      return `<tr class="${ot.is_bia ? 'bia' : ''}">
+        <td title="${ot.codigo_ot}">${ot.codigo_ot.slice(0, 8)}…</td>
+        <td>${ot.codigo_bia || '-'}</td>
+        <td>${ot.operador_de_red || '-'}</td>
+        <td>${ot.service_type_id} <span class="badge ${ot.is_bia ? 'bia' : 'ext'}">${ot.is_bia ? 'BIA' : 'ext'}</span></td>
+        <td>${ot.tipo_de_medida || '-'}</td>
+        <td>${ot.contratista || '-'}</td>
+        <td>${ot.fecha_programada || '-'}</td>
+        <td class="right">${fmtCOP(ot.total_ot)}</td>
+        <td class="right">${adicionalInput(ot.codigo_ot, adic)}</td>
+        <td class="right"><strong>${fmtCOP(total)}</strong></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" class="empty">Sin OTs abiertas este mes.</td></tr>';
+
+    const ext = (DATA.ots_abiertas || []).filter(o => !o.is_bia);
+    const f = sum(ext.map(o => o.total_ot));
+    const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
+    $('abiertas-forecast-total').textContent = fmtCOP(f);
+    $('abiertas-adicional-total').textContent = fmtCOP(a);
+    $('abiertas-total-final').textContent = fmtCOP(f + a);
+
+    bindAdicionalInputs(tbody);
+  }
+
+  function renderTablaEjecutadas() {
+    const tbody = $('ejecutadas-tbody');
+    tbody.innerHTML = (DATA.ots_ejecutadas || []).map(ot => {
+      const adic = ADICIONALES[ot.codigo_ot]?.monto || 0;
+      const real = ot.costo_real || 0;
+      const total = real + Number(adic);
+      return `<tr class="${ot.is_bia ? 'bia' : ''}">
+        <td title="${ot.codigo_ot}">${ot.codigo_ot.slice(0, 8)}…</td>
+        <td>${ot.codigo_bia || '-'}</td>
+        <td>${ot.operador_de_red || '-'}</td>
+        <td>${ot.service_type_id} <span class="badge ${ot.is_bia ? 'bia' : 'ext'}">${ot.is_bia ? 'BIA' : 'ext'}</span></td>
+        <td>${ot.tipo_de_medida || '-'}</td>
+        <td>${ot.contratista || '-'}</td>
+        <td>${ot.fecha_visita || '-'}</td>
+        <td class="right">${fmtCOP(real)}</td>
+        <td class="right">${adicionalInput(ot.codigo_ot, adic)}</td>
+        <td class="right"><strong>${fmtCOP(total)}</strong></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" class="empty">Sin OTs ejecutadas (exitosas) este mes.</td></tr>';
+
+    const ext = (DATA.ots_ejecutadas || []).filter(o => !o.is_bia);
+    const r = sum(ext.map(o => o.costo_real || 0));
+    const a = sum(ext.map(o => Number(ADICIONALES[o.codigo_ot]?.monto || 0)));
+    $('ejecutadas-real-total').textContent = fmtCOP(r);
+    $('ejecutadas-adicional-total').textContent = fmtCOP(a);
+    $('ejecutadas-total-final').textContent = fmtCOP(r + a);
+
+    bindAdicionalInputs(tbody);
+  }
+
+  function bindAdicionalInputs(scope) {
+    scope.querySelectorAll('input.adicional').forEach(inp => {
+      let timer;
+      inp.addEventListener('input', e => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          await setAdicional(e.target.dataset.ot, e.target.value);
+          render();
+        }, 400);  // debounce
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ADMIN
+  // ═══════════════════════════════════════════════════════════════════
+  async function renderAdmin() {
+    if (!isAdmin()) return;
+    if (!sb) { $('users-tbody').innerHTML = '<tr><td colspan="4" class="empty">Modo offline — sin admin.</td></tr>'; return; }
+    const { data, error } = await sb.from('dashboard_users').select('*').order('updated_at', { ascending: false });
+    if (error) { $('users-tbody').innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`; return; }
+    $('users-tbody').innerHTML = (data || []).map(u => `
+      <tr>
+        <td>${u.email}</td>
+        <td>
+          <select class="role-select" data-email="${u.email}">
+            <option value="lector"${u.role === 'lector' ? ' selected' : ''}>lector</option>
+            <option value="usuario"${u.role === 'usuario' ? ' selected' : ''}>usuario</option>
+            <option value="super_admin"${u.role === 'super_admin' ? ' selected' : ''}>super_admin</option>
+          </select>
+        </td>
+        <td>${(u.updated_at || '').slice(0, 16).replace('T', ' ')}</td>
+        <td class="right">
+          <button class="btn btn-danger btn-sm delete-user" data-email="${u.email}" ${u.email === MY_EMAIL ? 'disabled title="No te podés borrar a vos mismo"' : ''}>Borrar</button>
+        </td>
+      </tr>`).join('');
+    document.querySelectorAll('.role-select').forEach(sel => sel.addEventListener('change', async e => {
+      const email = e.target.dataset.email;
+      const role = e.target.value;
+      const { error } = await sb.from('dashboard_users').update({ role, updated_by: MY_EMAIL }).eq('email', email);
+      if (error) alert('Error: ' + error.message);
+      else renderAdmin();
+    }));
+    document.querySelectorAll('.delete-user').forEach(btn => btn.addEventListener('click', async e => {
+      const email = e.target.dataset.email;
+      if (!confirm(`¿Borrar ${email}?`)) return;
+      const { error } = await sb.from('dashboard_users').delete().eq('email', email);
+      if (error) alert('Error: ' + error.message);
+      else renderAdmin();
+    }));
+  }
+
+  $('add-user-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!isAdmin()) return;
+    const email = $('new-user-email').value.trim();
+    const role = $('new-user-role').value;
+    const { error } = await sb.from('dashboard_users').upsert({ email, role, updated_by: MY_EMAIL });
+    if (error) $('add-user-msg').textContent = 'Error: ' + error.message;
+    else { $('add-user-msg').textContent = '✅ Agregado.'; $('new-user-email').value = ''; renderAdmin(); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Eventos misc
+  // ═══════════════════════════════════════════════════════════════════
+  $('budget-input').addEventListener('input', e => { lsSet(STORAGE_BUDGET, Number(e.target.value)); render(); });
+  $('reset-budget').addEventListener('click', () => { localStorage.removeItem(STORAGE_BUDGET); render(); });
+
+  boot();
+  </script>
 </body>
 </html>
