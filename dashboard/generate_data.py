@@ -26,7 +26,8 @@ METABASE_URL = "https://bia.metabaseapp.com"
 DB_GOLD = 2344
 CARD_EJECUTADO = 71645
 ROOT = Path(__file__).parent
-OUT_FILE = ROOT / "data.json"
+OUT_JSON = ROOT / "data.json"
+OUT_HTML = ROOT / "index.html"
 
 CICLO_ACTIVACION = ['VIPE', 'INST', 'NORM', 'LEGA', 'PREV', 'REQA', 'SUCA', 'VEXT']
 
@@ -228,8 +229,31 @@ def main():
         },
     }
 
-    OUT_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"✅ Escrito: {OUT_FILE}")
+    # 1) Sidecar JSON (útil para inspección o integraciones futuras)
+    OUT_JSON.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"✅ Escrito: {OUT_JSON}")
+
+    # 2) Inyectar la data directamente en el HTML (entre los marcadores ▼▼▼ y ▲▲▲)
+    if OUT_HTML.exists():
+        import re
+        html = OUT_HTML.read_text(encoding="utf-8")
+        new_block = (
+            '<!-- ▼▼▼ DATA EMBEBIDA — reemplazada por generate_data.py ▼▼▼ -->\n'
+            '<script id="dashboard-data" type="application/json">\n'
+            + json.dumps(payload, ensure_ascii=False, indent=2)
+            + '\n</script>\n'
+            '<!-- ▲▲▲ FIN DATA EMBEBIDA ▲▲▲ -->'
+        )
+        pattern = re.compile(
+            r'<!-- ▼▼▼ DATA EMBEBIDA.*?▲▲▲ FIN DATA EMBEBIDA ▲▲▲ -->',
+            re.DOTALL
+        )
+        if pattern.search(html):
+            html = pattern.sub(lambda _: new_block, html)
+            OUT_HTML.write_text(html, encoding="utf-8")
+            print(f"✅ HTML actualizado: {OUT_HTML}")
+        else:
+            print("⚠️ No encontré los marcadores en index.html — datos solo en data.json")
 
 
 if __name__ == "__main__":
