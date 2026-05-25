@@ -111,7 +111,8 @@ WHERE v.fecha_visita >= date_trunc('month', CURRENT_DATE)
   AND v.fecha_visita < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
   AND v.service_type_id IN ('VIPE','INST','NORM','LEGA','PREV','REQA','SUCA','VEXT')
   AND v.electrician_status_id = 'CLOSURE_SUCCESSFUL'
-  AND v.contratista != 'BIA'
+  -- Cuenta TODAS las INST/NORM exitosas (BIA o externo).
+  -- El descargo se paga al OR independiente del contratista; el acompañamiento es costo interno.
 GROUP BY 1, 2
 """.strip()
     rows = rows_from(run_sql(DB_GOLD, sql))

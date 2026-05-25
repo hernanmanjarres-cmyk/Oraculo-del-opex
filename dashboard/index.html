@@ -450,7 +450,7 @@
               <td>Total</td><td class="right" id="extras-ejec-total">—</td><td class="right" id="extras-proy-total">—</td>
             </tr></tfoot>
           </table>
-          <div class="help" style="margin-top:10px;">$6M Enel/Codensa · $3M EPM/Celsia · $1M ESSA por cada INST/NORM. Acompañamiento $360k.</div>
+          <div class="help" style="margin-top:10px;">$6M Enel/Codensa · $3M EPM/Celsia · $1M ESSA por cada INST/NORM (BIA o externo). Acompañamiento $360k por cada INST/NORM.</div>
         </div>
       </div>
     </div>
@@ -756,19 +756,19 @@
     return n * t;
   }
   function descargosProyectados() {
+    // Descargo se paga al OR por cada INST/NORM, sin importar quién es contratista (BIA o externo).
     const tarifas = DATA.tarifas_descargo_por_or || {};
     let total = 0;
     for (const ot of DATA.ots_abiertas || []) {
-      if (ot.is_bia) continue;
       if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
       total += tarifas[ot.operador_de_red] || 0;
     }
     return total;
   }
   function acompanamientosProyectados() {
+    // Acompañamiento es costo interno por cada INST/NORM, sin importar contratista.
     let n = 0;
     for (const ot of DATA.ots_abiertas || []) {
-      if (ot.is_bia) continue;
       if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
     }
     return n * (DATA.tarifa_acompanamiento || 0);
