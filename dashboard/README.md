@@ -26,14 +26,38 @@ Dashboard interactivo con login, roles y datos compartidos.
    ```
    Deberías ver `hernan.manjarres@bia.app | super_admin`.
 
-### Paso 2 — Habilitar Magic Link en Supabase Auth
+### Paso 2 — Habilitar Google OAuth en Supabase
 
-1. Supabase → **Authentication** → **Providers**.
-2. Activar **Email**: ON. Magic link viene activado por defecto.
-3. **Authentication** → **URL Configuration**:
-   - **Site URL**: la URL donde vas a hostear el HTML (ej: GitHub Pages `https://hernanmanjarres-cmyk.github.io/Oraculo-del-opex/`).
-     - Si querés probar local, ponete `http://localhost:8080` también.
-   - **Redirect URLs**: agregá la misma URL al allowlist.
+El dashboard usa Google Sign-In + restricción de dominio `@bia.app`. Es más rápido que magic link y sin rate limit.
+
+**A) Crear OAuth Client en Google Cloud**
+
+1. Andá a https://console.cloud.google.com/apis/credentials (con tu cuenta @bia.app)
+2. Crear proyecto si no hay uno: "Oraculo OPEX Dashboard"
+3. **APIs & Services → OAuth consent screen**:
+   - User Type: **Internal** (solo cuentas de tu organización pueden ver la app)
+   - App name: "OPEX Activación BIA"
+   - Email: tu correo
+   - Save
+4. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+   - Application type: **Web application**
+   - Name: "Supabase Auth"
+   - **Authorized redirect URIs**: pegá la URL callback de Supabase (la verás en el paso B):
+     `https://cjxfibdtlhbazobthywm.supabase.co/auth/v1/callback`
+   - Create → copiá **Client ID** y **Client Secret**.
+
+**B) Activar Google provider en Supabase**
+
+1. Supabase → **Authentication → Providers → Google**.
+2. Toggle ON.
+3. Pegá el **Client ID** y **Client Secret** de Google.
+4. Save. Supabase te muestra el callback URL — confirmá que coincide con el que pusiste en Google.
+
+**C) Configurar URLs en Supabase**
+
+1. **Authentication → URL Configuration**:
+   - **Site URL**: la URL donde vas a hostear el HTML (`http://localhost:3000` para probar local; `https://hernanmanjarres-cmyk.github.io/Oraculo-del-opex/` para GH Pages).
+   - **Redirect URLs**: agregá `http://localhost:3000/**` y `https://hernanmanjarres-cmyk.github.io/Oraculo-del-opex/**`.
 
 ### Paso 3 — Configurar el HTML con tus credenciales Supabase
 
@@ -55,17 +79,18 @@ Dashboard interactivo con login, roles y datos compartidos.
 
 ```bash
 cd "/Users/hernanmanjarres/Documents/Automatizaciones/Analista Opex/dashboard"
-python3 -m http.server 8080
+python3 -m http.server 3000
 ```
 
-Abrí `http://localhost:8080` en el navegador.
+Abrí `http://localhost:3000` en el navegador.
 
-> ⚠️ Magic link requiere **server real** (no doble click en `file://`). Para probar localmente, usá `python3 -m http.server`. Para abrir directo (doble click) usá modo offline (no pongas URL de Supabase).
+> ⚠️ Google OAuth requiere **server real** (no doble click en `file://`). Para probar localmente, usá `python3 -m http.server`. Para abrir directo (doble click) usá modo offline (no pongas URL de Supabase).
 
-1. Ingresá tu correo → recibís email con link.
-2. Click en el link → te logueás automáticamente.
-3. Como sos `super_admin`, vas a ver las 4 pestañas (incluida Admin).
-4. Probá agregar otro usuario en la pestaña Admin con rol `lector` o `usuario`.
+1. Click en **"Continuar con Google"**.
+2. El selector de Google solo te muestra cuentas `@bia.app` (gracias al hint `hd=bia.app`).
+3. Si por accidente te logueás con otra cuenta, el dashboard te cierra sesión y muestra error.
+4. Como sos `super_admin`, vas a ver las 4 pestañas (incluida Admin).
+5. Probá agregar otro usuario en la pestaña Admin con rol `lector` o `usuario`.
 
 ### Paso 5 — Publicarlo (GitHub Pages)
 
