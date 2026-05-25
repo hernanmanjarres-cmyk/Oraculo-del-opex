@@ -1,0 +1,99 @@
+{
+  "fecha_corte": "2026-05-22",
+  "mes_label": "Mayo 2026",
+  "anio_mes": "2026-05",
+  "meta_default": 21000000,
+  "ejecutado_por_servicio": [
+    { "servicio": "Instalación", "service_type_id": "INST", "monto": 7993050 },
+    { "servicio": "Normalización de medida", "service_type_id": "NORM", "monto": 1102000 },
+    { "servicio": "Visita previa", "service_type_id": "VIPE", "monto": 1232500 },
+    { "servicio": "Verificación externa", "service_type_id": "VEXT", "monto": 230000 },
+    { "servicio": "Legalización", "service_type_id": "LEGA", "monto": 0 },
+    { "servicio": "Visita prevención", "service_type_id": "PREV", "monto": 0 },
+    { "servicio": "Revisión por QA", "service_type_id": "REQA", "monto": 0 },
+    { "servicio": "Suspensión carro canasta", "service_type_id": "SUCA", "monto": 0 }
+  ],
+  "tarifas_descargo_por_or": {
+    "ENEL CUNDINAMARCA": 6000000,
+    "CODENSA": 6000000,
+    "EPM ANTIOQUIA": 3000000,
+    "CELSIA VALLE": 3000000,
+    "CELSIA TOLIMA": 3000000,
+    "ESSA SANTANDER": 1000000
+  },
+  "tarifa_acompanamiento": 360000,
+  "conteo_inst_norm_ejecutadas_por_or": {
+    "EMCALI CALI": { "INST": 0, "NORM": 1 }
+  },
+  "ots_abiertas": [
+    {
+      "codigo_ot": "3bb34d01-4366-4421-aadd-19f29c905fe8",
+      "codigo_bia": "CO1100006831",
+      "service_type_id": "INST",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Directa",
+      "contratista": "BIA",
+      "fecha_programada": "2026-05-28",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 276750,
+      "adicionales": 300000,
+      "transporte": 21171,
+      "total_ot": 597921,
+      "electrician_status_id": "REASSIGNED"
+    },
+    {
+      "codigo_ot": "dc87bbbb-4771-494f-9523-513ca68d2e53",
+      "codigo_bia": "CO0800006864",
+      "service_type_id": "VIPE",
+      "operador_de_red": "AIRE CARIBE_SOL",
+      "tipo_de_medida": "Directa",
+      "contratista": "BIA",
+      "fecha_programada": "2026-05-26",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 94188,
+      "total_ot": 94188,
+      "electrician_status_id": "ASSIGNED"
+    },
+    {
+      "codigo_ot": "5c944201-57ba-4a15-887c-17eae5337d1d",
+      "codigo_bia": "CO0800006891",
+      "service_type_id": "VIPE",
+      "operador_de_red": "AIRE CARIBE_SOL",
+      "tipo_de_medida": "Semidirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-05-26",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 94188,
+      "total_ot": 94188,
+      "electrician_status_id": "ASSIGNED"
+    },
+    {
+      "codigo_ot": "e269a8b0-158d-42bf-9fb0-30be87624c13",
+      "codigo_bia": "CO1100006717",
+      "service_type_id": "VIPE",
+      "operador_de_red": "ENEL CUNDINAMARCA",
+      "tipo_de_medida": "Indirecta",
+      "contratista": "BIA",
+      "fecha_programada": "2026-05-26",
+      "is_bia": true,
+      "servicio": 0,
+      "materiales": 0,
+      "adicionales": 0,
+      "transporte": 44835,
+      "total_ot": 44835,
+      "electrician_status_id": "REASSIGNED"
+    }
+  ],
+  "generated_at": "2026-05-22T15:50:00-05:00",
+  "source": {
+    "ejecutado": "Metabase card 71645 (Seguimiento_opex_act)",
+    "forecast": "SQL operations.visitas_general + opex_costs_general, 12m hist excluyendo mes actual"
+  }
+}

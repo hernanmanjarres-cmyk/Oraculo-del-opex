@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OPEX Activación · BIA Energy</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --info: #a78bfa;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 24px; margin: 0; font-weight: 600; }
+    header .meta { color: var(--text-dim); font-size: 13px; text-align: right; }
+    header .meta strong { color: var(--accent); }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-kpi { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px; }
+    .grid-main { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .card h2 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-dim); margin: 0 0 12px 0; font-weight: 500;
+    }
+    .kpi { padding: 18px 20px; }
+    .kpi-label {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-dim); margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 26px; font-weight: 600; margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-sub {
+      font-size: 12px; color: var(--text-dim); margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi.ok .kpi-value { color: var(--ok); }
+    .kpi.warn .kpi-value { color: var(--warn); }
+    .kpi.danger .kpi-value { color: var(--danger); }
+
+    .progress-bar {
+      width: 100%; height: 10px; background: var(--surface-2);
+      border-radius: 5px; overflow: hidden; margin-top: 12px;
+    }
+    .progress-fill {
+      height: 100%; transition: width 0.5s ease;
+      background: linear-gradient(90deg, var(--ok), var(--warn) 70%, var(--danger));
+    }
+
+    input[type="number"], input[type="text"] {
+      background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; font-size: 14px; width: 100%;
+      font-variant-numeric: tabular-nums; font-family: inherit;
+    }
+    input[type="number"]:focus, input[type="text"]:focus {
+      outline: none; border-color: var(--accent);
+    }
+    input.adicional { max-width: 120px; text-align: right; }
+    .budget-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .budget-row label { color: var(--text-dim); font-size: 14px; min-width: 140px; }
+    .budget-row input { max-width: 200px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      text-align: left; padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+    }
+    th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td.right, th.right { text-align: right; }
+    tr.bia { color: var(--text-dim); font-style: italic; }
+    tr.bia td:first-child::before { content: "🏠 "; }
+
+    .services-bar {
+      display: grid; gap: 8px; margin-top: 8px;
+    }
+    .service-row {
+      display: grid; grid-template-columns: 200px 1fr auto;
+      gap: 12px; align-items: center; font-size: 13px;
+    }
+    .service-bar-bg {
+      background: var(--surface-2); height: 8px; border-radius: 4px; overflow: hidden;
+    }
+    .service-bar-fill {
+      height: 100%; background: var(--accent); border-radius: 4px;
+    }
+    .service-row .label { color: var(--text); }
+    .service-row .amount { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; min-width: 110px; text-align: right; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+    }
+    .badge.bia { background: rgba(167,139,250,0.15); color: var(--info); }
+    .badge.ext { background: rgba(56,189,248,0.15); color: var(--accent); }
+
+    .help {
+      font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.4;
+    }
+    .help kbd {
+      background: var(--surface-2); padding: 1px 5px; border-radius: 3px;
+      font-family: monospace; font-size: 11px;
+    }
+    .footer {
+      margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
+      text-align: center; color: var(--text-dim); font-size: 12px;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+
+    .reset-btn {
+      background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+      border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 11px;
+      margin-left: 8px;
+    }
+    .reset-btn:hover { color: var(--danger); border-color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div>
+        <h1>OPEX Activación BIA Energy</h1>
+        <div style="color: var(--text-dim); font-size: 14px;">Seguimiento del ciclo de activación · <span id="mes-label"></span></div>
+      </div>
+      <div class="meta">
+        Datos al <strong id="fecha-corte"></strong><br>
+        Generado <span id="generated-at"></span>
+      </div>
+    </header>
+
+    <!-- KPI cards -->
+    <div class="grid grid-kpi">
+      <div class="card kpi">
+        <div class="kpi-label">Ejecutado contratistas</div>
+        <div class="kpi-value" id="kpi-ejecutado">—</div>
+        <div class="kpi-sub">Card Metabase 71645</div>
+      </div>
+      <div class="card kpi">
+        <div class="kpi-label">+ Descargos + Acompañamientos</div>
+        <div class="kpi-value" id="kpi-descargos-acomp">—</div>
+        <div class="kpi-sub">Ya ejecutados este mes</div>
+      </div>
+      <div class="card kpi">
+        <div class="kpi-label">Forecast pendiente</div>
+        <div class="kpi-value" id="kpi-forecast">—</div>
+        <div class="kpi-sub"><span id="n-otas-abiertas">0</span> OTs abiertas + adicionales</div>
+      </div>
+      <div class="card kpi" id="kpi-card-total">
+        <div class="kpi-label">Total proyectado mes</div>
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-sub" id="kpi-vs-meta">vs meta —</div>
+      </div>
+    </div>
+
+    <!-- Presupuesto -->
+    <div class="card" style="margin-bottom: 16px;">
+      <h2>Presupuesto del mes</h2>
+      <div class="budget-row">
+        <label for="budget-input">Meta efectiva ($)</label>
+        <input type="number" id="budget-input" min="0" step="100000">
+        <button class="reset-btn" id="reset-budget">Reset</button>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%"></div></div>
+      <div class="help" id="budget-status">Editá el presupuesto y se guarda automáticamente en tu navegador.</div>
+    </div>
+
+    <div class="grid grid-main">
+      <!-- Ejecutado por servicio -->
+      <div class="card">
+        <h2>Ejecutado por servicio</h2>
+        <div id="services-list" class="services-bar"></div>
+        <div class="help" style="margin-top: 14px;">
+          Fuente: card 71645 (<em>Sum of costo_total_ot</em>). Solo servicios del ciclo de activación.
+        </div>
+      </div>
+
+      <!-- Descargos y acompañamientos -->
+      <div class="card">
+        <h2>Descargos y acompañamientos</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th class="right">Ejecutado</th>
+              <th class="right">Proyectado</th>
+            </tr>
+          </thead>
+          <tbody id="extras-tbody">
+          </tbody>
+          <tfoot>
+            <tr style="font-weight: 600; border-top: 2px solid var(--border);">
+              <td>Total</td>
+              <td class="right" id="extras-ejec-total">—</td>
+              <td class="right" id="extras-proy-total">—</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="help" style="margin-top: 10px;">
+          Descargos: $6M (Enel/Codensa), $3M (EPM, Celsia), $1M (ESSA) por cada INST/NORM.<br>
+          Acompañamientos: $360.000 por cada INST/NORM.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de OTs abiertas -->
+    <div class="card" style="margin-top: 16px;">
+      <h2>
+        OTs abiertas — proyección
+        <button class="reset-btn" id="reset-adicionales" style="margin-left:auto; float:right;">Limpiar adicionales</button>
+      </h2>
+      <div class="help" style="margin-bottom: 12px;">
+        Podés agregar un <strong>gasto adicional</strong> por OT (e.g. costo no previsto, materiales fuera de tarifa). Se guarda en tu navegador y se suma al forecast.
+      </div>
+      <div style="overflow-x: auto;">
+      <table id="ots-table">
+        <thead>
+          <tr>
+            <th>OT</th>
+            <th>Código BIA</th>
+            <th>OR</th>
+            <th>Servicio</th>
+            <th>Medida</th>
+            <th>Contratista</th>
+            <th>Fecha</th>
+            <th class="right">Forecast</th>
+            <th class="right">Gasto adicional</th>
+            <th class="right">Total con adicional</th>
+          </tr>
+        </thead>
+        <tbody id="ots-tbody"></tbody>
+        <tfoot>
+          <tr style="font-weight: 600; border-top: 2px solid var(--border);">
+            <td colspan="7">Subtotal contratistas (sin BIA)</td>
+            <td class="right" id="ots-forecast-total">—</td>
+            <td class="right" id="ots-adicional-total">—</td>
+            <td class="right" id="ots-total-final">—</td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      Dashboard generado automáticamente · <a href="https://github.com/hernanmanjarres-cmyk/Oraculo-del-opex">github</a> · BIA Energy
+    </div>
+
+  </div>
+
+<script>
+// ─── Utilidades ─────────────────────────────────────────────────────────
+const fmtCOP = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO').replace(/,/g, '.');
+const fmtShort = n => {
+  const v = Math.round(Number(n) || 0);
+  if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+  if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'k';
+  return '$' + v;
+};
+
+const STORAGE_BUDGET = 'opex_dashboard_budget';
+const STORAGE_ADICIONALES = 'opex_dashboard_adicionales';
+
+const lsGet = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
+const lsSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+// ─── Carga de datos ─────────────────────────────────────────────────────
+let DATA = null;
+
+async function loadData() {
+  try {
+    const resp = await fetch('data.json?_=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    DATA = await resp.json();
+    render();
+  } catch (e) {
+    document.body.innerHTML = '<div style="padding:32px;color:#ef4444">Error cargando data.json: ' + e.message + '</div>';
+  }
+}
+
+// ─── Cálculos ───────────────────────────────────────────────────────────
+function calcularDescargosEjecutados(d) {
+  const conteos = d.conteo_inst_norm_ejecutadas_por_or || {};
+  const tarifas = d.tarifas_descargo_por_or || {};
+  let total = 0;
+  for (const [or, byService] of Object.entries(conteos)) {
+    const tarifa = tarifas[or] || 0;
+    const nInstNorm = (byService.INST || 0) + (byService.NORM || 0);
+    total += nInstNorm * tarifa;
+  }
+  return total;
+}
+
+function calcularAcompanamientosEjecutados(d) {
+  const conteos = d.conteo_inst_norm_ejecutadas_por_or || {};
+  let nTotal = 0;
+  for (const byService of Object.values(conteos)) {
+    nTotal += (byService.INST || 0) + (byService.NORM || 0);
+  }
+  return nTotal * (d.tarifa_acompanamiento || 0);
+}
+
+function calcularDescargosProyectados(d) {
+  const tarifas = d.tarifas_descargo_por_or || {};
+  let total = 0;
+  for (const ot of d.ots_abiertas || []) {
+    if (ot.is_bia) continue;  // solo contratistas externos
+    if (ot.service_type_id !== 'INST' && ot.service_type_id !== 'NORM') continue;
+    total += tarifas[ot.operador_de_red] || 0;
+  }
+  return total;
+}
+
+function calcularAcompanamientosProyectados(d) {
+  let n = 0;
+  for (const ot of d.ots_abiertas || []) {
+    if (ot.is_bia) continue;
+    if (ot.service_type_id === 'INST' || ot.service_type_id === 'NORM') n++;
+  }
+  return n * (d.tarifa_acompanamiento || 0);
+}
+
+function totalEjecutadoServicios(d) {
+  return (d.ejecutado_por_servicio || []).reduce((s, r) => s + (r.monto || 0), 0);
+}
+
+function totalForecastOTs(d) {
+  return (d.ots_abiertas || [])
+    .filter(o => !o.is_bia)
+    .reduce((s, o) => s + (o.total_ot || 0), 0);
+}
+
+function getAdicionales() {
+  return lsGet(STORAGE_ADICIONALES, {});
+}
+
+function setAdicional(otId, value) {
+  const all = getAdicionales();
+  if (!value || Number(value) === 0) delete all[otId];
+  else all[otId] = Number(value);
+  lsSet(STORAGE_ADICIONALES, all);
+}
+
+function totalAdicionales() {
+  return Object.values(getAdicionales()).reduce((s, v) => s + Number(v || 0), 0);
+}
+
+function getBudget() {
+  return Number(lsGet(STORAGE_BUDGET, null) ?? DATA?.meta_default ?? 0);
+}
+
+// ─── Render ─────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('mes-label').textContent = DATA.mes_label || DATA.anio_mes;
+  document.getElementById('fecha-corte').textContent = DATA.fecha_corte;
+  document.getElementById('generated-at').textContent = (DATA.generated_at || '').replace('T', ' ').slice(0, 16);
+
+  const ejecutadoServicios = totalEjecutadoServicios(DATA);
+  const descargosEjec = calcularDescargosEjecutados(DATA);
+  const acompEjec = calcularAcompanamientosEjecutados(DATA);
+  const forecastOTs = totalForecastOTs(DATA);
+  const adicionales = totalAdicionales();
+  const descargosProy = calcularDescargosProyectados(DATA);
+  const acompProy = calcularAcompanamientosProyectados(DATA);
+
+  const ejecutadoTotal = ejecutadoServicios + descargosEjec + acompEjec;
+  const forecastTotal = forecastOTs + adicionales + descargosProy + acompProy;
+  const totalProyectado = ejecutadoTotal + forecastTotal;
+
+  // KPI 1
+  document.getElementById('kpi-ejecutado').textContent = fmtCOP(ejecutadoServicios);
+  // KPI 2
+  document.getElementById('kpi-descargos-acomp').textContent = fmtCOP(descargosEjec + acompEjec);
+  // KPI 3
+  document.getElementById('kpi-forecast').textContent = fmtCOP(forecastTotal);
+  document.getElementById('n-otas-abiertas').textContent = (DATA.ots_abiertas || []).filter(o => !o.is_bia).length;
+
+  // KPI 4 — total + comparación
+  const budget = getBudget();
+  document.getElementById('kpi-total').textContent = fmtCOP(totalProyectado);
+  const kpiCard = document.getElementById('kpi-card-total');
+  kpiCard.classList.remove('ok', 'warn', 'danger');
+  let statusText, statusClass;
+  if (budget <= 0) {
+    statusText = 'Sin presupuesto definido';
+    statusClass = '';
+  } else {
+    const desviacion = totalProyectado - budget;
+    const pct = (desviacion / budget) * 100;
+    if (desviacion > 0) {
+      statusText = `Excede meta en ${fmtCOP(desviacion)} (+${pct.toFixed(1)}%)`;
+      statusClass = pct > 10 ? 'danger' : 'warn';
+    } else {
+      statusText = `Bajo meta en ${fmtCOP(-desviacion)} (${pct.toFixed(1)}%)`;
+      statusClass = 'ok';
+    }
+  }
+  if (statusClass) kpiCard.classList.add(statusClass);
+  document.getElementById('kpi-vs-meta').textContent = statusText;
+
+  // Progress bar
+  const progressPct = budget > 0 ? Math.min(100, (totalProyectado / budget) * 100) : 0;
+  document.getElementById('progress-fill').style.width = progressPct + '%';
+  document.getElementById('budget-status').innerHTML =
+    `Total proyectado: <strong>${fmtCOP(totalProyectado)}</strong> · Presupuesto: <strong>${fmtCOP(budget)}</strong> · Consumido: <strong>${progressPct.toFixed(1)}%</strong>`;
+
+  document.getElementById('budget-input').value = budget;
+
+  // Servicios bar chart
+  const maxMonto = Math.max(...(DATA.ejecutado_por_servicio || []).map(r => r.monto || 0), 1);
+  document.getElementById('services-list').innerHTML = (DATA.ejecutado_por_servicio || [])
+    .filter(r => r.monto > 0)
+    .sort((a, b) => b.monto - a.monto)
+    .map(r => `
+      <div class="service-row">
+        <div class="label">${r.servicio} <span class="badge ext">${r.service_type_id}</span></div>
+        <div class="service-bar-bg"><div class="service-bar-fill" style="width:${(r.monto / maxMonto * 100).toFixed(1)}%"></div></div>
+        <div class="amount">${fmtCOP(r.monto)}</div>
+      </div>
+    `).join('') || '<div style="color:var(--text-dim)">Sin ejecutado registrado este mes.</div>';
+
+  // Extras (descargos/acomp)
+  document.getElementById('extras-tbody').innerHTML = `
+    <tr><td>Descargos</td><td class="right">${fmtCOP(descargosEjec)}</td><td class="right">${fmtCOP(descargosProy)}</td></tr>
+    <tr><td>Acompañamientos</td><td class="right">${fmtCOP(acompEjec)}</td><td class="right">${fmtCOP(acompProy)}</td></tr>
+  `;
+  document.getElementById('extras-ejec-total').textContent = fmtCOP(descargosEjec + acompEjec);
+  document.getElementById('extras-proy-total').textContent = fmtCOP(descargosProy + acompProy);
+
+  // Tabla OTs
+  const adicionalesMap = getAdicionales();
+  const otRows = (DATA.ots_abiertas || []).map(ot => {
+    const adicional = adicionalesMap[ot.codigo_ot] || 0;
+    const totalConAdic = (ot.total_ot || 0) + Number(adicional || 0);
+    return `
+      <tr class="${ot.is_bia ? 'bia' : ''}">
+        <td title="${ot.codigo_ot}">${ot.codigo_ot.slice(0, 8)}…</td>
+        <td>${ot.codigo_bia}</td>
+        <td>${ot.operador_de_red}</td>
+        <td>${ot.service_type_id} <span class="badge ${ot.is_bia ? 'bia' : 'ext'}">${ot.is_bia ? 'BIA' : 'ext'}</span></td>
+        <td>${ot.tipo_de_medida || '-'}</td>
+        <td>${ot.contratista}</td>
+        <td>${ot.fecha_programada}</td>
+        <td class="right">${fmtCOP(ot.total_ot)}</td>
+        <td class="right">
+          <input type="number" class="adicional" data-ot="${ot.codigo_ot}" min="0" step="10000" value="${adicional || ''}" placeholder="0">
+        </td>
+        <td class="right"><strong>${fmtCOP(totalConAdic)}</strong></td>
+      </tr>
+    `;
+  }).join('');
+  document.getElementById('ots-tbody').innerHTML = otRows || '<tr><td colspan="10" style="color:var(--text-dim);text-align:center;padding:20px">Sin OTs abiertas.</td></tr>';
+
+  // Totales tabla OTs (solo contratistas externos)
+  const externas = (DATA.ots_abiertas || []).filter(o => !o.is_bia);
+  const sumForecast = externas.reduce((s, o) => s + (o.total_ot || 0), 0);
+  const sumAdicExternas = externas.reduce((s, o) => s + Number(adicionalesMap[o.codigo_ot] || 0), 0);
+  document.getElementById('ots-forecast-total').textContent = fmtCOP(sumForecast);
+  document.getElementById('ots-adicional-total').textContent = fmtCOP(sumAdicExternas);
+  document.getElementById('ots-total-final').textContent = fmtCOP(sumForecast + sumAdicExternas);
+
+  // Eventos de los inputs de adicional
+  document.querySelectorAll('input.adicional').forEach(inp => {
+    inp.addEventListener('input', e => {
+      setAdicional(e.target.dataset.ot, e.target.value);
+      render();  // re-render para actualizar totales
+    });
+  });
+}
+
+// ─── Eventos ─────────────────────────────────────────────────────────────
+document.getElementById('budget-input').addEventListener('input', e => {
+  lsSet(STORAGE_BUDGET, Number(e.target.value));
+  render();
+});
+document.getElementById('reset-budget').addEventListener('click', () => {
+  localStorage.removeItem(STORAGE_BUDGET);
+  render();
+});
+document.getElementById('reset-adicionales').addEventListener('click', () => {
+  if (confirm('¿Borrar todos los gastos adicionales que ingresaste?')) {
+    localStorage.removeItem(STORAGE_ADICIONALES);
+    render();
+  }
+});
+
+loadData();
+</script>
+</body>
+</html>
