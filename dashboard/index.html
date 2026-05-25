@@ -627,7 +627,7 @@
         <div class="card kpi">
           <div class="kpi-label">Ejecutado contratistas</div>
           <div class="kpi-value" id="kpi-ejecutado">—</div>
-          <div class="kpi-sub">Card Metabase 71645</div>
+          <div class="kpi-sub" id="kpi-ejecutado-sub">Card Metabase 71645</div>
         </div>
         <div class="card kpi">
           <div class="kpi-label">OTs ejecutadas</div>
@@ -1126,6 +1126,11 @@
       .filter(o => !o.is_bia)
       .map(o => ADICIONALES[o.codigo_ot]?.monto || 0));
   }
+  function sumAdicionalesEjecutadas() {
+    return sum(otsEjecutadasMes()
+      .filter(o => !o.is_bia)
+      .map(o => ADICIONALES[o.codigo_ot]?.monto || 0));
+  }
 
   function getBudget() {
     const am = SELECTED_MONTH || DATA.anio_mes_actual;
@@ -1161,6 +1166,7 @@
 
     // Cálculos con los helpers filtrados por mes
     const ejec = totalEjecutadoServicios();
+    const adicEjec = sumAdicionalesEjecutadas();
     const descE = descargosEjecutados();
     const acompE = acompanamientosEjecutados();
     const forecastOTs = totalForecastOTs();
@@ -1168,7 +1174,8 @@
     const descP = descargosProyectados();
     const acompP = acompanamientosProyectados();
 
-    const totalEjec = ejec + descE + acompE;
+    const ejecConAdic = ejec + adicEjec;
+    const totalEjec = ejecConAdic + descE + acompE;
     const totalForecast = forecastOTs + adicAbiertas + descP + acompP;
     const totalProy = totalEjec + totalForecast;
 
@@ -1177,7 +1184,10 @@
     for (const o of otsEjec) breakdown[o.service_type_id] = (breakdown[o.service_type_id] || 0) + 1;
     const breakdownTxt = Object.entries(breakdown).map(([k, v]) => `${v} ${k}`).join(' · ') || 'sin ejecutadas';
 
-    $('kpi-ejecutado').textContent = fmtCOP(ejec);
+    $('kpi-ejecutado').textContent = fmtCOP(ejecConAdic);
+    $('kpi-ejecutado-sub').textContent = adicEjec > 0
+      ? `Card 71645 (${fmtCOP(ejec)}) + ${fmtCOP(adicEjec)} adicionales`
+      : 'Card Metabase 71645';
     $('kpi-ots-ejec').textContent = otsEjec.length;
     $('kpi-ots-ejec-sub').textContent = breakdownTxt;
     $('kpi-descargos-acomp').textContent = fmtCOP(descE + acompE);
@@ -1203,14 +1213,21 @@
 
     // Servicios bar
     const ejecRows = ejecutadoServiciosMes();
-    const maxMonto = Math.max(...ejecRows.map(r => r.monto || 0), 1);
-    $('services-list').innerHTML = ejecRows
+    const maxMonto = Math.max(...ejecRows.map(r => r.monto || 0), adicEjec, 1);
+    const rowsHtml = ejecRows
       .filter(r => r.monto > 0).sort((a, b) => b.monto - a.monto)
       .map(r => `<div class="service-row">
         <div>${r.servicio} <span class="badge ext">${r.service_type_id}</span></div>
         <div class="service-bar-bg"><div class="service-bar-fill" style="width:${(r.monto / maxMonto * 100).toFixed(1)}%"></div></div>
         <div class="amount">${fmtCOP(r.monto)}</div>
-      </div>`).join('') || '<div class="empty">Sin ejecutado registrado.</div>';
+      </div>`).join('');
+    const adicRow = adicEjec > 0
+      ? `<div class="service-row" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:4px">
+          <div>Gastos adicionales <span class="badge bia">manual</span></div>
+          <div class="service-bar-bg"><div class="service-bar-fill" style="width:${(adicEjec / maxMonto * 100).toFixed(1)}%;background:var(--info)"></div></div>
+          <div class="amount">${fmtCOP(adicEjec)}</div>
+        </div>` : '';
+    $('services-list').innerHTML = (rowsHtml + adicRow) || '<div class="empty">Sin ejecutado registrado.</div>';
 
     $('extras-tbody').innerHTML = `
       <tr><td>Descargos</td><td class="right">${fmtCOP(descE)}</td><td class="right">${fmtCOP(descP)}</td></tr>
