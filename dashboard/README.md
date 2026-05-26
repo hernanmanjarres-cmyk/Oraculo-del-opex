@@ -124,6 +124,23 @@ dashboard/
 └── README.md
 ```
 
+## 👥 Cómo se registra un usuario nuevo
+
+No hay registro formal — cualquier persona con correo `@bia.app` puede entrar.
+
+**Flujo:**
+
+1. La persona abre la URL del dashboard
+2. Click **"Continuar con Google"** → elige su cuenta `@bia.app`
+3. Un trigger de Supabase crea automáticamente la entrada en `dashboard_users` con rol `lector`
+4. Entra al dashboard como lector (puede ver todo, no puede editar)
+5. Vos como super_admin entrás a la pestaña Admin → la ves listada en "Usuarios registrados" → cambiás su rol a `usuario` o `super_admin` si corresponde
+
+**Personas fuera de BIA**:
+- El selector de Google solo muestra cuentas `@bia.app` (hint `hd=bia.app`)
+- Si alguien fuerza el login con otra cuenta (ej: gmail personal), el dashboard detecta el dominio incorrecto y le cierra sesión con error
+- Adicionalmente, el trigger NO los inserta en `dashboard_users`, así que no aparecen ni en el log de Admin
+
 ## 🔐 Cómo funcionan los roles
 
 | Acción | lector | usuario | super_admin |

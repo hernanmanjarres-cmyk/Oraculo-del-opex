@@ -214,6 +214,35 @@ CREATE TRIGGER trg_dashboard_presupuestos_updated
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 
+-- ── 5) AUTO-REGISTRO DE NUEVOS USUARIOS @bia.app ───────────────────────
+-- Cuando alguien se autentica por primera vez (Google OAuth) y su correo
+-- termina en @bia.app, lo insertamos automáticamente en dashboard_users
+-- con rol 'lector'. El super_admin puede luego promoverlo desde la UI.
+-- Los correos NO @bia.app NO se registran (el front igual los bloquea con signOut).
+
+CREATE OR REPLACE FUNCTION public.auto_register_dashboard_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.email IS NOT NULL AND LOWER(NEW.email) LIKE '%@bia.app' THEN
+    INSERT INTO public.dashboard_users (email, role, updated_by, display_name)
+    VALUES (
+      LOWER(NEW.email),
+      'lector',
+      'auto-register',
+      COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name')
+    )
+    ON CONFLICT (email) DO NOTHING;  -- no sobreescribe roles existentes
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.auto_register_dashboard_user();
+
+
 -- ═══════════════════════════════════════════════════════════════
 -- Verificación
 -- ═══════════════════════════════════════════════════════════════
